@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: coreq
+spec:
+  selector:
+    app.kubernetes.io/name: coreq
+  ports:
+    - port: 4000
+      targetPort: 4000
+      name: http

@@ -1,0 +1,38 @@
+# Optional: build and run all application images together (plus RabbitMQ).
+# Usage: docker compose -f docker-compose.platform.yml up --build
+# Service names are DNS-safe lowercase; folders remain comDash, apiGate, coreQ, authQ.
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: cityq
+      RABBITMQ_DEFAULT_PASS: cityq_dev_change_me
+
+  authq:
+    build: ./authQ
+    ports:
+      - "4100:4100"
+    environment:
+      JWT_SECRET: dev-secret-change-in-prod
+
+  coreq:
+    build: ./coreQ
+    ports:
+      - "4000:4000"
+
+  apigate:
+    build: ./apiGate
+    ports:
+      - "8080:8080"
+    environment:
+      CORE_BACKEND_URL: http://coreq:4000
+    depends_on:
+      - coreq
+
+  comdash:
+    build: ./comDash
+    ports:
+      - "3000:3000"

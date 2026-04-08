@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apigate
+  labels:
+    app.kubernetes.io/name: apigate
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: apigate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: apigate
+    spec:
+      containers:
+        - name: apigate
+          image: cityq/apigate:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: CORE_BACKEND_URL
+              value: "http://coreq:4000"
+            - name: PORT
+              value: "8080"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20

@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.next/
+.env
+.env.*
+!.env.example
+coverage/
+*.log
+.DS_Store
+
+# Accidental Next/webpack debug dumps at repo root
+_debug_*.js
+_debug_*.txt
+
+# Local Aurora template / reference tree (not part of shipped portal baseline)
+aurora_ui/
+
+# Cursor IDE project metadata
+.cursor/

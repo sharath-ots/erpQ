@@ -1,0 +1,260 @@
+# erpQ — single stack (repo root):  docker compose up -d --build
+#
+# --- Reverse proxy (pick ONE) ---
+#
+# A) Your own nginx-proxy (same network as DBs, etc.): do NOT use profile "proxy".
+#    - Container name (e.g. nginx-proxy) is NOT the Docker network name.
+#    - If your Compose project/stack is named "proxy", the default network is usually proxy_default
+#      (see: docker network ls | findstr proxy).
+#    - Default: NGINX_PROXY_NETWORK=proxy_default (override in .env if yours differs, e.g. myproject_default).
+#    - Host port 8081→80 on the proxy avoids Windows issues with binding host :80.
+#    - Browse:  http://api.local:8081
+#
+# B) Optional compose-managed proxy on 8081:
+#      docker compose --profile proxy up -d
+#    Only one container should mount docker.sock for nginx-proxy.
+# Hosts/DNS: api.local mq.local core.local auth.local dashboard.local → server IP
+# Override subdomains: VIRTUAL_HOST_API, VIRTUAL_HOST_MQ, etc.
+#
+# Direct host ports (optional): 13000 dashboard, 3100 auth login UI (Next), 14000 core, 14100 auth API, 18080 apigate, 5672/15672 rabbitmq
+
+services:
+  # Optional: official nginx-proxy; host ${NGINX_PROXY_HTTP_PORT:-8081} -> container 80 (avoids binding host :80)
+  nginx-proxy:
+    profiles: ["proxy"]
+    image: nginxproxy/nginx-proxy:latest
+    container_name: erpq-nginx-proxy
+    restart: unless-stopped
+    ports:
+      - "${NGINX_PROXY_HTTP_PORT:-8081}:80"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    networks:
+      - proxy
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: erpq
+      RABBITMQ_DEFAULT_PASS: erpq_dev_change_me
+      VIRTUAL_HOST: ${VIRTUAL_HOST_MQ:-mq.local}
+      VIRTUAL_PORT: "15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: unless-stopped
+    networks:
+      - default
+      - proxy
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  core:
+    build:
+      context: ./coreQ
+      dockerfile: Dockerfile
+    image: erpq/core:latest
+    ports:
+      - "14000:4000"
+    environment:
+      PORT: "4000"
+      HOST: "0.0.0.0"
+      # Default 1 so portal menus + ERP REST register when you set ERPNEXT_* in .env. Set to 0 to disable.
+      CITYQ_MODULE_ERP: ${CITYQ_MODULE_ERP:-1}
+      CITYQ_MODULE_CRM: ${CITYQ_MODULE_CRM:-1}
+      VIRTUAL_HOST: ${VIRTUAL_HOST_CORE:-core.local}
+      VIRTUAL_PORT: "4000"
+    restart: unless-stopped
+    networks:
+      - default
+      - proxy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  auth:
+    build:
+      context: ./authQ
+      dockerfile: Dockerfile
+    image: erpq/auth:latest
+    ports:
+      - "14100:4100"
+    environment:
+      PORT: "4100"
+      HOST: "0.0.0.0"
+      JWT_SECRET: ${JWT_SECRET:-erpq-dev-jwt-change-me}
+      CITYQ_INTERNAL_KEY: ${CITYQ_INTERNAL_KEY:-cityq-dev-internal-change-me}
+      VIRTUAL_HOST: ${VIRTUAL_HOST_AUTH:-auth.local}
+      VIRTUAL_PORT: "4100"
+    restart: unless-stopped
+    networks:
+      - default
+      - proxy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4100/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # Browser login UI (comDash AuthGate → http://localhost:3100/login). Auth API alone (14100) has no /login page.
+  auth-web:
+    build:
+      context: ./authQ/web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_APIGATE_URL: ${NEXT_PUBLIC_APIGATE_URL:-http://localhost:18080}
+        NEXT_PUBLIC_COMDASH_URL: ${NEXT_PUBLIC_COMDASH_URL:-http://localhost:13000}
+        NEXT_PUBLIC_LOGIN_DEV_BYPASS: ${NEXT_PUBLIC_LOGIN_DEV_BYPASS:-false}
+        NEXT_PUBLIC_ERPNEXT_SITE_LABEL: ${NEXT_PUBLIC_ERPNEXT_SITE_LABEL:-ERPNext (cityqerp.ortusolis.in)}
+    image: erpq/auth-web:latest
+    ports:
+      - "3100:3000"
+    environment:
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+    restart: unless-stopped
+    networks:
+      - default
+      - proxy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  apigate:
+    build:
+      context: .
+      dockerfile: apiGate/Dockerfile
+    image: erpq/apigate:latest
+    ports:
+      - "18080:8080"
+    environment:
+      PORT: "8080"
+      HOST: "0.0.0.0"
+      JWT_SECRET: ${JWT_SECRET:-erpq-dev-jwt-change-me}
+      CORE_BACKEND_URL: http://core:4000
+      AUTHQ_URL: http://auth:4100
+      CITYQ_INTERNAL_KEY: ${CITYQ_INTERNAL_KEY:-cityq-dev-internal-change-me}
+      ERPNEXT_URL: ${ERPNEXT_URL:-}
+      # Optional: public browser URL if ERPNEXT_URL is an internal hostname
+      ERPNEXT_PUBLIC_URL: ${ERPNEXT_PUBLIC_URL:-}
+      ERPNEXT_API_KEY: ${ERPNEXT_API_KEY:-}
+      ERPNEXT_API_SECRET: ${ERPNEXT_API_SECRET:-}
+      ERPNEXT_CRM_PATH: ${ERPNEXT_CRM_PATH:-/app/crm}
+      # Optional: appended to ERPNext iframe URLs (Frappe route_options). Try full_page=1 for wider list views.
+      ERPNEXT_IFRAME_QUERY: ${ERPNEXT_IFRAME_QUERY:-}
+      ERP_ALLOW_DOCTYPE_DISCOVERY: ${ERP_ALLOW_DOCTYPE_DISCOVERY:-0}
+      ERP_PARTNER_RATE_MAX: ${ERP_PARTNER_RATE_MAX:-600}
+      PAYMENT_PARTNER_RATE_MAX: ${PAYMENT_PARTNER_RATE_MAX:-120}
+      ERP_DEFAULT_DOCTYPES: ${ERP_DEFAULT_DOCTYPES:-Lead,Opportunity,Customer,Contact,DocType,Quotation}
+      VIRTUAL_HOST: ${VIRTUAL_HOST_API:-api.local}
+      VIRTUAL_PORT: "8080"
+    depends_on:
+      auth:
+        condition: service_started
+      core:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - default
+      - proxy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  comdash:
+    build:
+      context: .
+      dockerfile: comDash/Dockerfile
+    image: erpq/comdash:latest
+    ports:
+      - "13000:3000"
+    environment:
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      # Next.js rewrites /api/v1/* to this URL server-side (no client-side IP needed).
+      APIGATE_INTERNAL_URL: http://apigate:8080
+      # Auth-web login page URL — must be reachable from the user's browser.
+      # Override in .env if your server is not localhost (e.g. NEXT_PUBLIC_AUTH_URL=http://192.168.1.100:3100)
+      NEXT_PUBLIC_AUTH_URL: ${NEXT_PUBLIC_AUTH_URL:-http://localhost:3100}
+      VIRTUAL_HOST: ${VIRTUAL_HOST_DASHBOARD:-dashboard.local}
+      VIRTUAL_PORT: "3000"
+    restart: unless-stopped
+    networks:
+      - default
+      - proxy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  # Reverse proxy for ERPNext desk iframe.
+  # Strips X-Frame-Options + rewrites cookies so the browser accepts the embedded desk.
+  # Set ERPNEXT_PUBLIC_URL=http://192.168.1.100:13002 in .env to activate.
+  erp-proxy:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    image: erpq/erp-proxy:latest
+    ports:
+      - "13002:80"
+    restart: unless-stopped
+    networks:
+      - default
+
+volumes:
+  rabbitmq_data:
+
+networks:
+  # Compose project "proxy" typically creates network "proxy_default" — same net as nginx-proxy container.
+  proxy:
+    external: true
+    name: ${NGINX_PROXY_NETWORK:-proxy_default}

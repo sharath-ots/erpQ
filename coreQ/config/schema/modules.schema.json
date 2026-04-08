@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cityq.local/schema/modules.json",
+  "title": "CityQ module registry",
+  "type": "object",
+  "required": ["version", "modules"],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "modules": {
+      "type": "object",
+      "additionalProperties": { "type": "boolean" },
+      "properties": {
+        "erp": { "type": "boolean" },
+        "crm": { "type": "boolean" },
+        "messaging": { "type": "boolean" }
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,24 @@
+{
+  "name": "@cityq/authq",
+  "version": "0.1.0",
+  "private": true,
+  "description": "authQ — OIDC/OAuth2, SSO hooks, RBAC/ABAC policy service",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "build": "node scripts/sync-dist.mjs",
+    "start": "node dist/index.js",
+    "lint": "eslint src --ext .js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.0.1",
+    "@fastify/jwt": "^9.0.2",
+    "fastify": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0"
+  }
+}

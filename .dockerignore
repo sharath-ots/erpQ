@@ -1,0 +1,23 @@
+# Monorepo root — used when compose build.context is "." (comDash, apiGate, etc.)
+# Without this, "transferring context" sends node_modules, .next, and docs (often 500MB–1GB+).
+
+.git
+**/.git
+**/node_modules
+**/dist
+**/.next
+**/out
+**/coverage
+**/.turbo
+**/.cache
+**/cypress
+**/.pytest_cache
+**/__pycache__
+*.log
+*.md
+.env
+.env.*
+!.env.example
+
+# Large reference trees — keep Aurora template for comDash webpack aliases (see comDash/next.config.js).
+# comDash/docs/aurora is required at build time; other docs can be excluded if added back as specific paths.

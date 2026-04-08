@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: comdash
+  labels:
+    app.kubernetes.io/name: comdash
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: comdash
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: comdash
+    spec:
+      containers:
+        - name: comdash
+          image: cityq/comdash:latest
+          ports:
+            - containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 30
