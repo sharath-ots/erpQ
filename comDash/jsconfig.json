@@ -2,7 +2,8 @@
   "compilerOptions": {
     "paths": {
       "@/*": ["./src/*"],
-      "@cityq/crmq": ["../crmQ/src/index.js"]
+      "@cityq/crmq": ["../crmQ/src/index.js"],
+      "data/*": ["./src/aurora/data/*"]
     }
   }
 }

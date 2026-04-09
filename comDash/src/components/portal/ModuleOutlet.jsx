@@ -12,10 +12,17 @@ const CrmqShell = dynamic(
   { ssr: false, loading: () => <Spin style={{ display: "block", margin: "40px auto" }} /> },
 );
 
+/** Aurora CRM dashboard (same layout as aurora_ui `dashboard/crm`) — portal home for `/m/crmq` only. */
+const AuroraCrmDashboard = dynamic(
+  () => import("components/sections/dashboards/crm"),
+  { ssr: false, loading: () => <Spin style={{ display: "block", margin: "40px auto" }} /> },
+);
+
 export function ModuleOutlet() {
   const { menuItems, deskBaseUrl, deskIframeQuery } = usePortalMenu();
   const pathname = usePathname();
   const mod = findMenuItem(menuItems, pathname);
+  const pathNorm = pathname.replace(/\/$/, "") || "/";
 
   if (!mod) {
     return (
@@ -28,6 +35,10 @@ export function ModuleOutlet() {
         </Typography.Paragraph>
       </Card>
     );
+  }
+
+  if (pathNorm === "/m/crmq") {
+    return <AuroraCrmDashboard />;
   }
 
   if (pathname.startsWith("/m/crmq")) {

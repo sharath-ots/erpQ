@@ -109,12 +109,14 @@ const nextConfig = {
       for (const f of fs.readdirSync(themeStylesDir)) {
         if (!/\.(js|jsx)$/i.test(f)) continue;
         const base = f.replace(/\.(js|jsx)$/i, "");
-        if (base === "swiper" || base === "reactDatepicker") continue;
+        if (base === "swiper") continue;
         themeAliases[`theme/styles/${base}`] = path.join(themeStylesDir, f);
       }
     }
 
     const auroraAliases = {
+      /** Matches aurora_ui `data/*` imports (CRM dashboard mock data, etc.). */
+      data: path.join(auroraSrc, "data"),
       providers: path.join(auroraSrc, "providers"),
       layouts: path.join(auroraSrc, "layouts"),
       lib: path.join(auroraSrc, "lib"),
@@ -137,9 +139,9 @@ const nextConfig = {
       __dirname,
       "src/aurora-shim/emptyThemeStyle.js",
     );
-    /** Must override after themeAliases so CssBaseline gets no-op theme fns (no swiper / react-datepicker packages). */
+    /** Swiper theme hook — optional package not bundled in comDash. */
     config.resolve.alias["theme/styles/swiper"] = emptyThemeStyle;
-    config.resolve.alias["theme/styles/reactDatepicker"] = emptyThemeStyle;
+    /** react-datepicker is a dependency; real `theme/styles/reactDatepicker` is used (imports package CSS). */
 
     return config;
   },
