@@ -1,16 +1,16 @@
 "use client";
 
 import { AntdRegistry } from "@ant-design/nextjs-registry";
-import { AuroraRootShell } from "./aurora/AuroraRootShell";
+import { PortalRootShell } from "./aurora/PortalRootShell";
 import { AuroraTokensProvider } from "@/components/providers/AuroraTokensProvider";
 
-/** Single client boundary for Ant Design + Aurora/MUI (avoids fragmented RSC→client edges). */
+/** Single client boundary for Ant Design + MUI theme shell (avoids fragmented RSC→client edges). */
 export function PortalClientRoot({ children }) {
   return (
     <AntdRegistry>
-      <AuroraRootShell>
+      <PortalRootShell>
         <AuroraTokensProvider>{children}</AuroraTokensProvider>
-      </AuroraRootShell>
+      </PortalRootShell>
     </AntdRegistry>
   );
 }

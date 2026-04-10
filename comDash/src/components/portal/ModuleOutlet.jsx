@@ -12,9 +12,13 @@ const CrmqShell = dynamic(
   { ssr: false, loading: () => <Spin style={{ display: "block", margin: "40px auto" }} /> },
 );
 
-/** Aurora CRM dashboard (same layout as aurora_ui `dashboard/crm`) — portal home for `/m/crmq` only. */
-const AuroraCrmDashboard = dynamic(
-  () => import("components/sections/dashboards/crm"),
+const HrqShell = dynamic(
+  () => import("@cityq/hrq").then((m) => ({ default: m.HrqShell })),
+  { ssr: false, loading: () => <Spin style={{ display: "block", margin: "40px auto" }} /> },
+);
+
+const PurqShell = dynamic(
+  () => import("@cityq/purq").then((m) => ({ default: m.PurqShell })),
   { ssr: false, loading: () => <Spin style={{ display: "block", margin: "40px auto" }} /> },
 );
 
@@ -22,7 +26,6 @@ export function ModuleOutlet() {
   const { menuItems, deskBaseUrl, deskIframeQuery } = usePortalMenu();
   const pathname = usePathname();
   const mod = findMenuItem(menuItems, pathname);
-  const pathNorm = pathname.replace(/\/$/, "") || "/";
 
   if (!mod) {
     return (
@@ -37,13 +40,33 @@ export function ModuleOutlet() {
     );
   }
 
-  if (pathNorm === "/m/crmq") {
-    return <AuroraCrmDashboard />;
-  }
-
   if (pathname.startsWith("/m/crmq")) {
     return (
       <CrmqShell
+        pathname={pathname}
+        deskBaseUrl={deskBaseUrl ?? undefined}
+        deskIframeQuery={deskIframeQuery ?? undefined}
+        apiBase={apiBase}
+        getAccessToken={getAccessToken}
+      />
+    );
+  }
+
+  if (pathname.startsWith("/m/hrq")) {
+    return (
+      <HrqShell
+        pathname={pathname}
+        deskBaseUrl={deskBaseUrl ?? undefined}
+        deskIframeQuery={deskIframeQuery ?? undefined}
+        apiBase={apiBase}
+        getAccessToken={getAccessToken}
+      />
+    );
+  }
+
+  if (pathname.startsWith("/m/purq")) {
+    return (
+      <PurqShell
         pathname={pathname}
         deskBaseUrl={deskBaseUrl ?? undefined}
         deskIframeQuery={deskIframeQuery ?? undefined}

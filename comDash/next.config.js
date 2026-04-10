@@ -1,7 +1,7 @@
 const path = require("path");
 const fs = require("fs");
 
-/** Aurora source lives in comDash/src/aurora — same webpack context, same node_modules, one React. */
+/** Vendored shell UI + shared providers under comDash/src/aurora (webpack aliases below). */
 const auroraSrc = path.join(__dirname, "src", "aurora");
 
 /** Pin MUI packages to comDash/node_modules (guards against nested installs in aurora or crmQ). */
@@ -22,7 +22,7 @@ function aliasMuiPackages(config) {
   }
 }
 
-/** Bridge overrides for aurora components: simpler implementations without iconify-register or MUI resolution issues. */
+/** Bridge overrides for vendored layout components (Iconify/SimpleBar shims). */
 function aliasAuroraBridgeComponents(config) {
   const bridge = path.join(__dirname, "src", "aurora-bridge");
   const icon = (...parts) => path.join(bridge, "icons", ...parts);
@@ -115,7 +115,7 @@ const nextConfig = {
     }
 
     const auroraAliases = {
-      /** Matches aurora_ui `data/*` imports (CRM dashboard mock data, etc.). */
+      /** Theme bundle mock data (`data/*` imports in src/aurora). */
       data: path.join(auroraSrc, "data"),
       providers: path.join(auroraSrc, "providers"),
       layouts: path.join(auroraSrc, "layouts"),
@@ -132,6 +132,34 @@ const nextConfig = {
       auroraAliases[`components/${sub}`] = path.join(auroraComponentsRoot, sub);
     }
     Object.assign(config.resolve.alias, auroraAliases, themeAliases);
+
+    /**
+     * crmQ copies of the CRM dashboard must win over the generic `components/sections` → aurora
+     * mapping (and `data` → aurora) so pasted `aurora_ui`-style bare imports resolve into crmQ.
+     */
+    const crmqSrc = path.resolve(__dirname, "../crmQ/src");
+    Object.assign(config.resolve.alias, {
+      "components/sections/dashboards/crm": path.join(
+        crmqSrc,
+        "components/sections/dashboards/crm",
+      ),
+      "data/crm/dashboard": path.join(crmqSrc, "data/crm/dashboard.js"),
+    });
+
+    /** hrQ — HR module sibling package */
+    config.resolve.alias["@cityq/hrq"] = path.resolve(__dirname, "../hrQ/src/index.js");
+    const hrqSrc = path.resolve(__dirname, "../hrQ/src");
+    Object.assign(config.resolve.alias, {
+      "components/sections/dashboards/hrm": path.join(
+        hrqSrc,
+        "components/sections/dashboards/hrm",
+      ),
+      "data/hrm/dashboard": path.join(hrqSrc, "data/hrm/dashboard.js"),
+    });
+
+    /** purQ — Purchasing module sibling package */
+    config.resolve.alias["@cityq/purq"] = path.resolve(__dirname, "../purQ/src/index.js");
+
     aliasMuiPackages(config);
     aliasAuroraBridgeComponents(config);
 

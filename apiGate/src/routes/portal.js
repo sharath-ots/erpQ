@@ -21,6 +21,34 @@ function deskPublicBase() {
 }
 
 /**
+ * HR sidebar. Paths must match hrQ HrqShell + hrListViews.js.
+ */
+function buildHrMenuChildren() {
+  return [
+    { key: "hrq-dash", label: "Dashboard", path: "/m/hrq" },
+    { key: "hrq-employees", label: "Employees", path: "/m/hrq/list/Employee" },
+    { key: "hrq-departments", label: "Departments", path: "/m/hrq/list/Department" },
+    { key: "hrq-leaves", label: "Leave Applications", path: "/m/hrq/list/Leave Application" },
+    { key: "hrq-salary", label: "Salary Slips", path: "/m/hrq/list/Salary Slip" },
+    { key: "hrq-other", label: "Other doctypes", path: "/m/hrq/other" },
+  ];
+}
+
+/**
+ * Purchasing sidebar. Paths must match purQ PurqShell + purListViews.js.
+ */
+function buildPurMenuChildren() {
+  return [
+    { key: "purq-dash", label: "Dashboard", path: "/m/purq" },
+    { key: "purq-suppliers", label: "Suppliers", path: "/m/purq/list/Supplier" },
+    { key: "purq-po", label: "Purchase Orders", path: "/m/purq/list/Purchase Order" },
+    { key: "purq-pi", label: "Purchase Invoices", path: "/m/purq/list/Purchase Invoice" },
+    { key: "purq-items", label: "Items", path: "/m/purq/list/Item" },
+    { key: "purq-other", label: "Other doctypes", path: "/m/purq/other" },
+  ];
+}
+
+/**
  * CRM sidebar (comDash is the only nav). Paths must match crmQ CrmqShell + crmListViews.js.
  */
 function buildCrmMenuChildren() {
@@ -103,6 +131,24 @@ export async function registerPortalRoutes(app) {
           label: "CRM",
           path: "/m/crmq",
           children: buildCrmMenuChildren(),
+        });
+      }
+
+      if (process.env.CITYQ_PORTAL_HRQ !== "0") {
+        items.push({
+          key: "hrq-root",
+          label: "HR",
+          path: "/m/hrq",
+          children: buildHrMenuChildren(),
+        });
+      }
+
+      if (process.env.CITYQ_PORTAL_PURQ !== "0") {
+        items.push({
+          key: "purq-root",
+          label: "Purchasing",
+          path: "/m/purq",
+          children: buildPurMenuChildren(),
         });
       }
 

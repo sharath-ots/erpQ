@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { Paper } from '@mui/material';
-import { saleFunnelData } from 'data/crm/dashboard';
 import { BarChart } from 'echarts/charts';
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
@@ -11,6 +10,16 @@ import ReactEchart from 'components/base/ReactEchart';
 import { getThemePrimaryColors } from 'components/sections/dashboards/e-commerce/promo-slider/utils';
 
 echarts.use([TooltipComponent, GridComponent, BarChart, CanvasRenderer, LegendComponent]);
+
+/** Demo funnel values for theme preset preview (not CRM product data). */
+const saleFunnelData = {
+  awareness: 100,
+  research: 80,
+  intent: 65,
+  evaluation: 48,
+  negotiation: 37,
+  aquisition: 30,
+};
 
 const SaleFunnelChartCard = ({ themePreset }) => {
   const primaryPalette = getThemePrimaryColors(themePreset);

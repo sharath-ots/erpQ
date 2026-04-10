@@ -1,0 +1,19 @@
+{
+  "name": "@cityq/purq",
+  "version": "0.1.0",
+  "private": true,
+  "description": "purQ — Purchasing module plugin for comDash; all traffic via apiGate (JWT from authQ login)",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "antd": "^5.22.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

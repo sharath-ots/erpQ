@@ -1,0 +1,18 @@
+﻿export const users = [
+  { id: 0, name: "Yaga Masamichi", avatar: "", email: "yaga.masamichi@gmail.com", status: "online" },
+  { id: 1, name: "Manami Suda", avatar: "", email: "manami.suda@gmail.com", status: "online" },
+  { id: 2, name: "Okkotsu Yuta", avatar: "", email: "okkotsu.yuta@gmail.com", status: "online" },
+  { id: 3, name: "Kugisaki Nobara", avatar: "", email: "kugisaki.nobara@gmail.com", status: "online" },
+  { id: 4, name: "Nanami Kento", avatar: "", email: "nanami.kento@gmail.com", status: "online" },
+  { id: 5, name: "Fushiguro Megumi", avatar: "", email: "fushiguro.megumi@gmail.com", status: "online" },
+  { id: 6, name: "Nitta Akari", avatar: "", email: "nitta.akari@gmail.com", status: "online" },
+  { id: 7, name: "Inumaki Toge", avatar: "", email: "inumaki.toge@gmail.com", status: "online" },
+  { id: 8, name: "Todo Aoi", avatar: "", email: "todo.aoi@gmail.com", status: "online" },
+  { id: 9, name: "Iori Utahime", avatar: "", email: "iori.utahime@gmail.com", status: "online" },
+  { id: 10, name: "Tsukumo Yuki", avatar: "", email: "tsukumo.yuki@gmail.com", status: "online" },
+  { id: 11, name: "Sakurai Haruto", avatar: "", email: "sakurai.haruto@gmail.com", status: "online" },
+  { id: 12, name: "Gojo Satoru", avatar: "", email: "gojo.satoru@gmail.com", status: "online" },
+  { id: 13, name: "Hanami", avatar: "", email: "hanami@gmail.com", status: "online" },
+  { id: 14, name: "Zenin Maki", avatar: "", email: "zenin.maki@gmail.com", status: "online" },
+  { id: 15, name: "Momo Nishimiya", avatar: "", email: "momo.nishimiya@gmail.com", status: "online" },
+];

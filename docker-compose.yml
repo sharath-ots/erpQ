@@ -172,6 +172,9 @@ services:
       ERPNEXT_API_KEY: ${ERPNEXT_API_KEY:-}
       ERPNEXT_API_SECRET: ${ERPNEXT_API_SECRET:-}
       ERPNEXT_CRM_PATH: ${ERPNEXT_CRM_PATH:-/app/crm}
+      # Set to 0 to hide from the portal sidebar without a rebuild
+      CITYQ_PORTAL_HRQ: ${CITYQ_PORTAL_HRQ:-1}
+      CITYQ_PORTAL_PURQ: ${CITYQ_PORTAL_PURQ:-1}
       # Optional: appended to ERPNext iframe URLs (Frappe route_options). Try full_page=1 for wider list views.
       ERPNEXT_IFRAME_QUERY: ${ERPNEXT_IFRAME_QUERY:-}
       ERP_ALLOW_DOCTYPE_DISCOVERY: ${ERP_ALLOW_DOCTYPE_DISCOVERY:-0}

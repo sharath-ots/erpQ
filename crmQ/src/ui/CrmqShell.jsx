@@ -1,7 +1,7 @@
 "use client";
 
 import { Alert, Typography } from "antd";
-import { CrmqDashboard } from "./CrmqDashboard.jsx";
+import { CrmAuroraHome } from "./CrmAuroraHome.jsx";
 import { CrmEntityList } from "./CrmEntityList.jsx";
 import { CrmOtherDocTypesPage } from "./CrmOtherDocTypesPage.jsx";
 import { ErpDeskIframe } from "./ErpDeskIframe.jsx";
@@ -33,13 +33,7 @@ export function CrmqShell({
   }
 
   if (normalized === "/m/crmq") {
-    return (
-      <CrmqDashboard
-        deskBaseUrl={deskBaseUrl}
-        apiBase={apiBase}
-        getAccessToken={getAccessToken}
-      />
-    );
+    return <CrmAuroraHome />;
   }
 
   if (normalized === "/m/crmq/other") {
