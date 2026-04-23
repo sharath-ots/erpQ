@@ -3,31 +3,31 @@
  * Unlisted DocTypes → use “Other doctypes” only.
  */
 export const CRM_LIST_VIEWS = [
-  {
-    key: "leads",
-    label: "Leads",
-    doctype: "Lead",
-    listFields: [
-      "name",
-      "lead_name",
-      "status",
-      "company_name",
-      "email_id",
-      "modified",
-    ],
-  },
-  {
-    key: "opportunities",
-    label: "Opportunities",
-    doctype: "Opportunity",
-    listFields: [
-      "name",
-      "party_name",
-      "status",
-      "opportunity_amount",
-      "modified",
-    ],
-  },
+  // {
+  //   key: "leads",
+  //   label: "Leads",
+  //   doctype: "Lead",
+  //   listFields: [
+  //     "name",
+  //     "lead_name",
+  //     "status",
+  //     "company_name",
+  //     "email_id",
+  //     "modified",
+  //   ],
+  // },
+  // {
+  //   key: "opportunities",
+  //   label: "Opportunities",
+  //   doctype: "Opportunity",
+  //   listFields: [
+  //     "name",
+  //     "party_name",
+  //     "status",
+  //     "opportunity_amount",
+  //     "modified",
+  //   ],
+  // },
   {
     key: "customers",
     label: "Customers",
