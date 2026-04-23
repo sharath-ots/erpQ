@@ -202,9 +202,6 @@ const Editor = ({
       extensions={defaultExtensions}
       immediatelyRender={false}
       renderControls={() => editorDefaultToolbar(imageUploadHandler)}
-      children={(editor) =>
-        editor ? <LinkBubbleMenu PaperProps={{ sx: { bgcolor: 'background.elevation1' } }} /> : null
-      }
       onUpdate={({ editor }) => {
         const html = editor.getHTML();
         if (onChange) {
@@ -275,7 +272,11 @@ const Editor = ({
         ...sx,
       }}
       {...rest}
-    />
+    >
+      {(editor) =>
+        editor ? <LinkBubbleMenu PaperProps={{ sx: { bgcolor: 'background.elevation1' } }} /> : null
+      }
+    </RichTextEditor>
   );
 };
 

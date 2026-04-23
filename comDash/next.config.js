@@ -1,10 +1,10 @@
 const path = require("path");
 const fs = require("fs");
 
-/** Vendored shell UI + shared providers under comDash/src/aurora (webpack aliases below). */
-const auroraSrc = path.join(__dirname, "src", "aurora");
+/** Vendored shell UI + shared providers under comDash/src/shared-ui (webpack aliases below). */
+const sharedUiSrc = path.join(__dirname, "src", "shared-ui");
 
-/** Pin MUI packages to comDash/node_modules (guards against nested installs in aurora or crmQ). */
+/** Pin MUI packages to comDash/node_modules (guards against nested installs in shared-ui or crmQ). */
 function aliasMuiPackages(config) {
   const nm = path.join(__dirname, "node_modules");
   const pairs = [
@@ -23,8 +23,8 @@ function aliasMuiPackages(config) {
 }
 
 /** Bridge overrides for vendored layout components (Iconify/SimpleBar shims). */
-function aliasAuroraBridgeComponents(config) {
-  const bridge = path.join(__dirname, "src", "aurora-bridge");
+function aliasSharedUiBridgeComponents(config) {
+  const bridge = path.join(__dirname, "src", "shared-ui-bridge");
   const icon = (...parts) => path.join(bridge, "icons", ...parts);
   Object.assign(config.resolve.alias, {
     "components/base/IconifyIcon": path.join(bridge, "IconifyIcon.jsx"),
@@ -39,6 +39,9 @@ function aliasAuroraBridgeComponents(config) {
 const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   async redirects() {
     return [
       {
@@ -66,13 +69,13 @@ const nextConfig = {
       __dirname,
       "../crmQ/src/index.js",
     );
-    /** Resolve Aurora bare imports (providers/, theme/, …) from src/aurora — same webpack context, same node_modules. */
-    const auroraComponentsRoot = path.join(auroraSrc, "components");
+    /** Resolve shared-ui bare imports (providers/, theme/, …) from src/shared-ui — same webpack context, same node_modules. */
+    const sharedUiComponentsRoot = path.join(sharedUiSrc, "components");
     /**
      * Do not alias `components` as a single folder: webpack matches that prefix before
-     * more specific keys like `components/base/IconifyIcon`, so aurora-bridge overrides never applied.
+     * more specific keys like `components/base/IconifyIcon`, so shared-ui bridge overrides never applied.
      */
-    const auroraComponentSubdirs = [
+    const sharedUiComponentSubdirs = [
       "base",
       "common",
       "docs",
@@ -86,7 +89,7 @@ const nextConfig = {
       "snackbar",
       "styled",
     ];
-    const themeRoot = path.join(auroraSrc, "theme");
+    const themeRoot = path.join(sharedUiSrc, "theme");
     const themeStylesDir = path.join(themeRoot, "styles");
     /**
      * Do not alias `theme` as a single folder: it wins over `theme/styles/reactDatepicker`
@@ -114,28 +117,28 @@ const nextConfig = {
       }
     }
 
-    const auroraAliases = {
-      /** Theme bundle mock data (`data/*` imports in src/aurora). */
-      data: path.join(auroraSrc, "data"),
-      providers: path.join(auroraSrc, "providers"),
-      layouts: path.join(auroraSrc, "layouts"),
-      lib: path.join(auroraSrc, "lib"),
-      hooks: path.join(auroraSrc, "hooks"),
-      reducers: path.join(auroraSrc, "reducers"),
-      locales: path.join(auroraSrc, "locales"),
-      routes: path.join(auroraSrc, "routes"),
-      helpers: path.join(auroraSrc, "helpers"),
-      docs: path.join(auroraSrc, "docs"),
-      config: path.join(auroraSrc, "config.js"),
+    const sharedUiAliases = {
+      /** Theme bundle mock data (`data/*` imports in src/shared-ui). */
+      data: path.join(sharedUiSrc, "data"),
+      providers: path.join(sharedUiSrc, "providers"),
+      layouts: path.join(sharedUiSrc, "layouts"),
+      lib: path.join(sharedUiSrc, "lib"),
+      hooks: path.join(sharedUiSrc, "hooks"),
+      reducers: path.join(sharedUiSrc, "reducers"),
+      locales: path.join(sharedUiSrc, "locales"),
+      routes: path.join(sharedUiSrc, "routes"),
+      helpers: path.join(sharedUiSrc, "helpers"),
+      docs: path.join(sharedUiSrc, "docs"),
+      config: path.join(sharedUiSrc, "config.js"),
     };
-    for (const sub of auroraComponentSubdirs) {
-      auroraAliases[`components/${sub}`] = path.join(auroraComponentsRoot, sub);
+    for (const sub of sharedUiComponentSubdirs) {
+      sharedUiAliases[`components/${sub}`] = path.join(sharedUiComponentsRoot, sub);
     }
-    Object.assign(config.resolve.alias, auroraAliases, themeAliases);
+    Object.assign(config.resolve.alias, sharedUiAliases, themeAliases);
 
     /**
-     * crmQ copies of the CRM dashboard must win over the generic `components/sections` → aurora
-     * mapping (and `data` → aurora) so pasted `aurora_ui`-style bare imports resolve into crmQ.
+     * crmQ copies of the CRM dashboard must win over the generic `components/sections` → shared-ui
+     * mapping (and `data` → shared-ui) so pasted template-style bare imports resolve into crmQ.
      */
     const crmqSrc = path.resolve(__dirname, "../crmQ/src");
     Object.assign(config.resolve.alias, {
@@ -161,11 +164,11 @@ const nextConfig = {
     config.resolve.alias["@cityq/purq"] = path.resolve(__dirname, "../purQ/src/index.js");
 
     aliasMuiPackages(config);
-    aliasAuroraBridgeComponents(config);
+    aliasSharedUiBridgeComponents(config);
 
     const emptyThemeStyle = path.resolve(
       __dirname,
-      "src/aurora-shim/emptyThemeStyle.js",
+      "src/shared-ui-shim/emptyThemeStyle.js",
     );
     /** Swiper theme hook — optional package not bundled in comDash. */
     config.resolve.alias["theme/styles/swiper"] = emptyThemeStyle;

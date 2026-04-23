@@ -6,8 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 import { ModuleOutlet } from "./ModuleOutlet";
 import { apiFetch } from "@/lib/apigate";
 import { findMenuItem } from "@/lib/menuMatch";
-import MainLayoutCityQ from "./aurora/MainLayoutCityQ";
-import { PortalMenuProvider } from "./aurora/PortalMenuContext";
+import MainLayoutCityQ from "./shared-ui/MainLayoutCityQ";
+import { PortalMenuProvider } from "./shared-ui/PortalMenuContext";
 
 export function PortalShell() {
   const pathname = usePathname();

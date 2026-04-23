@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Spin } from "antd";
-import { isTokenExpired } from "@/lib/apigate";
+import { Button, Spin } from "antd";
+import { isTokenExpired, redirectToLogin } from "@/lib/apigate";
 
 /** Dev / cross-origin login: token arrives in hash (localStorage is per-origin; 3100 ≠ 13000). */
 function consumeTokenFromHash() {
@@ -31,7 +31,10 @@ export function AuthGate({ children }) {
     (async () => {
       // Fetch auth URL from server at runtime — avoids baking localhost:3100
       // into the JS bundle when building inside Docker.
-      let authUrl = "http://localhost:3100";
+      let authUrl =
+        typeof window !== "undefined"
+          ? `${window.location.protocol}//${window.location.hostname}:3100`
+          : "";
       try {
         const res = await fetch("/api/config");
         if (res.ok) {
@@ -65,5 +68,21 @@ export function AuthGate({ children }) {
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <div
+        style={{
+          position: "fixed",
+          top: 12,
+          right: 12,
+          zIndex: 9999,
+        }}
+      >
+        <Button onClick={() => redirectToLogin()} size="small">
+          Logout
+        </Button>
+      </div>
+      {children}
+    </>
+  );
 }

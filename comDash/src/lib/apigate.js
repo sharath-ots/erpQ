@@ -40,7 +40,11 @@ async function getAuthUrl() {
   } catch {
     // fall through
   }
-  return "http://localhost:3100";
+  // Fallback: same host as dashboard, auth-web default port 3100.
+  if (typeof window !== "undefined") {
+    return `${window.location.protocol}//${window.location.hostname}:3100`;
+  }
+  return "";
 }
 
 /** Clears the stored token and redirects the browser to the login page. */

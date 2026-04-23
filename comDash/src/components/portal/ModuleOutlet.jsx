@@ -3,9 +3,10 @@
 import dynamic from "next/dynamic";
 import { Card, Empty, Spin, Typography } from "antd";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { findMenuItem } from "@/lib/menuMatch";
-import { apiBase, getAccessToken } from "@/lib/apigate";
-import { usePortalMenu } from "./aurora/PortalMenuContext";
+import { apiBase, apiFetch, getAccessToken } from "@/lib/apigate";
+import { usePortalMenu } from "./shared-ui/PortalMenuContext";
 
 const CrmqShell = dynamic(
   () => import("@cityq/crmq").then((m) => ({ default: m.CrmqShell })),
@@ -26,6 +27,22 @@ export function ModuleOutlet() {
   const { menuItems, deskBaseUrl, deskIframeQuery } = usePortalMenu();
   const pathname = usePathname();
   const mod = findMenuItem(menuItems, pathname);
+  const lastSentRef = useRef(null);
+
+  useEffect(() => {
+    if (!mod?.key) return;
+    if (lastSentRef.current === pathname) return;
+    lastSentRef.current = pathname;
+    apiFetch("/api/v1/mq/events", {
+      method: "POST",
+      body: JSON.stringify({
+        type: "portal.module_viewed",
+        payload: { moduleKey: mod.key, path: pathname },
+      }),
+    }).catch(() => {
+      // Best-effort telemetry/event; ignore failures (mq may be disabled).
+    });
+  }, [pathname, mod?.key]);
 
   if (!mod) {
     return (

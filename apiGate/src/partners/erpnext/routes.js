@@ -4,6 +4,7 @@ import {
   assertDocTypeAllowed,
   AccessDeniedError,
 } from "../../auth/access.js";
+import { publishEvent } from "../../services/mqPublisher.js";
 
 function parseJsonParam(raw, label) {
   if (raw === undefined || raw === "") return undefined;
@@ -239,6 +240,19 @@ export async function registerErpnextResourceRoutes(app) {
         const doc = await getFrappeClientForGatewayUser(
           user.email,
         ).createDocument(doctype, request.body ?? {});
+
+        if (doctype === "Lead") {
+          publishEvent({
+            type: "crm.lead.created",
+            payload: {
+              lead: doc?.name,
+              lead_name: doc?.lead_name,
+              company_name: doc?.company_name,
+            },
+            meta: { actor: user.email ?? user.sub, via: "erpnext.resource.create" },
+          }).catch(() => {});
+        }
+
         return reply.code(201).send({ data: doc });
       } catch (e) {
         if (e instanceof FrappeApiError)

@@ -1,0 +1,14 @@
+## Optional override: connect services to an EXISTING external proxy network.
+## Use this only if you already have an nginx-proxy stack/network created elsewhere.
+##
+## Usage:
+##   docker compose -f docker-compose.yml -f docker-compose.external-proxy.yml up -d --build
+##
+## .env:
+##   NGINX_PROXY_NETWORK=proxy_default   # set to your existing network name
+
+networks:
+  proxy:
+    external: true
+    name: ${NGINX_PROXY_NETWORK:-proxy_default}
+

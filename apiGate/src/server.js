@@ -6,8 +6,11 @@ import { registerCoreProxy } from "./index.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerSessionRoutes } from "./routes/session.js";
 import { registerPortalRoutes } from "./routes/portal.js";
+import { registerMqRoutes } from "./routes/mq.js";
+import { registerCrmQRoutes } from "./routes/crmq.js";
 import { env } from "./config.js";
 import { getCoreModulesCached } from "./services/coreSettings.js";
+import { startMqWorkflowConsumer } from "./services/mqWorkflowConsumer.js";
 
 const app = Fastify({ logger: true });
 
@@ -28,6 +31,9 @@ await app.register(jwt, {
 await registerAuthRoutes(app);
 await registerSessionRoutes(app);
 await registerPortalRoutes(app);
+await registerMqRoutes(app);
+await registerCrmQRoutes(app);
+startMqWorkflowConsumer({ logger: app.log });
 
 const { paymentPartnerPlugin } = await import("./partners/payment/plugin.js");
 await app.register(paymentPartnerPlugin, {

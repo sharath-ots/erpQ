@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { Alert, Typography } from "antd";
-import { PurAuroraHome } from "./PurAuroraHome.jsx";
+import { PurHome } from "./PurHome.jsx";
 import { PurEntityList } from "./PurEntityList.jsx";
 import { PurOtherDocTypesPage } from "./PurOtherDocTypesPage.jsx";
 import { ErpDeskIframe } from "./ErpDeskIframe.jsx";
@@ -17,7 +17,7 @@ export function PurqShell({ pathname, deskBaseUrl, deskIframeQuery, apiBase, get
   }
 
   if (normalized === "/m/purq") {
-    return <PurAuroraHome />;
+    return <PurHome />;
   }
 
   if (normalized === "/m/purq/other") {

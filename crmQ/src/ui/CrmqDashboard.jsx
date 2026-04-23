@@ -1,5 +1,5 @@
 /**
- * Public name for the CRM portal home (Aurora-style dashboard).
- * Implementation: {@link CrmAuroraHome}
+ * Public name for the CRM portal home (dashboard).
+ * Implementation: {@link CrmHome}
  */
-export { CrmAuroraHome as CrmqDashboard, CrmAuroraHome as default } from "./CrmAuroraHome.jsx";
+export { CrmHome as CrmqDashboard, CrmHome as default } from "./CrmHome.jsx";

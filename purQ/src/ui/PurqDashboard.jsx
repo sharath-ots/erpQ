@@ -1,3 +1,3 @@
 ﻿"use client";
 
-export { PurAuroraHome as PurqDashboard, PurAuroraHome as default } from "./PurAuroraHome.jsx";
+export { PurHome as PurqDashboard, PurHome as default } from "./PurHome.jsx";

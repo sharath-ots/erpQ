@@ -40,7 +40,7 @@ const ShareRecipientSelector = ({ shareOption }) => {
           sx={{ bgcolor: 'transparent', p: 0, gap: 0.5 }}
         >
           {users.slice(0, 5).map((user) => (
-            <ToggleButton value="bold" aria-label="bold">
+            <ToggleButton key={user.id ?? user.name} value="bold" aria-label="bold">
               <Stack
                 direction="column"
                 gap={0.5}

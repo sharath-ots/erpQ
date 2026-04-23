@@ -18,6 +18,9 @@ export const env = {
   /** Dev-only: accept login with email only (no authQ) when 1 */
   devInsecureLogin: process.env.DEV_INSECURE_LOGIN === "1",
 
+  /** Optional RabbitMQ connection URL (enables MQ publishing routes when set). */
+  mqUrl: (process.env.CITYQ_MQ_URL ?? "").trim(),
+
   erpnextUrl: (process.env.ERPNEXT_URL ?? "").trim(),
   /** Browser-facing desk URL (defaults to ERPNEXT_URL). Use when internal Docker URL differs. */
   erpnextPublicUrl: (

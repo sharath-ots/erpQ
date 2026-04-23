@@ -1,3 +1,3 @@
 ﻿"use client";
 
-export { HrmAuroraHome as HrqDashboard, HrmAuroraHome as default } from "./HrmAuroraHome.jsx";
+export { HrmHome as HrqDashboard, HrmHome as default } from "./HrmHome.jsx";

@@ -1,11 +1,8 @@
 "use client";
 
-import { Button, Card, Form, Input, Typography, message } from "antd";
+import { Button, Card, Divider, Form, Input, Space, Typography, message } from "antd";
 import { useSearchParams } from "next/navigation";
 import { useState, Suspense } from "react";
-
-const apiBase =
-  process.env.NEXT_PUBLIC_APIGATE_URL ?? "http://localhost:18080";
 
 const erpSiteLabel =
   process.env.NEXT_PUBLIC_ERPNEXT_SITE_LABEL ?? "ERPNext";
@@ -15,24 +12,39 @@ const devBypass =
   process.env.NEXT_PUBLIC_LOGIN_DEV_BYPASS === "true" ||
   process.env.NEXT_PUBLIC_LOGIN_DEV_BYPASS === "1";
 
+function guessBase(port: number) {
+  if (typeof window === "undefined") return "";
+  return `${window.location.protocol}//${window.location.hostname}:${port}`;
+}
+
+function getApiBase() {
+  return (process.env.NEXT_PUBLIC_APIGATE_URL || guessBase(18080)).replace(/\/$/, "");
+}
+
+function getAuthQBase() {
+  return (process.env.NEXT_PUBLIC_AUTHQ_URL || guessBase(14100)).replace(/\/$/, "");
+}
+
+function getComDashBase() {
+  return (process.env.NEXT_PUBLIC_COMDASH_URL || guessBase(13000)).replace(/\/$/, "");
+}
+
 function LoginForm() {
   const [loading, setLoading] = useState(false);
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") ?? "/";
+  const oauthReturn = encodeURIComponent(`${getComDashBase()}/`);
 
   async function onFinish(values: { email: string; password?: string }) {
     setLoading(true);
     try {
-      const target =
-        searchParams.get("redirect") ??
-        process.env.NEXT_PUBLIC_COMDASH_URL ??
-        "http://localhost:13000";
+      const target = searchParams.get("redirect") ?? getComDashBase();
       const dest = new URL(
         target,
         typeof window !== "undefined" ? window.location.href : undefined,
       );
 
-      const res = await fetch(`${apiBase.replace(/\/$/, "")}/api/v1/auth/login`, {
+      const res = await fetch(`${getApiBase()}/api/v1/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -107,6 +119,27 @@ function LoginForm() {
           Continue
         </Button>
       </Form>
+      <Divider plain>or</Divider>
+      <Space direction="vertical" className="w-full" size="middle">
+        <Typography.Text type="secondary" className="block text-center text-xs">
+          OAuth redirects to authQ, then back to the dashboard with a token in the URL hash
+          (same as ERP password login).
+        </Typography.Text>
+        <Button
+          block
+          size="large"
+          href={`${getAuthQBase()}/oauth/google/start?return_url=${oauthReturn}`}
+        >
+          Continue with Google
+        </Button>
+        <Button
+          block
+          size="large"
+          href={`${getAuthQBase()}/oauth/zoho/start?return_url=${oauthReturn}`}
+        >
+          Continue with Zoho
+        </Button>
+      </Space>
     </Card>
   );
 }

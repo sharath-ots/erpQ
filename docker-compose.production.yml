@@ -1,30 +1,27 @@
-# erpQ — single stack (repo root):  docker compose up -d --build
-#
-# --- Reverse proxy (pick ONE) ---
-#
-# A) Your own nginx-proxy (same network as DBs, etc.): do NOT use profile "proxy".
-#    - Container name (e.g. nginx-proxy) is NOT the Docker network name.
-#    - If your Compose project/stack is named "proxy", the default network is usually proxy_default
-#      (see: docker network ls | findstr proxy).
-#    - Default: NGINX_PROXY_NETWORK=proxy_default (override in .env if yours differs, e.g. myproject_default).
-#    - Host port 8081→80 on the proxy avoids Windows issues with binding host :80.
-#    - Browse:  http://api.local:8081
-#
-# B) Optional compose-managed proxy on 8081:
-#      docker compose --profile proxy up -d
-#    Only one container should mount docker.sock for nginx-proxy.
-# Hosts/DNS: api.local mq.local core.local auth.local dashboard.local → server IP
-# Override subdomains: VIRTUAL_HOST_API, VIRTUAL_HOST_MQ, etc.
-#
-# Direct host ports (optional): 13000 dashboard, 3100 auth login UI (Next), 14000 core, 14100 auth API, 18080 apigate, 5672/15672 rabbitmq
+## Production compose
+## - Uses pre-built GHCR images (no local builds)
+## - Loads environment from repo-root .env
+##
+## Required in .env (recommended):
+##   GHCR_OWNER=sharath-ots
+##   GHCR_PREFIX=erpq
+##   APP_VERSION=0.1.1
+##
+## Optional (if you mirrored upstream images to GHCR):
+##   RABBITMQ_IMAGE=ghcr.io/<owner>/<prefix>-rabbitmq:0.1.1
+##   NGINX_PROXY_IMAGE=ghcr.io/<owner>/<prefix>-nginx-proxy:0.1.1
+##
+## Deploy:
+##   docker compose -f docker-compose.production.yml --env-file .env up -d
 
 services:
-  # Optional: official nginx-proxy; host ${NGINX_PROXY_HTTP_PORT:-8081} -> container 80 (avoids binding host :80)
   nginx-proxy:
     profiles: ["proxy"]
-    image: nginxproxy/nginx-proxy:latest
+    image: ${NGINX_PROXY_IMAGE:-nginxproxy/nginx-proxy:latest}
     container_name: erpq-nginx-proxy
     restart: unless-stopped
+    env_file:
+      - ./.env
     ports:
       - "${NGINX_PROXY_HTTP_PORT:-8081}:80"
     volumes:
@@ -33,19 +30,21 @@ services:
       - proxy
 
   rabbitmq:
-    image: rabbitmq:3.13-management-alpine
+    image: ${RABBITMQ_IMAGE:-rabbitmq:3.13-management-alpine}
     hostname: rabbitmq
+    restart: unless-stopped
+    env_file:
+      - ./.env
     ports:
       - "5672:5672"
       - "15672:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: erpq
-      RABBITMQ_DEFAULT_PASS: erpq_dev_change_me
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-erpq}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-erpq_dev_change_me}
       VIRTUAL_HOST: ${VIRTUAL_HOST_MQ:-mq.local}
       VIRTUAL_PORT: "15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
-    restart: unless-stopped
     networks:
       - default
       - proxy
@@ -57,23 +56,20 @@ services:
       start_period: 40s
 
   core:
-    build:
-      context: ./coreQ
-      dockerfile: Dockerfile
-    image: erpq/core:latest
+    image: ghcr.io/${GHCR_OWNER}/${GHCR_PREFIX:-erpq}-core:${APP_VERSION:-latest}
+    restart: unless-stopped
+    env_file:
+      - ./.env
     ports:
       - "14000:4000"
     environment:
       PORT: "4000"
       HOST: "0.0.0.0"
-      # Default 1 so portal menus + ERP REST register when you set ERPNEXT_* in .env. Set to 0 to disable.
       CITYQ_MODULE_ERP: ${CITYQ_MODULE_ERP:-1}
       CITYQ_MODULE_CRM: ${CITYQ_MODULE_CRM:-1}
-      # Optional: enables minimal MQ consumer in coreQ
       CITYQ_MQ_URL: ${CITYQ_MQ_URL:-amqp://cityq:erpq_dev_change_me@rabbitmq:5672}
       VIRTUAL_HOST: ${VIRTUAL_HOST_CORE:-core.local}
       VIRTUAL_PORT: "4000"
-    restart: unless-stopped
     networks:
       - default
       - proxy
@@ -91,10 +87,10 @@ services:
       start_period: 20s
 
   auth:
-    build:
-      context: ./authQ
-      dockerfile: Dockerfile
-    image: erpq/auth:latest
+    image: ghcr.io/${GHCR_OWNER}/${GHCR_PREFIX:-erpq}-auth:${APP_VERSION:-latest}
+    restart: unless-stopped
+    env_file:
+      - ./.env
     ports:
       - "14100:4100"
     environment:
@@ -102,7 +98,6 @@ services:
       HOST: "0.0.0.0"
       JWT_SECRET: ${JWT_SECRET:-erpq-dev-jwt-change-me}
       CITYQ_INTERNAL_KEY: ${CITYQ_INTERNAL_KEY:-cityq-dev-internal-change-me}
-      # OAuth (Google / Zoho): set client IDs & secrets in .env — never commit real values
       AUTHQ_PUBLIC_BASE_URL: ${AUTHQ_PUBLIC_BASE_URL:-http://localhost:14100}
       AUTHQ_OAUTH_RETURN_URL_PREFIXES: ${AUTHQ_OAUTH_RETURN_URL_PREFIXES:-http://localhost:13000,http://localhost:3000,http://127.0.0.1:13000}
       AUTHQ_OAUTH_DEFAULT_RETURN_URL: ${AUTHQ_OAUTH_DEFAULT_RETURN_URL:-http://localhost:13000/}
@@ -116,7 +111,6 @@ services:
       AUTHQ_ZOHO_ACCOUNTS_HOST: ${AUTHQ_ZOHO_ACCOUNTS_HOST:-accounts.zoho.com}
       VIRTUAL_HOST: ${VIRTUAL_HOST_AUTH:-auth.local}
       VIRTUAL_PORT: "4100"
-    restart: unless-stopped
     networks:
       - default
       - proxy
@@ -133,24 +127,16 @@ services:
       retries: 5
       start_period: 20s
 
-  # Browser login UI (comDash AuthGate → http://localhost:3100/login). Auth API alone (14100) has no /login page.
   auth-web:
-    build:
-      context: ./authQ/web
-      dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_APIGATE_URL: ${NEXT_PUBLIC_APIGATE_URL:-http://localhost:18080}
-        NEXT_PUBLIC_COMDASH_URL: ${NEXT_PUBLIC_COMDASH_URL:-http://localhost:13000}
-        NEXT_PUBLIC_AUTHQ_URL: ${NEXT_PUBLIC_AUTHQ_URL:-http://localhost:14100}
-        NEXT_PUBLIC_LOGIN_DEV_BYPASS: ${NEXT_PUBLIC_LOGIN_DEV_BYPASS:-false}
-        NEXT_PUBLIC_ERPNEXT_SITE_LABEL: ${NEXT_PUBLIC_ERPNEXT_SITE_LABEL:-ERPNext (cityqerp.ortusolis.in)}
-    image: erpq/auth-web:latest
+    image: ghcr.io/${GHCR_OWNER}/${GHCR_PREFIX:-erpq}-auth-web:${APP_VERSION:-latest}
+    restart: unless-stopped
+    env_file:
+      - ./.env
     ports:
       - "3100:3000"
     environment:
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
-    restart: unless-stopped
     networks:
       - default
       - proxy
@@ -168,10 +154,10 @@ services:
       start_period: 40s
 
   apigate:
-    build:
-      context: .
-      dockerfile: apiGate/Dockerfile
-    image: erpq/apigate:latest
+    image: ghcr.io/${GHCR_OWNER}/${GHCR_PREFIX:-erpq}-apigate:${APP_VERSION:-latest}
+    restart: unless-stopped
+    env_file:
+      - ./.env
     ports:
       - "18080:8080"
     environment:
@@ -181,18 +167,14 @@ services:
       CORE_BACKEND_URL: http://core:4000
       AUTHQ_URL: http://auth:4100
       CITYQ_INTERNAL_KEY: ${CITYQ_INTERNAL_KEY:-cityq-dev-internal-change-me}
-      # Optional: enables MQ publish endpoint /api/v1/mq/events
       CITYQ_MQ_URL: ${CITYQ_MQ_URL:-amqp://cityq:erpq_dev_change_me@rabbitmq:5672}
       ERPNEXT_URL: ${ERPNEXT_URL:-}
-      # Optional: public browser URL if ERPNEXT_URL is an internal hostname
       ERPNEXT_PUBLIC_URL: ${ERPNEXT_PUBLIC_URL:-}
       ERPNEXT_API_KEY: ${ERPNEXT_API_KEY:-}
       ERPNEXT_API_SECRET: ${ERPNEXT_API_SECRET:-}
       ERPNEXT_CRM_PATH: ${ERPNEXT_CRM_PATH:-/app/crm}
-      # Set to 0 to hide from the portal sidebar without a rebuild
       CITYQ_PORTAL_HRQ: ${CITYQ_PORTAL_HRQ:-1}
       CITYQ_PORTAL_PURQ: ${CITYQ_PORTAL_PURQ:-1}
-      # Optional: appended to ERPNext iframe URLs (Frappe route_options). Try full_page=1 for wider list views.
       ERPNEXT_IFRAME_QUERY: ${ERPNEXT_IFRAME_QUERY:-}
       ERP_ALLOW_DOCTYPE_DISCOVERY: ${ERP_ALLOW_DOCTYPE_DISCOVERY:-0}
       ERP_PARTNER_RATE_MAX: ${ERP_PARTNER_RATE_MAX:-600}
@@ -205,7 +187,6 @@ services:
         condition: service_started
       core:
         condition: service_healthy
-    restart: unless-stopped
     networks:
       - default
       - proxy
@@ -223,23 +204,19 @@ services:
       start_period: 30s
 
   comdash:
-    build:
-      context: .
-      dockerfile: comDash/Dockerfile
-    image: erpq/comdash:latest
+    image: ghcr.io/${GHCR_OWNER}/${GHCR_PREFIX:-erpq}-comdash:${APP_VERSION:-latest}
+    restart: unless-stopped
+    env_file:
+      - ./.env
     ports:
       - "13000:3000"
     environment:
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
-      # Next.js rewrites /api/v1/* to this URL server-side (no client-side IP needed).
       APIGATE_INTERNAL_URL: http://apigate:8080
-      # Auth-web login page URL — must be reachable from the user's browser.
-      # Override in .env if your server is not localhost (e.g. NEXT_PUBLIC_AUTH_URL=http://192.168.1.100:3100)
       NEXT_PUBLIC_AUTH_URL: ${NEXT_PUBLIC_AUTH_URL:-http://localhost:3100}
       VIRTUAL_HOST: ${VIRTUAL_HOST_DASHBOARD:-dashboard.local}
       VIRTUAL_PORT: "3000"
-    restart: unless-stopped
     networks:
       - default
       - proxy
@@ -256,17 +233,13 @@ services:
       retries: 5
       start_period: 40s
 
-  # Reverse proxy for ERPNext desk iframe.
-  # Strips X-Frame-Options + rewrites cookies so the browser accepts the embedded desk.
-  # Set ERPNEXT_PUBLIC_URL=http://192.168.1.100:13002 in .env to activate.
   erp-proxy:
-    build:
-      context: ./nginx
-      dockerfile: Dockerfile
-    image: erpq/erp-proxy:latest
+    image: ghcr.io/${GHCR_OWNER}/${GHCR_PREFIX:-erpq}-erp-proxy:${APP_VERSION:-latest}
+    restart: unless-stopped
+    env_file:
+      - ./.env
     ports:
       - "13002:80"
-    restart: unless-stopped
     networks:
       - default
 
@@ -274,7 +247,7 @@ volumes:
   rabbitmq_data:
 
 networks:
-  # Default: create an internal "proxy" network automatically.
+  # Default: create an internal network named "<project>_proxy" automatically.
   # If you want to attach to an existing external nginx-proxy network, use:
-  #   docker compose -f docker-compose.yml -f docker-compose.external-proxy.yml up -d --build
+  #   docker compose -f docker-compose.production.yml -f docker-compose.production.external-proxy.yml --env-file .env up -d
   proxy: {}

@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/apigate";
 import { findMenuItem } from "@/lib/menuMatch";
-import MainLayoutCityQ from "./aurora/MainLayoutCityQ";
-import { PortalMenuProvider } from "./aurora/PortalMenuContext";
+import MainLayoutCityQ from "./shared-ui/MainLayoutCityQ";
+import { PortalMenuProvider } from "./shared-ui/PortalMenuContext";
 
 /**
  * Persistent shell: fetches the portal menu once, then renders MainLayoutCityQ

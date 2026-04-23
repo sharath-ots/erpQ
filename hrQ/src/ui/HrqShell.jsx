@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { Alert, Typography } from "antd";
-import { HrmAuroraHome } from "./HrmAuroraHome.jsx";
+import { HrmHome } from "./HrmHome.jsx";
 import { HrEntityList } from "./HrEntityList.jsx";
 import { HrOtherDocTypesPage } from "./HrOtherDocTypesPage.jsx";
 import { ErpDeskIframe } from "./ErpDeskIframe.jsx";
@@ -17,7 +17,7 @@ export function HrqShell({ pathname, deskBaseUrl, deskIframeQuery, apiBase, getA
   }
 
   if (normalized === "/m/hrq") {
-    return <HrmAuroraHome />;
+    return <HrmHome />;
   }
 
   if (normalized === "/m/hrq/other") {

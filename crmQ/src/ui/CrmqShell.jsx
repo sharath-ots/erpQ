@@ -1,7 +1,7 @@
 "use client";
 
 import { Alert, Typography } from "antd";
-import { CrmAuroraHome } from "./CrmAuroraHome.jsx";
+import { CrmHome } from "./CrmHome.jsx";
 import { CrmEntityList } from "./CrmEntityList.jsx";
 import { CrmOtherDocTypesPage } from "./CrmOtherDocTypesPage.jsx";
 import { ErpDeskIframe } from "./ErpDeskIframe.jsx";
@@ -33,7 +33,7 @@ export function CrmqShell({
   }
 
   if (normalized === "/m/crmq") {
-    return <CrmAuroraHome />;
+    return <CrmHome />;
   }
 
   if (normalized === "/m/crmq/other") {
