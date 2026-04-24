@@ -26,15 +26,31 @@ function safePathName(v) {
 
 function guessIcon(node, hasChildren) {
   if (node?.icon) return node.icon;
-  if (hasChildren) return "material-symbols:folder-outline-rounded";
   const key = String(node?.key ?? node?.label ?? node?.path ?? "").toLowerCase();
-  if (key.includes("crm")) return "material-symbols:phone-in-talk-outline-rounded";
-  if (key.includes("hr")) return "material-symbols:manage-accounts-outline";
-  if (key.includes("pur") || key.includes("purchase")) return "material-symbols:shopping-bag-outline-rounded";
+  // Top-level module groups: avoid generic "folder" icon.
+  if (key.includes("crm")) return "material-symbols:contact-phone-outline-rounded";
+  if (key.includes("hr")) return "material-symbols:badge-outline-rounded";
+  if (key.includes("pur") || key.includes("purchase")) return "material-symbols:shopping-cart-outline-rounded";
+  if (key.includes("erpnext") && (key.includes("full") || key.includes("desk")))
+    return "material-symbols:desktop-windows-outline";
+
+  // Common leaf routes (helps avoid everything looking identical)
+  if (key.includes("dashboard") || key === "/") return "material-symbols:dashboard-outline-rounded";
+  if (key.includes("lead")) return "material-symbols:person-search-outline-rounded";
+  if (key.includes("opportun")) return "material-symbols:trending-up-rounded";
+  if (key.includes("customer") || key.includes("client"))
+    return "material-symbols:groups-outline-rounded";
+  if (key.includes("contact")) return "material-symbols:contacts-outline-rounded";
+  if (key.includes("quotation") || key.includes("quote"))
+    return "material-symbols:request-quote-outline-rounded";
+  if (key.includes("doctype") || key.includes("other")) return "material-symbols:category-outline-rounded";
   if (key.includes("core") || key.includes("settings")) return "material-symbols:settings-outline-rounded";
   if (key.includes("auth") || key.includes("login")) return "material-symbols:security-rounded";
-  if (key.includes("dashboard") || key === "/") return "material-symbols:dashboard-outline-rounded";
-  return "material-symbols:chevron-right-rounded";
+
+  // Fallbacks: keep parents distinguishable from leaf nodes.
+  return hasChildren
+    ? "material-symbols:folder-open-outline-rounded"
+    : "material-symbols:circle-outline";
 }
 
 function toAuroraItem(node, idx, parentKey = "menu") {
@@ -97,6 +113,23 @@ export default function CityQSidenavDrawerContent({ variant = "permanent" }) {
     });
   };
 
+  const orderedMenuItems = useMemo(() => {
+    const list = Array.isArray(menuItems) ? menuItems : [];
+    const rank = (node) => {
+      const key = String(node?.label ?? node?.key ?? node?.path ?? "").toLowerCase();
+      if (key.includes("crm")) return 10;
+      if (key.includes("hr")) return 20;
+      if (key.includes("pur") || key.includes("purchase")) return 30;
+      // Push ERPNext full desk to bottom.
+      if (key.includes("erpnext") && key.includes("full")) return 1000;
+      return 100;
+    };
+    return list
+      .map((n, i) => ({ n, i, r: rank(n) }))
+      .sort((a, b) => (a.r - b.r) || (a.i - b.i))
+      .map((x) => x.n);
+  }, [menuItems]);
+
   return (
     <>
       <Toolbar variant={sidenavAppbarVariant} sx={{ display: "block", px: { xs: 0 } }}>
@@ -114,8 +147,8 @@ export default function CityQSidenavDrawerContent({ variant = "permanent" }) {
               alignItems: "center",
             },
             expanded && {
-              pl: { xs: 4, md: 6 },
-              pr: { xs: 2, md: 3 },
+              pl: { xs: 2, md: 3 },
+              pr: { xs: 1, md: 1.5 },
             },
           ]}
         >
@@ -137,22 +170,22 @@ export default function CityQSidenavDrawerContent({ variant = "permanent" }) {
         <SidenavSimpleBar>
           <Box
             sx={[
-              { py: 2 },
-              !expanded && { px: 2 },
-              expanded && { px: { xs: 2, md: 4 } },
+              { py: 1 },
+              !expanded && { px: 1 },
+              expanded && { px: { xs: 1, md: 2 } },
             ]}
           >
-            <Divider sx={{ mb: 2 }} />
+            
             <List
               dense
               sx={{
                 pb: 0,
                 display: "flex",
                 flexDirection: "column",
-                gap: "2px",
+                gap: 0,
               }}
             >
-              {menuItems.map((node, idx) => {
+              {orderedMenuItems.map((node, idx) => {
                 const item = toAuroraItem(node, idx);
                 // Ensure selection works for portal root route.
                 if (item.path === "#" && pathname === "/") {
