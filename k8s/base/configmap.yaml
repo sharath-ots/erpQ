@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: erpq-app-config
+  namespace: erpq
+data:
+  # Common
+  ERPNEXT_URL: "https://cityqerp.ortusolis.in"
+  ERPNEXT_PUBLIC_URL: "http://erp-proxy.local"
+  ERPNEXT_CRM_PATH: "/app/crm"
+  ERPNEXT_IFRAME_QUERY: "full_page=1"
+  ERP_ALLOW_DOCTYPE_DISCOVERY: "1"
+  ERP_PARTNER_RATE_MAX: "600"
+  PAYMENT_PARTNER_RATE_MAX: "120"
+  ERP_DEFAULT_DOCTYPES: "Lead,Opportunity,Customer,Contact,DocType,Quotation"
+
+  # RabbitMQ
+  RABBITMQ_HOST: "rabbitmq"
+  RABBITMQ_PORT: "5672"
+  CITYQ_MQ_URL: "amqp://cityq:REPLACE_ME@rabbitmq:5672"
+
+  # core
+  CITYQ_MODULE_ERP: "1"
+  CITYQ_MODULE_CRM: "1"
+
+  # auth (public URLs must match Ingress hosts)
+  AUTHQ_PUBLIC_BASE_URL: "http://auth.local"
+  AUTHQ_OAUTH_RETURN_URL_PREFIXES: "http://dashboard.local,http://127.0.0.1:13000"
+  AUTHQ_OAUTH_DEFAULT_RETURN_URL: "http://dashboard.local/"
+  AUTHQ_OAUTH_DEFAULT_ALLOWED_DOC_TYPES: "*"
+  AUTHQ_GOOGLE_REDIRECT_URI: "http://auth.local/oauth/google/callback"
+  AUTHQ_ZOHO_REDIRECT_URI: "http://auth.local/oauth/zoho/callback"
+  AUTHQ_ZOHO_ACCOUNTS_HOST: "accounts.zoho.in"
+
+  # apigate internal wiring
+  CORE_BACKEND_URL: "http://core:4000"
+  AUTHQ_URL: "http://auth:4100"
+
+  # comdash (server-side rewrite target)
+  APIGATE_INTERNAL_URL: "http://apigate:8080"
+  NEXT_PUBLIC_AUTH_URL: "http://login.local"
+

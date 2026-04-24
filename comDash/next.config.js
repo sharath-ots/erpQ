@@ -39,6 +39,7 @@ function aliasSharedUiBridgeComponents(config) {
 const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
+  productionBrowserSourceMaps: true,
   eslint: {
     ignoreDuringBuilds: true,
   },

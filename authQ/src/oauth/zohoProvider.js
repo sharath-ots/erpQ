@@ -53,9 +53,12 @@ export async function exchangeZohoCode(code, codeVerifier) {
   } catch {
     throw new Error(`Zoho token response not JSON: ${text.slice(0, 200)}`);
   }
-  if (!res.ok) {
+  // Zoho sometimes returns `{error,...}` even with HTTP 200; treat that as failure.
+  if (!res.ok || json?.error) {
     throw new Error(
-      json.error_description || json.error || `Zoho token HTTP ${res.status}`,
+      json?.error_description ||
+        json?.error ||
+        `Zoho token HTTP ${res.status}`,
     );
   }
   return json;

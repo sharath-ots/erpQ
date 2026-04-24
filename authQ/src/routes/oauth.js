@@ -115,7 +115,17 @@ function registerProvider(app, provider, {
 
     const access = tokens.access_token;
     if (!access) {
-      return reply.code(502).send({ error: "no_access_token" });
+      request.log.error(
+        { tokens },
+        `${provider} token response missing access_token`,
+      );
+      return reply.code(502).send({
+        error: "no_access_token",
+        detail:
+          "Token response did not include access_token. Check Zoho app DC (AUTHQ_ZOHO_ACCOUNTS_HOST), redirect URI, and scopes.",
+        token_keys:
+          tokens && typeof tokens === "object" ? Object.keys(tokens) : [],
+      });
     }
 
     let profile;

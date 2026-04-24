@@ -37,7 +37,13 @@ export async function registerMqRoutes(app) {
         return reply.send({ ok: true, ...r });
       } catch (e) {
         app.log.error({ err: e }, "mq publish failed");
-        return reply.code(502).send({ error: "mq_publish_failed", detail: String(e) });
+        // This endpoint is best-effort telemetry/workflow triggering.
+        // If MQ is temporarily unavailable, don't fail the UI navigation.
+        return reply.code(202).send({
+          ok: false,
+          accepted: true,
+          warning: "mq_publish_failed",
+        });
       }
     },
   );

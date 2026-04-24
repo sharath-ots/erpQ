@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: erpq
+
+resources:
+  - ../../base
+
+# Override images here (recommended) instead of editing base.
+images:
+  - name: ghcr.io/sharath-ots/erpq-core
+    newName: ghcr.io/sharath-ots/erpq-core
+    newTag: latest
+  - name: ghcr.io/sharath-ots/erpq-auth
+    newName: ghcr.io/sharath-ots/erpq-auth
+    newTag: latest
+  - name: ghcr.io/sharath-ots/erpq-auth-web
+    newName: ghcr.io/sharath-ots/erpq-auth-web
+    newTag: latest
+  - name: ghcr.io/sharath-ots/erpq-apigate
+    newName: ghcr.io/sharath-ots/erpq-apigate
+    newTag: latest
+  - name: ghcr.io/sharath-ots/erpq-comdash
+    newName: ghcr.io/sharath-ots/erpq-comdash
+    newTag: latest
+  - name: ghcr.io/sharath-ots/erpq-erp-proxy
+    newName: ghcr.io/sharath-ots/erpq-erp-proxy
+    newTag: latest
+
+# Secrets: do NOT commit real values. Create `erpq-app-secrets` in-cluster via:
+# kubectl -n erpq create secret generic erpq-app-secrets --from-env-file=secrets.env --dry-run=client -o yaml | kubectl apply -f -
+
+patches:
+  - path: patch-ingressclass-traefik.yaml
+

@@ -2,7 +2,7 @@
   "name": "@cityq/crmq",
   "version": "0.1.0",
   "private": true,
-  "description": "crmQ — ERPNext-facing plugin for comDash; all traffic via apiGate (JWT from authQ login)",
+  "description": "crmQ — ERPNext-facing plugin for comDash",
   "type": "module",
   "main": "./src/index.js",
   "scripts": {
@@ -11,15 +11,39 @@
     "start": "next start",
     "lint": "eslint"
   },
-  "exports": {
-    ".": "./src/index.js"
-  },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
-    "antd": "^5.22.2",
+    "next": "^15.0.3",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "antd": "^5.22.7",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^7.3.9",
+    "@mui/system": "^7.3.8",
+    "@mui/lab": "7.0.1-beta.22",
+    "@mui/x-data-grid": "^8.27.3",
+    "@mui/x-date-pickers": "^8.27.2",
+    "@iconify/react": "^6.0.2",
+    "clsx": "^2.1.1",
+    "dayjs": "^1.11.19",
+    "lodash.merge": "^4.6.2",
+    "echarts": "^6.0.0",
+    "echarts-for-react": "^3.0.6",
+    "notistack": "^3.0.2",
+    "react-datepicker": "^9.1.0",
+    "react-device-detect": "^2.2.3",
+    "react-i18next": "^16.5.4",
+    "simplebar-react": "^3.3.2",
+    "stylis": "^4.3.6",
+    "stylis-plugin-rtl": "^2.1.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.2",
+    "tailwindcss": "^4"
   }
 }

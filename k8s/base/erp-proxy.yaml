@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: erp-proxy
+  namespace: erpq
+spec:
+  selector:
+    app.kubernetes.io/name: erp-proxy
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: erp-proxy
+  namespace: erpq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: erp-proxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: erp-proxy
+    spec:
+      serviceAccountName: erpq-sa
+      containers:
+        - name: erp-proxy
+          image: ghcr.io/sharath-ots/erpq-erp-proxy:latest
+          ports:
+            - containerPort: 80
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+

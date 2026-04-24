@@ -13,6 +13,12 @@ This repository hosts **separate deployable projects** that together match the e
 
 See [`REQUIREMENTS.md`](./REQUIREMENTS.md) for the condensed requirement notes.
 
+## Deployment guide
+
+For local builds (Docker Compose), GHCR CI builds, and Kubernetes (k3s) deploy steps, see:
+
+- [`docs/DEPLOYMENT_GUIDE.md`](./docs/DEPLOYMENT_GUIDE.md)
+
 ## Local prerequisites
 
 - Node.js 20+

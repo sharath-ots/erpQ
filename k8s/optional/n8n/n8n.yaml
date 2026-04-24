@@ -1,0 +1,90 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: n8n-secrets
+  namespace: erpq
+type: Opaque
+stringData:
+  # Replace these via kubectl/overlays (do not commit real values).
+  POSTGRES_USER: "n8n"
+  POSTGRES_PASSWORD: "REPLACE_ME"
+  N8N_ENCRYPTION_KEY: "REPLACE_ME_32+_CHARS"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: n8n
+  namespace: erpq
+spec:
+  selector:
+    app.kubernetes.io/name: n8n
+  ports:
+    - name: http
+      port: 5678
+      targetPort: 5678
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: n8n
+  namespace: erpq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: n8n
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: n8n
+    spec:
+      serviceAccountName: erpq-sa
+      containers:
+        - name: n8n
+          image: n8nio/n8n:latest
+          ports:
+            - containerPort: 5678
+              name: http
+          env:
+            - name: N8N_PORT
+              value: "5678"
+            - name: DB_TYPE
+              value: postgresdb
+            - name: DB_POSTGRESDB_HOST
+              value: n8n-postgres
+            - name: DB_POSTGRESDB_PORT
+              value: "5432"
+            - name: DB_POSTGRESDB_DATABASE
+              value: n8n
+            - name: DB_POSTGRESDB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secrets
+                  key: POSTGRES_USER
+            - name: DB_POSTGRESDB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secrets
+                  key: POSTGRES_PASSWORD
+            - name: N8N_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secrets
+                  key: N8N_ENCRYPTION_KEY
+            # Recommended if you want to drive workflows from your existing RabbitMQ:
+            - name: ERPQ_RABBITMQ_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: erpq-app-config
+                  key: CITYQ_MQ_URL
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 10
+
