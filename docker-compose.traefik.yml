@@ -1,0 +1,121 @@
+services:
+  # HTTPS edge for the stack (terminates TLS, routes by Host header)
+  traefik:
+    image: traefik:v3.4
+    container_name: erpq-traefik
+    restart: unless-stopped
+    command:
+      - --api.dashboard=true
+      - --api.insecure=${TRAEFIK_DASHBOARD_INSECURE:-false}
+      - --log.level=${TRAEFIK_LOG_LEVEL:-INFO}
+      - --accesslog=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=erpq_proxy
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      # Force HTTP -> HTTPS
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      # TLS options (dynamic file provider)
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      # ACME (Let's Encrypt) - enable in prod by setting TRAEFIK_ACME_ENABLED=true
+      - --certificatesresolvers.le.acme.email=${TRAEFIK_ACME_EMAIL:-}
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+    ports:
+      - "80:80"
+      - "443:443"
+      # Optional: Traefik dashboard on :8088 when insecure is enabled
+      - "${TRAEFIK_DASHBOARD_PORT:-8088}:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      - traefik_letsencrypt:/letsencrypt
+    networks:
+      - proxy
+
+  # Route hosts to existing services
+  comdash:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.comdash.rule=Host(`${PUBLIC_HOST}`)
+      - traefik.http.routers.comdash.entrypoints=websecure
+      - traefik.http.routers.comdash.tls=true
+      - traefik.http.routers.comdash.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.services.comdash.loadbalancer.server.port=3000
+      # Optional: module subdomains -> same portal (UI routes decide module)
+      - traefik.http.routers.comdash-crm.rule=Host(`${CRM_HOST:-crm.${PUBLIC_HOST}}`)
+      - traefik.http.routers.comdash-crm.entrypoints=websecure
+      - traefik.http.routers.comdash-crm.tls=true
+      - traefik.http.routers.comdash-crm.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.routers.comdash-crm.service=comdash
+      - traefik.http.routers.comdash-hr.rule=Host(`${HR_HOST:-hr.${PUBLIC_HOST}}`)
+      - traefik.http.routers.comdash-hr.entrypoints=websecure
+      - traefik.http.routers.comdash-hr.tls=true
+      - traefik.http.routers.comdash-hr.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.routers.comdash-hr.service=comdash
+      - traefik.http.routers.comdash-pur.rule=Host(`${PUR_HOST:-pur.${PUBLIC_HOST}}`)
+      - traefik.http.routers.comdash-pur.entrypoints=websecure
+      - traefik.http.routers.comdash-pur.tls=true
+      - traefik.http.routers.comdash-pur.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.routers.comdash-pur.service=comdash
+
+  apigate:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.apigate.rule=Host(`${API_HOST:-api.${PUBLIC_HOST}}`)
+      - traefik.http.routers.apigate.entrypoints=websecure
+      - traefik.http.routers.apigate.tls=true
+      - traefik.http.routers.apigate.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.services.apigate.loadbalancer.server.port=8080
+
+  auth:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.auth.rule=Host(`${AUTH_HOST:-auth.${PUBLIC_HOST}}`)
+      - traefik.http.routers.auth.entrypoints=websecure
+      - traefik.http.routers.auth.tls=true
+      - traefik.http.routers.auth.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.services.auth.loadbalancer.server.port=4100
+
+  auth-web:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.authweb.rule=Host(`${LOGIN_HOST:-login.${PUBLIC_HOST}}`)
+      - traefik.http.routers.authweb.entrypoints=websecure
+      - traefik.http.routers.authweb.tls=true
+      - traefik.http.routers.authweb.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.services.authweb.loadbalancer.server.port=3000
+
+  core:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.core.rule=Host(`${CORE_HOST:-core.${PUBLIC_HOST}}`)
+      - traefik.http.routers.core.entrypoints=websecure
+      - traefik.http.routers.core.tls=true
+      - traefik.http.routers.core.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.services.core.loadbalancer.server.port=4000
+
+  erp-proxy:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.erpproxy.rule=Host(`${ERP_PROXY_HOST:-erp-proxy.${PUBLIC_HOST}}`)
+      - traefik.http.routers.erpproxy.entrypoints=websecure
+      - traefik.http.routers.erpproxy.tls=true
+      - traefik.http.routers.erpproxy.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.services.erpproxy.loadbalancer.server.port=80
+
+  rabbitmq:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.rabbitmq.rule=Host(`${MQ_HOST:-mq.${PUBLIC_HOST}}`)
+      - traefik.http.routers.rabbitmq.entrypoints=websecure
+      - traefik.http.routers.rabbitmq.tls=true
+      - traefik.http.routers.rabbitmq.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.services.rabbitmq.loadbalancer.server.port=15672
+
+volumes:
+  traefik_letsencrypt:
+

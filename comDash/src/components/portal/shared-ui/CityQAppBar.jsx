@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Box, Button, Stack, Typography } from "@mui/material";
+import { Box, Button, paperClasses, Stack } from "@mui/material";
 import MuiAppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
 import { useBreakpoints } from "providers/BreakpointsProvider";
@@ -9,9 +9,13 @@ import { useSettingsContext } from "providers/SettingsProvider";
 import { topnavVibrantStyle } from "theme/styles/vibrantNav";
 import IconifyIcon from "components/base/IconifyIcon";
 import CityQVibrantBackground from "./CityQVibrantBackground";
-import CityQLogo from "./CityQLogo";
 import CityQAppbarActionItems from "./CityQAppbarActionItems";
+import SearchBox, { SearchBoxButton } from "layouts/main-layout/common/search-box/SearchBox";
+import CityQLogo from "./CityQLogo";
 
+/**
+ * Aurora-like AppBar (search + actions) without next-auth dependencies.
+ */
 export default function CityQAppBar() {
   const {
     config: { drawerWidth, sidenavType, navColor },
@@ -39,6 +43,9 @@ export default function CityQAppBar() {
           ml: { md: `${drawerWidth}px` },
           borderBottom: `1px solid`,
           borderColor: "divider",
+          [`&.${paperClasses.root}`]: {
+            outline: "none",
+          },
         },
         navColor === "vibrant" && !upMd && topnavVibrantStyle,
       ]}
@@ -62,22 +69,28 @@ export default function CityQAppBar() {
           >
             <IconifyIcon icon="material-symbols:menu-rounded" sx={{ fontSize: 20 }} />
           </Button>
-          <CityQLogo showName={upSm} />
+
+          <Box>
+            <CityQLogo showName={upSm} />
+          </Box>
         </Box>
 
         <Stack
-          direction="row"
           sx={{
             alignItems: "center",
             flex: 1,
-            width: 1,
           }}
         >
-          <Box sx={{ display: { xs: "none", md: "block" }, flex: 1 }}>
-            <Typography variant="subtitle1" fontWeight={600} color="text.primary">
-              CityQ — Central Portal
-            </Typography>
-          </Box>
+          {upMd ? (
+            <SearchBox
+              sx={{
+                width: 1,
+                maxWidth: 420,
+              }}
+            />
+          ) : (
+            <SearchBoxButton />
+          )}
           <CityQAppbarActionItems />
         </Stack>
       </Toolbar>

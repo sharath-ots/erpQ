@@ -1,14 +1,17 @@
 "use client";
 
 import { Icon } from "@iconify/react";
+import { useId } from "react";
 import Box from "@mui/material/Box";
+import { registerIcons } from "lib/iconify/iconify-register";
 
 /**
- * Simplified IconifyIcon bridge.
- * Aurora's version imports iconify-register which pre-loads icon collections.
- * The portal only uses online-resolved icons (material-symbols:*), so registration isn't needed.
+ * Icon component bridge.
+ * We register bundled icon datasets to avoid missing icons/flicker in production builds.
  */
 export const IconifyIcon = ({ icon, flipOnRTL = false, color, sx, ...rest }) => {
+  const uniqueId = useId();
+  registerIcons();
   const iconNameClass = icon.split(":").join("-");
   return (
     <Box
@@ -23,7 +26,9 @@ export const IconifyIcon = ({ icon, flipOnRTL = false, color, sx, ...rest }) => 
       ]}
       {...rest}
       icon={icon}
+      id={uniqueId}
       color={color}
+      ssr
     />
   );
 };

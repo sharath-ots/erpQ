@@ -1,12 +1,15 @@
 "use client";
 
-import { Avatar, Stack, Typography } from "@mui/material";
+import { Stack } from "@mui/material";
+import LanguageMenu from "layouts/main-layout/common/LanguageMenu";
+import NotificationMenu from "layouts/main-layout/common/NotificationMenu";
 import ThemeToggler from "layouts/main-layout/common/ThemeToggler";
 import { usePortalMenu } from "./PortalMenuContext";
+import CityQProfileMenu from "./CityQProfileMenu";
 
 export default function CityQAppbarActionItems() {
   const { email } = usePortalMenu();
-  const label = email ?? "";
+  const hasUser = Boolean(email);
 
   return (
     <Stack
@@ -18,15 +21,10 @@ export default function CityQAppbarActionItems() {
         ml: "auto",
       }}
     >
-      {label ? (
-        <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: 220 }}>
-          {label}
-        </Typography>
-      ) : null}
-      <Avatar sx={{ width: 32, height: 32, fontSize: 14 }}>
-        {(label || "?").slice(0, 1).toUpperCase()}
-      </Avatar>
+      <LanguageMenu type="default" />
       <ThemeToggler type="default" />
+      <NotificationMenu type="default" />
+      <CityQProfileMenu type={hasUser ? "default" : "default"} />
     </Stack>
   );
 }

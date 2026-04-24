@@ -70,18 +70,6 @@ export function AuthGate({ children }) {
 
   return (
     <>
-      <div
-        style={{
-          position: "fixed",
-          top: 12,
-          right: 12,
-          zIndex: 9999,
-        }}
-      >
-        <Button onClick={() => redirectToLogin()} size="small">
-          Logout
-        </Button>
-      </div>
       {children}
     </>
   );
