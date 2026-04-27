@@ -9,7 +9,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { defaultEmails } from 'data/email/email';
+import { defaultEmails } from '../../../data/email/email';
 import IconifyIcon from 'components/base/IconifyIcon';
 import StyledFormControl from 'components/styled/StyledFormControl';
 import StyledSelect from 'components/styled/StyledSelect';

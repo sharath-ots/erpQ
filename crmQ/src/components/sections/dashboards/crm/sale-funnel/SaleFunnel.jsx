@@ -2,9 +2,9 @@
 
 import { Paper } from '@mui/material';
 import Grid from '@mui/material/Grid';
-import { saleFunnelData, saleFunnelTableData } from '../../../../../data/crm/dashboard.js';
-import DashboardMenu from '../../../../common/DashboardMenu.jsx';
-import SectionHeader from '../../../../common/SectionHeader.jsx';
+import { saleFunnelData, saleFunnelTableData } from '../../../../../data/crm/dashboard';
+import DashboardMenu from '../../../../../components/common/DashboardMenu';
+import SectionHeader from '../../../../../components/common/SectionHeader';
 import SaleFunnelChart from './SaleFunnelChart';
 import SaleFunnelTable from './SaleFunnelTable';
 

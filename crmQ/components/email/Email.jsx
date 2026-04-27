@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Paper } from '@mui/material';
-import EmailSidebar from 'src/layouts/email-layout/EmailSidebar';
+//import EmailSidebar from '/home/Sandesh-Hegde/Documents/VersaQ-Architecture/erpQ/crmQ/src/layouts/email-layout/EmailSidebar.jsx';
 import { useBreakpoints } from 'providers/BreakpointsProvider';
 import BulkSelectProvider from 'providers/BulkSelectProvider';
 import { emailSidebarWidth, useEmailContext } from '../../providers/EmailProvider';

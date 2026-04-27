@@ -2,11 +2,11 @@
 
 import { useRef } from 'react';
 import { Paper, Stack } from '@mui/material';
-import { customerFeedbackData } from '../../../../../data/crm/dashboard.js';
-import useToggleChartLegends from '../../../../../hooks/useToggleChartLegends.js';
-import ChartLegend from '../../../../common/ChartLegend.jsx';
-import DashboardMenu from '../../../../common/DashboardMenu.jsx';
-import SectionHeader from '../../../../common/SectionHeader.jsx';
+import { customerFeedbackData } from '../../../../../data/crm/dashboard';
+import useToggleChartLegends from '../../../../../hooks/useToggleChartLegends';
+import ChartLegend from '../../../../../components/common/ChartLegend';
+import DashboardMenu from '../../../../../components/common/DashboardMenu';
+import SectionHeader from '../../../../../components/common/SectionHeader';
 import CustomerFeedbackChart from './CustomerFeedbackChart';
 
 const chartLegends = [

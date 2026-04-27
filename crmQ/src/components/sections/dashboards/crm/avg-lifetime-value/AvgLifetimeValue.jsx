@@ -1,9 +1,9 @@
 'use client';
 
 import { Paper } from '@mui/material';
-import { avgLifetimeValueData } from '../../../../../data/crm/dashboard.js';
-import DashboardMenu from '../../../../common/DashboardMenu.jsx';
-import SectionHeader from '../../../../common/SectionHeader.jsx';
+import { avgLifetimeValueData } from '../../../../../data/crm/dashboard';
+import DashboardMenu from '../../../../../components/common/DashboardMenu';
+import SectionHeader from '../../../../../components/common/SectionHeader';
 import AvgLifetimeValueChart from './AvgLifetimeValueChart';
 
 const AvgLifetimeValue = () => {

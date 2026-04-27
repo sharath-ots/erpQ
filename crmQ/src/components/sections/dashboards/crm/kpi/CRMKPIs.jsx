@@ -1,16 +1,28 @@
 'use client';
 
-import { Avatar, ButtonBase, Paper, Typography } from '@mui/material';
+import { useRouter } from 'next/navigation';
+import { Avatar, ButtonBase, Paper, Typography, Box } from '@mui/material';
 import Grid from '@mui/material/Grid';
-import IconifyIcon from '../../../../base/IconifyIcon.jsx';
+import IconifyIcon from '../../../../../components/base/IconifyIcon';
 import KPI from './KPI';
 
 const CRMKPIs = ({ data }) => {
+  const router = useRouter();
+
   return (
     <>
       {data.map((kpi) => (
         <Grid key={kpi.title} size={{ xs: 6, sm: 4, lg: 6, xl: 4 }}>
-          <KPI {...kpi} />
+          {/* Wrap the component to handle the click and change the cursor */}
+          <Box
+            onClick={() => kpi.path && router.push(kpi.path)}
+            sx={{
+              height: '100%',
+              cursor: kpi.path ? 'pointer' : 'default',
+            }}
+          >
+            <KPI {...kpi} />
+          </Box>
         </Grid>
       ))}
 

@@ -1,24 +1,22 @@
 'use client';
 
-import { forwardRef, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useTheme } from '@mui/material';
 import dayjs from 'dayjs';
 import { LineChart } from 'echarts/charts';
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
-import { tooltipFormatterList } from '../../../../../helpers/echart-utils.js';
-import { safePalette } from '../../../../../lib/paletteUtils.js';
-import { getPastDates } from '../../../../../lib/utils.js';
-import { useSettingsContext } from '../../../../../providers/SettingsProvider.jsx';
-import ReactEchart from '../../../../base/ReactEchart.jsx';
+import { tooltipFormatterList } from 'helpers/echart-utils';
+import { getPastDates } from 'lib/utils';
+import { useSettingsContext } from 'providers/SettingsProvider';
+import ReactEchart from 'components/base/ReactEchart';
 
 echarts.use([TooltipComponent, GridComponent, LineChart, CanvasRenderer, LegendComponent]);
 
-const AcquisitionCostChart = forwardRef(function AcquisitionCostChart({ sx, data }, ref) {
+const AcquisitionCostChart = ({ sx, data, ref }) => {
   const { vars, typography } = useTheme();
   const { getThemeColor } = useSettingsContext();
-  const p = safePalette(vars?.palette);
 
   const getOptions = useMemo(
     () => ({
@@ -26,32 +24,49 @@ const AcquisitionCostChart = forwardRef(function AcquisitionCostChart({ sx, data
         trigger: 'axis',
         axisPointer: {
           type: 'line',
-          lineStyle: { color: getThemeColor(p.divider), type: 'solid' },
+          lineStyle: {
+            color: getThemeColor(vars.palette.divider),
+            type: 'solid',
+          },
           z: 1,
         },
         formatter: (params) => tooltipFormatterList(params),
       },
-      legend: { data: ['Allotted', 'Used'], show: false },
+      legend: {
+        data: ['Allotted', 'Used'],
+        show: false,
+      },
       xAxis: {
         type: 'category',
-        data: getPastDates(7).map((date) => dayjs(date).format('ddd')),
+        data: getPastDates('week').map((date) => dayjs(date).format('ddd')),
         boundaryGap: false,
-        axisLine: { lineStyle: { color: getThemeColor(p.divider) } },
+        axisLine: {
+          lineStyle: {
+            color: getThemeColor(vars.palette.divider),
+          },
+        },
         axisTick: {
           alignWithLabel: true,
           length: 9,
-          lineStyle: { color: getThemeColor(p.divider) },
+          lineStyle: {
+            color: getThemeColor(vars.palette.divider),
+          },
         },
         axisLabel: {
           show: true,
-          fontFamily: typography?.fontFamily,
-          color: getThemeColor(p.text.secondary),
+          fontFamily: typography.fontFamily,
+          color: getThemeColor(vars.palette.text.secondary),
           fontWeight: 400,
-          fontSize: typography?.overline?.fontSize,
+          fontSize: typography.overline.fontSize,
           margin: 13,
         },
       },
-      yAxis: { type: 'value', axisLine: false, axisLabel: false, splitLine: false },
+      yAxis: {
+        type: 'value',
+        axisLine: false,
+        axisLabel: false,
+        splitLine: false,
+      },
       series: [
         {
           name: 'Allotted',
@@ -61,8 +76,13 @@ const AcquisitionCostChart = forwardRef(function AcquisitionCostChart({ sx, data
           showSymbol: true,
           symbol: 'circle',
           symbolSize: 4,
-          lineStyle: { width: 1, color: getThemeColor(p.chBlue[500]) },
-          itemStyle: { color: getThemeColor(p.chBlue[500]) },
+          lineStyle: {
+            width: 1,
+            color: getThemeColor(vars.palette.chBlue[500]),
+          },
+          itemStyle: {
+            color: getThemeColor(vars.palette.chBlue[500]),
+          },
         },
         {
           name: 'Used',
@@ -72,16 +92,21 @@ const AcquisitionCostChart = forwardRef(function AcquisitionCostChart({ sx, data
           showSymbol: true,
           symbol: 'circle',
           symbolSize: 4,
-          lineStyle: { width: 1, color: getThemeColor(p.chGrey[300]) },
-          itemStyle: { color: getThemeColor(p.chGrey[300]) },
+          lineStyle: {
+            width: 1,
+            color: getThemeColor(vars.palette.chGrey[300]),
+          },
+          itemStyle: {
+            color: getThemeColor(vars.palette.chGrey[300]),
+          },
         },
       ],
       grid: { left: 20, right: 20, top: 30, bottom: 25, outerBoundsMode: 'none' },
     }),
-    [p, getThemeColor, data],
+    [vars.palette, getThemeColor, data],
   );
 
   return <ReactEchart ref={ref} echarts={echarts} option={getOptions} sx={sx} />;
-});
+};
 
 export default AcquisitionCostChart;

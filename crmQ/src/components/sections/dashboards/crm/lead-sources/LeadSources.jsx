@@ -3,10 +3,10 @@
 import { useRef } from 'react';
 import { Box, ButtonBase, Paper, Stack, Typography } from '@mui/material';
 import Grid from '@mui/material/Grid';
-import { leadSoursesData } from '../../../../../data/crm/dashboard.js';
-import useToggleChartLegends from '../../../../../hooks/useToggleChartLegends.js';
-import DashboardMenu from '../../../../common/DashboardMenu.jsx';
-import SectionHeader from '../../../../common/SectionHeader.jsx';
+import { leadSoursesData } from '../../../../../data/crm/dashboard';
+import useToggleChartLegends from '../../../../../hooks/useToggleChartLegends';
+import DashboardMenu from '../../../../../components/common/DashboardMenu';
+import SectionHeader from '../../../../../components/common/SectionHeader';
 import LeadSourcesChart from './LeadSourcesChart';
 
 const chartLegends = [

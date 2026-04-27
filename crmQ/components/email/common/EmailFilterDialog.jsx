@@ -17,7 +17,7 @@ import {
   Typography,
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
-import { defaultEmails } from 'data/email/email';
+import { defaultEmails } from '../../../data/email/email';
 import * as yup from 'yup';
 import DateRangePicker from 'components/base/DateRangePicker';
 import IconifyIcon from 'components/base/IconifyIcon';

@@ -2,10 +2,10 @@
 
 import { useRef } from 'react';
 import { Paper, Stack, Typography } from '@mui/material';
-import { crmGeneratedRevenueData } from '../../../../../data/crm/dashboard.js';
-import useToggleChartLegends from '../../../../../hooks/useToggleChartLegends.js';
-import ChartLegend from '../../../../common/ChartLegend.jsx';
-import DashboardMenu from '../../../../common/DashboardMenu.jsx';
+import { crmGeneratedRevenueData } from '../../../../../data/crm/dashboard';
+import useToggleChartLegends from '../../../../../hooks/useToggleChartLegends';
+import ChartLegend from '../../../../../components/common/ChartLegend';
+import DashboardMenu from '../../../../../components/common/DashboardMenu';
 import CRMGeneratedRevenueChart from './CRMGeneratedRevenueChart';
 
 const chartLegends = [

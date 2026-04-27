@@ -1,28 +1,34 @@
-"use client";
+import { isValidElement } from 'react';
+import { Stack, Typography } from '@mui/material';
 
-import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
-
-export default function SectionHeader({ title, subTitle, actionComponent, sx }) {
+const SectionHeader = ({ title, subTitle, actionComponent, ...rest }) => {
   return (
     <Stack
-      direction="row"
-      alignItems="flex-start"
-      justifyContent="space-between"
-      sx={{ gap: 2, ...sx }}
+      spacing={2}
+      {...rest}
+      sx={[
+        {
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          mb: 4,
+        },
+        ...(Array.isArray(rest.sx) ? rest.sx : [rest.sx]),
+      ]}
     >
       <div>
-        <Typography variant="h6" sx={{ mb: subTitle ? 0.25 : 0 }}>
+        <Typography variant="h6" sx={{ mb: 1, whiteSpace: 'nowrap' }}>
           {title}
         </Typography>
-        {subTitle ? (
-          <Typography variant="body2" color="text.secondary">
+        {typeof subTitle === 'string' && (
+          <Typography variant="subtitle2" component="p" fontWeight="regular" color="text.secondary">
             {subTitle}
           </Typography>
-        ) : null}
+        )}
+        {isValidElement(subTitle) && subTitle}
       </div>
-      {actionComponent ?? null}
+      {actionComponent}
     </Stack>
   );
-}
+};
 
+export default SectionHeader;

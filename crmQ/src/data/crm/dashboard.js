@@ -1,79 +1,80 @@
 export const dealsData = [
   {
-    icon: "material-symbols:handshake-outline-rounded",
+    icon: 'material-symbols:handshake-outline-rounded',
     count: 310,
-    label: "Deals created",
+    label: 'Deals created',
     percentage: 4.3,
-    trend: "up",
+    trend: 'up',
   },
   {
-    icon: "material-symbols:payments-outline-rounded",
+    icon: 'material-symbols:payments-outline-rounded',
     count: 26,
-    label: "Deals closed",
+    label: 'Deals closed',
     percentage: 1.9,
-    trend: "down",
+    trend: 'down',
   },
 ];
 
 export const kpisData = [
   {
-    title: "Active Users",
-    value: 3050,
-    subtitle: "Avg. daily logins",
+    title: 'Leads',
+    value: 89,
+    subtitle: 'Total Leads',
+    path: 'crm/lead-list',
     icon: {
-      name: "material-symbols-light:location-away-outline-rounded",
-      color: "primary.main",
+      name: 'material-symbols-light:location-away-outline-rounded',
+      color: 'primary.main',
     },
   },
   {
-    title: "New Contacts",
+    title: 'New Contacts',
     value: 105,
-    subtitle: "Accounts opened",
+    subtitle: 'Accounts opened',
     icon: {
-      name: "material-symbols-light:verified-outline-rounded",
-      color: "warning.main",
+      name: 'material-symbols-light:verified-outline-rounded',
+      color: 'warning.main',
     },
   },
   {
-    title: "Renewal Rate",
-    value: "37%",
-    subtitle: "Premium accounts",
+    title: 'Renewal Rate',
+    value: '37%',
+    subtitle: 'Premium accounts',
     icon: {
-      name: "material-symbols-light:published-with-changes-rounded",
-      color: "success.main",
+      name: 'material-symbols-light:published-with-changes-rounded',
+      color: 'success.main',
     },
   },
   {
-    title: "Inventory",
+    title: 'Inventory',
     value: 13200,
-    subtitle: "Units in stock",
+    subtitle: 'Units in stock',
     icon: {
-      name: "material-symbols-light:warehouse-outline-rounded",
-      color: "secondary.main",
+      name: 'material-symbols-light:warehouse-outline-rounded',
+      color: 'secondary.main',
     },
   },
   {
-    title: "Delivered",
+    title: 'Delivered',
     value: 1920,
-    subtitle: "Unit products",
+    subtitle: 'Unit products',
     icon: {
-      name: "material-symbols-light:local-shipping-outline-rounded",
-      color: "info.main",
+      name: 'material-symbols-light:local-shipping-outline-rounded',
+      color: 'info.main',
     },
   },
 ];
 
 export const crmGeneratedRevenueData = {
-  "25th": [250000, 180000, 270000, 220000, 120000, 150000, 200000],
-  "50th": [350000, 280000, 370000, 320000, 200000, 250000, 300000],
-  "75th": [450000, 380000, 470000, 420000, 300000, 350000, 400000],
+  '25th': [250000, 180000, 270000, 220000, 120000, 150000, 200000],
+  '50th': [350000, 280000, 370000, 320000, 200000, 250000, 300000],
+  '75th': [450000, 380000, 470000, 420000, 300000, 350000, 400000],
 };
 
 export const leadSoursesData = [
-  { value: 1048, name: "Organic" },
-  { value: 735, name: "Marketing" },
-  { value: 580, name: "Social media" },
-  { value: 484, name: "Blog posts" },
+  { value: 1048, name: 'Organic' },
+  { value: 735, name: 'Marketing' },
+  { value: 580, name: 'Social media' },
+  { value: 484, name: 'Blog posts' },
 ];
 
 export const acquisitionCostData = {
@@ -91,12 +92,12 @@ export const saleFunnelData = {
 };
 
 export const saleFunnelTableData = [
-  { stageIndicator: "chBlue.100", stage: "Awareness", lostLead: 32.2, thisMonth: 6.01 },
-  { stageIndicator: "chBlue.200", stage: "Research", lostLead: 30.1, thisMonth: 4.12 },
-  { stageIndicator: "chBlue.300", stage: "Intent", lostLead: 22.1, thisMonth: 3.91 },
-  { stageIndicator: "chBlue.400", stage: "Evaluation", lostLead: 15.6, thisMonth: 0.01 },
-  { stageIndicator: "chBlue.500", stage: "Negotiation", lostLead: 30.1, thisMonth: 4.12 },
-  { stageIndicator: "chGreen.500", stage: "Acquisition", lostLead: 30.1, thisMonth: 4.12 },
+  { stageIndicator: 'chBlue.100', stage: 'Awareness', lostLead: 32.2, thisMonth: 6.01 },
+  { stageIndicator: 'chBlue.200', stage: 'Research', lostLead: 30.1, thisMonth: 4.12 },
+  { stageIndicator: 'chBlue.300', stage: 'Intent', lostLead: 22.1, thisMonth: 3.91 },
+  { stageIndicator: 'chBlue.400', stage: 'Evaluation', lostLead: 15.6, thisMonth: 0.01 },
+  { stageIndicator: 'chBlue.500', stage: 'Negotiation', lostLead: 30.1, thisMonth: 4.12 },
+  { stageIndicator: 'chGreen.500', stage: 'Acquisition', lostLead: 30.1, thisMonth: 4.12 },
 ];
 
 export const customerFeedbackData = {
@@ -104,7 +105,7 @@ export const customerFeedbackData = {
   negative: [
     -5000, -5000, -4000, -7000, -4500, -6500, -9500, -6500, -5000, -1500, -1500, -6000, -6200,
   ],
-  "75thPercentile": [6000, 8000, 5000, 2000, 5000, 8000, 7000, 8000, -1500, 10000, 3000, 200, 7000],
+  '75thPercentile': [6000, 8000, 5000, 2000, 5000, 8000, 7000, 8000, -1500, 10000, 3000, 200, 7000],
 };
 
 export const avgLifetimeValueData = {
@@ -119,7 +120,8 @@ export const avgLifetimeValueData = {
 };
 
 export const activeUsersData = {
-  placeholder: [1000, 3800, 5000, 5400, 4200, 1700, 1700, 2600, 3600, 4600, 4900, 6600, 3700, 3700, 4900],
+  placeholder: [
+    1000, 3800, 5000, 5400, 4200, 1700, 1700, 2600, 3600, 4600, 4900, 6600, 3700, 3700, 4900,
+  ],
   users: [3800, 5000, 5400, 6900, 5400, 4100, 2600, 3600, 4500, 4900, 7400, 7400, 6500, 4800, 6900],
 };
-

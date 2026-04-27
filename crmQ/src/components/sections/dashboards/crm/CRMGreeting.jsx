@@ -13,10 +13,10 @@ import {
   Typography,
 } from '@mui/material';
 import dayjs from 'dayjs';
-import { cssVarRgba } from '../../../../lib/utils.js';
-import DateRangePicker from '../../../base/DateRangePicker.jsx';
-import IconifyIcon from '../../../base/IconifyIcon.jsx';
-import StyledTextField from '../../../styled/StyledTextField.jsx';
+import { cssVarRgba } from '../../../../lib/utils';
+import DateRangePicker from '../../../../components/base/DateRangePicker';
+import IconifyIcon from '../../../../components/base/IconifyIcon';
+import StyledTextField from '../../../../components/styled/StyledTextField';
 
 const CRMGreeting = ({ data }) => {
   return (

@@ -1,14 +1,14 @@
 import Grid from '@mui/material/Grid';
-import { dealsData, kpisData } from '../../../../data/crm/dashboard.js';
-import CRMGreeting from './CRMGreeting.jsx';
-import AcquisitionCost from './acquisition-cost/AcquisitionCost.jsx';
-import ActiveUsers from './active-users/ActiveUsers.jsx';
-import AvgLifetimeValue from './avg-lifetime-value/AvgLifetimeValue.jsx';
-import CustomerFeedback from './customer-feedback/CustomerFeedback.jsx';
-import CRMGeneratedRevenue from './generated-revenue/CRMGeneratedRevenue.jsx';
-import CRMKPIs from './kpi/CRMKPIs.jsx';
-import LeadSources from './lead-sources/LeadSources.jsx';
-import SaleFunnel from './sale-funnel/SaleFunnel.jsx';
+import { dealsData, kpisData } from '../../../../data/crm/dashboard';
+import CRMGreeting from '../../../../components/sections/dashboards/crm/CRMGreeting';
+import AcquisitionCost from '../../../../components/sections/dashboards/crm/acquisition-cost/AcquisitionCost';
+import ActiveUsers from '../../../../components/sections/dashboards/crm/active-users/ActiveUsers';
+import AvgLifetimeValue from '../../../../components/sections/dashboards/crm/avg-lifetime-value/AvgLifetimeValue';
+import CustomerFeedback from '../../../../components/sections/dashboards/crm/customer-feedback/CustomerFeedback';
+import CRMGeneratedRevenue from '../../../../components/sections/dashboards/crm/generated-revenue/CRMGeneratedRevenue';
+import CRMKPIs from '../../../../components/sections/dashboards/crm/kpi/CRMKPIs';
+import LeadSources from '../../../../components/sections/dashboards/crm/lead-sources/LeadSources';
+import SaleFunnel from '../../../../components/sections/dashboards/crm/sale-funnel/SaleFunnel';
 
 const CRM = () => {
   return (

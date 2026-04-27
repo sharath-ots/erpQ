@@ -1,9 +1,9 @@
 'use client';
 
 import { Box, Paper } from '@mui/material';
-import { activeUsersData } from '../../../../../data/crm/dashboard.js';
-import DashboardSelectMenu from '../../../../common/DashboardSelectMenu.jsx';
-import SectionHeader from '../../../../common/SectionHeader.jsx';
+import { activeUsersData } from '../../../../../data/crm/dashboard';
+import DashboardSelectMenu from '../../../../../components/common/DashboardSelectMenu';
+import SectionHeader from '../../../../../components/common/SectionHeader';
 import ActiveUsersChart from './ActiveUsersChart';
 
 const ActiveUsers = () => {

@@ -1,8 +1,8 @@
 'use client';
 
 import { Paper, Stack, Typography } from '@mui/material';
-import useNumberFormat from '../../../../../hooks/useNumberFormat.js';
-import IconifyIcon from '../../../../base/IconifyIcon.jsx';
+import useNumberFormat from 'hooks/useNumberFormat';
+import IconifyIcon from 'components/base/IconifyIcon';
 
 const KPI = ({ title, subtitle, value, icon }) => {
   const { numberFormat } = useNumberFormat();

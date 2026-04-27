@@ -4,7 +4,7 @@ FROM node:20-alpine AS deps
 WORKDIR /repo
 COPY comDash/package.json comDash/package-lock.json* ./comDash/
 WORKDIR /repo/comDash
-RUN npm ci 2>/dev/null || npm install
+RUN npm ci --legacy-peer-deps 2>/dev/null || npm install --legacy-peer-deps
 
 FROM node:20-alpine AS build
 WORKDIR /repo

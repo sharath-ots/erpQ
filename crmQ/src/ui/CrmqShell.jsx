@@ -10,6 +10,7 @@ import {
   getListViewConfig,
 } from "../constants/crmListViews.js";
 import CRMDashboard from "../../pages/crm/index.jsx";
+import LeadListPage from "../../pages/crm/lead-list/index.jsx";
 /**
  * Routes under /m/crmq/* — comDash sidebar; curated lists + optional ERPNext desk iframe.
  */
@@ -34,6 +35,10 @@ export function CrmqShell({
 
   if (normalized === "/m/crmq") {
     return <CRMDashboard />;
+  }
+
+  if (normalized === "crm/lead-list") {
+    return <LeadListPage />;
   }
 
   if (normalized === "/m/crmq/other") {

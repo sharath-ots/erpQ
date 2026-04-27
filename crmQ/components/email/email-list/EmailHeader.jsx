@@ -4,8 +4,8 @@ import { Box, Button, Stack } from '@mui/material';
 import { useEmailContext } from 'providers/EmailProvider';
 import { REFRESH_EMAILS, SEARCH_EMAIL } from 'reducers/EmailReducer';
 import IconifyIcon from 'components/base/IconifyIcon';
-import EmailComposeDialog from 'components/email/common/EmailComposeDialog';
-import EmailFilterDialog from 'components/email/common/EmailFilterDialog';
+import EmailComposeDialog from '../common/EmailComposeDialog';
+import EmailFilterDialog from '../common/EmailFilterDialog';
 import StyledTextField from 'components/styled/StyledTextField';
 
 const EmailHeader = ({ toggleDrawer }) => {

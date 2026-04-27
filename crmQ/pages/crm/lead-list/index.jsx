@@ -1,3 +1,4 @@
+'use client';
 import { useRouter } from 'next/router';
 import { Button, CssBaseline, Box } from '@mui/material';
 import ThemeProvider from '@/shared-ui/providers/ThemeProvider';

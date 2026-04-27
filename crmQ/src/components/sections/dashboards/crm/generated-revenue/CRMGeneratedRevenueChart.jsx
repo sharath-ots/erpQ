@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useMemo } from 'react';
+import { useMemo } from 'react';
 import { isSafari } from 'react-device-detect';
 import { useTheme } from '@mui/material';
 import dayjs from 'dayjs';
@@ -8,18 +8,16 @@ import { BarChart } from 'echarts/charts';
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
-import { tooltipFormatterList } from '../../../../../helpers/echart-utils.js';
-import { safePalette } from '../../../../../lib/paletteUtils.js';
-import { cssVarRgba } from '../../../../../lib/utils.js';
-import { useSettingsContext } from '../../../../../providers/SettingsProvider.jsx';
-import ReactEchart from '../../../../base/ReactEchart.jsx';
+import { tooltipFormatterList } from 'helpers/echart-utils';
+import { cssVarRgba } from 'lib/utils';
+import { useSettingsContext } from 'providers/SettingsProvider';
+import ReactEchart from 'components/base/ReactEchart';
 
 echarts.use([TooltipComponent, GridComponent, BarChart, CanvasRenderer, LegendComponent]);
 
-const CRMGeneratedRevenueChart = forwardRef(function CRMGeneratedRevenueChart({ sx, data }, ref) {
+const CRMGeneratedRevenueChart = ({ sx, data, ref }) => {
   const { vars, typography } = useTheme();
   const { getThemeColor } = useSettingsContext();
-  const p = safePalette(vars?.palette);
 
   const getOptions = useMemo(
     () => ({
@@ -28,7 +26,7 @@ const CRMGeneratedRevenueChart = forwardRef(function CRMGeneratedRevenueChart({ 
         axisPointer: {
           type: 'shadow',
           shadowStyle: {
-            color: cssVarRgba(getThemeColor(p.chGrey['100Channel']), 0.5),
+            color: cssVarRgba(getThemeColor(vars.palette.chGrey['100Channel']), 0.5),
           },
           z: 1,
         },
@@ -48,16 +46,16 @@ const CRMGeneratedRevenueChart = forwardRef(function CRMGeneratedRevenueChart({ 
         }),
         axisLine: {
           lineStyle: {
-            color: getThemeColor(p.divider),
+            color: getThemeColor(vars.palette.divider),
           },
         },
         axisTick: false,
         axisLabel: {
           show: true,
           fontFamily: typography.fontFamily,
-          color: getThemeColor(p.text.disabled),
+          color: getThemeColor(vars.palette.text.disabled),
           fontWeight: 500,
-          fontSize: typography?.caption?.fontSize,
+          fontSize: typography.caption.fontSize,
           margin: 8,
         },
       },
@@ -67,15 +65,15 @@ const CRMGeneratedRevenueChart = forwardRef(function CRMGeneratedRevenueChart({ 
         axisLabel: {
           show: true,
           formatter: (value) => value / 1000 + 'k',
-          fontFamily: typography?.fontFamily,
-          color: getThemeColor(p.text.disabled),
+          fontFamily: typography.fontFamily,
+          color: getThemeColor(vars.palette.text.disabled),
           fontWeight: 700,
           fontSize: typography.caption.fontSize,
           margin: 8,
         },
         splitLine: {
           lineStyle: {
-            color: getThemeColor(p.dividerLight),
+            color: getThemeColor(vars.palette.dividerLight),
           },
         },
       },
@@ -86,7 +84,7 @@ const CRMGeneratedRevenueChart = forwardRef(function CRMGeneratedRevenueChart({ 
           data: data['25th'],
           itemStyle: {
             borderRadius: [2, 2, 0, 0],
-            color: getThemeColor(p.chGrey[200]),
+            color: getThemeColor(vars.palette.chGrey[200]),
           },
           barWidth: 8,
           emphasis: {
@@ -99,7 +97,7 @@ const CRMGeneratedRevenueChart = forwardRef(function CRMGeneratedRevenueChart({ 
           data: data['50th'],
           itemStyle: {
             borderRadius: [2, 2, 0, 0],
-            color: getThemeColor(p.chGreen[400]),
+            color: getThemeColor(vars.palette.chGreen[400]),
           },
           barWidth: 8,
           emphasis: {
@@ -112,7 +110,7 @@ const CRMGeneratedRevenueChart = forwardRef(function CRMGeneratedRevenueChart({ 
           data: data['75th'],
           itemStyle: {
             borderRadius: [2, 2, 0, 0],
-            color: getThemeColor(p.chBlue[400]),
+            color: getThemeColor(vars.palette.chBlue[400]),
           },
           barWidth: 8,
           emphasis: {
@@ -129,10 +127,10 @@ const CRMGeneratedRevenueChart = forwardRef(function CRMGeneratedRevenueChart({ 
         outerBoundsMode: 'same',
       },
     }),
-    [p, getThemeColor, data],
+    [vars.palette, getThemeColor, data],
   );
 
   return <ReactEchart ref={ref} echarts={echarts} option={getOptions} sx={sx} />;
-});
+};
 
 export default CRMGeneratedRevenueChart;

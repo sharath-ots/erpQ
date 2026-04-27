@@ -2,7 +2,7 @@
 
 import { Box, Paper } from '@mui/material';
 import BulkSelectProvider from 'providers/BulkSelectProvider';
-import EmailListContainer from 'components/email/email-list/EmailListContainer';
+import EmailListContainer from './email-list/EmailListContainer';
 
 const EmailDetails = ({ emailData }) => {
   // Use the passed API data, or default to an empty array
