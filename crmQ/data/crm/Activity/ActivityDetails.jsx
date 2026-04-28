@@ -55,7 +55,7 @@ export const dealInformation = [
         value: (
             <Chip
                 label="Gerard P."
-                avatar={<Avatar src={users[7].avatar} sx={{ width: 16, height: 16 }} />}
+                avatar={<Avatar src={users[7]?.avatar} sx={{ width: 16, height: 16 }} />}
                 variant="soft"
             />
         ),
@@ -112,7 +112,7 @@ export const dealInformation = [
         value: (
             <Chip
                 label="Gerard P."
-                avatar={<Avatar src={users[7].avatar} sx={{ width: 16, height: 16 }} />}
+                avatar={<Avatar src={users[7]?.avatar} sx={{ width: 16, height: 16 }} />}
                 variant="soft"
             />
         ),
@@ -124,7 +124,7 @@ export const dealInformation = [
         value: (
             <Chip
                 label="Isaac N."
-                avatar={<Avatar src={users[11].avatar} sx={{ width: 16, height: 16 }} />}
+                avatar={<Avatar src={users[11]?.avatar} sx={{ width: 16, height: 16 }} />}
                 variant="soft"
             />
         ),
@@ -223,17 +223,17 @@ export const salesPipelineData = [
 export const assignedToData = [
     {
         type: 'Deal Owner',
-        people: [{ id: 1, name: 'Gerard P.', avatar: users[1].avatar, editable: true }],
+        people: [{ id: 1, name: 'Gerard P.', avatar: users[1]?.avatar, editable: true }],
     },
     {
         type: 'Collaborator',
-        people: [{ id: 2, name: 'Muzan K.', avatar: users[14].avatar, editable: false }],
+        people: [{ id: 2, name: 'Muzan K.', avatar: users[14]?.avatar, editable: false }],
     },
     {
         type: 'Follower',
         people: [
-            { id: 3, name: 'Haddock. C', avatar: users[4].avatar, editable: false },
-            { id: 4, name: 'K. Naan', avatar: users[12].avatar, editable: false },
+            { id: 3, name: 'Haddock. C', avatar: users[4]?.avatar, editable: false },
+            { id: 4, name: 'K. Naan', avatar: users[12]?.avatar, editable: false },
         ],
     },
 ];
@@ -273,13 +273,13 @@ export const associatedContactData = [
     {
         id: 1,
         name: 'Tsamina Mina',
-        avatar: users[6].avatar,
+        avatar: users[6]?.avatar,
         designation: 'VP Operations',
         company: 'Waka Waka PLC',
         contactInfo: {
             phone: '+33 6 78 09 34 90',
             email: 'example_1@email.com',
-            contactOwner: [{ id: 1, name: 'Gerard P.', avatar: users[7].avatar }],
+            contactOwner: [{ id: 1, name: 'Gerard P.', avatar: users[7]?.avatar }],
         },
     },
 ];
@@ -486,7 +486,7 @@ export const emailData = [
     {
         id: generateUniqueId(),
         name: 'Tsamina Mina',
-        avatar: users[6].avatar,
+        avatar: users[6]?.avatar,
         sentAt: dayjs().format(),
         message: (
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
@@ -534,7 +534,7 @@ export const emailData = [
     {
         id: generateUniqueId(),
         name: 'Tsamina Mina',
-        avatar: users[6].avatar,
+        avatar: users[6]?.avatar,
         sentAt: dayjs().format(),
         message: (
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
@@ -611,7 +611,7 @@ export const emailData = [
     {
         id: generateUniqueId(),
         name: 'Tsamina Mina',
-        avatar: users[6].avatar,
+        avatar: users[6]?.avatar,
         sentAt: dayjs().format(),
         message: (
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
@@ -1002,7 +1002,7 @@ const notes = [
     {
         id: generateUniqueId(),
         title: 'Feedback on trial',
-        author: { avatar: users[5].avatar, name: 'Olivia Carter' },
+        author: { avatar: users[5]?.avatar, name: 'Olivia Carter' },
         createdAt: dayjs()
             .subtract(1, 'month')
             .subtract(4, 'day')
@@ -1015,7 +1015,7 @@ const notes = [
     {
         id: generateUniqueId(),
         title: 'Feedback on trial',
-        author: { avatar: users[4].avatar, name: 'James Wilson' },
+        author: { avatar: users[4]?.avatar, name: 'James Wilson' },
         createdAt: dayjs()
             .subtract(1, 'month')
             .subtract(4, 'day')
@@ -1028,7 +1028,7 @@ const notes = [
     {
         id: generateUniqueId(),
         title: 'Feedback on trial',
-        author: { avatar: users[3].avatar, name: 'Lucas Taylor' },
+        author: { avatar: users[3]?.avatar, name: 'Lucas Taylor' },
         createdAt: dayjs()
             .subtract(1, 'month')
             .subtract(4, 'day')
@@ -1041,7 +1041,7 @@ const notes = [
     {
         id: generateUniqueId(),
         title: 'Feedback on trial',
-        author: { avatar: users[7].avatar, name: 'Gerard P.' },
+        author: { avatar: users[7]?.avatar, name: 'Gerard P.' },
         createdAt: dayjs()
             .subtract(1, 'month')
             .subtract(4, 'day')

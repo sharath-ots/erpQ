@@ -1,12 +1,12 @@
 'use client';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Paper, Stack, Typography, ButtonBase } from '@mui/material';
 import useNumberFormat from '@/shared-ui/hooks/useNumberFormat';
 import IconifyIcon from '@/shared-ui/components/base/IconifyIcon';
 
 const KPI = ({ title, subtitle, value, icon, path }) => {
     const { numberFormat } = useNumberFormat();
-    const router = useRouter();
+    const isLink = path && path !== '#';
 
     return (
         <Paper
@@ -20,11 +20,8 @@ const KPI = ({ title, subtitle, value, icon, path }) => {
             }}
         >
             <ButtonBase
-                onClick={() => {
-                    if (path && path !== '#') {
-                        router.push(path);
-                    }
-                }}
+                component={isLink ? Link : 'button'}
+                href={isLink ? path : undefined}
                 sx={{
                     p: { xs: 3, md: 5 },
                     width: '100%',

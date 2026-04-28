@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Alert, Card, Table, Typography } from "antd";
 import { ErpNextGatewayClient, GatewayErpNextError } from "../api/gatewayErpNextClient.js";
 import { getListViewConfig } from "../constants/crmListViews.js";
@@ -17,6 +18,8 @@ export function CrmEntityList({
   title,
   listFields,
 }) {
+  const searchParams = useSearchParams();
+  const filterQuery = searchParams.get("filters");
   const client = useMemo(
     () =>
       new ErpNextGatewayClient({
@@ -29,6 +32,14 @@ export function CrmEntityList({
   const cfg = getListViewConfig(doctype);
   const fields = listFields ?? cfg?.listFields ?? ["name", "modified"];
   const heading = title ?? cfg?.label ?? doctype;
+  const filters = useMemo(() => {
+    if (!filterQuery) return undefined;
+    try {
+      return JSON.parse(filterQuery);
+    } catch {
+      return undefined;
+    }
+  }, [filterQuery]);
 
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
@@ -44,11 +55,12 @@ export function CrmEntityList({
       const [listRes, countRes] = await Promise.all([
         client.listDocuments(doctype, {
           fields: JSON.stringify(fields),
+          filters,
           limit_start: start,
           limit_page_length: PAGE_SIZE,
           order_by: "modified desc",
         }),
-        client.countDocuments(doctype).catch(() => ({ data: null })),
+        client.countDocuments(doctype, filters).catch(() => ({ data: null })),
       ]);
       setRows(listRes.data ?? []);
       setTotal(
@@ -61,11 +73,15 @@ export function CrmEntityList({
     } finally {
       setLoading(false);
     }
-  }, [client, doctype, fields, page]);
+  }, [client, doctype, fields, filters, page]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filterQuery]);
 
   const columns = useMemo(() => {
     const keys =

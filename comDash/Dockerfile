@@ -2,7 +2,7 @@
 # Build from monorepo root: docker build -f comDash/Dockerfile -t erpq/comdash:latest .
 FROM node:20-alpine AS deps
 WORKDIR /repo
-COPY comDash/package.json comDash/package-lock.json* ./comDash/
+COPY comDash/package.json comDash/package-lock.json* comDash/.npmrc ./comDash/
 WORKDIR /repo/comDash
 RUN npm ci --legacy-peer-deps 2>/dev/null || npm install --legacy-peer-deps
 
@@ -13,12 +13,6 @@ COPY crmQ ./crmQ
 COPY hrQ ./hrQ
 COPY purQ ./purQ
 COPY comDash ./comDash
-WORKDIR /repo/crmQ
-RUN npm install --omit=dev
-WORKDIR /repo/hrQ
-RUN npm install --omit=dev
-WORKDIR /repo/purQ
-RUN npm install --omit=dev
 WORKDIR /repo/comDash
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build

@@ -31,20 +31,17 @@ export function isTokenExpired(token) {
  * Falls back to localhost:3100 if the request fails.
  */
 async function getAuthUrl() {
-  try {
-    const res = await fetch("/api/config");
-    if (res.ok) {
-      const cfg = await res.json();
-      if (cfg.authUrl) return cfg.authUrl.replace(/\/$/, "");
-    }
-  } catch {
-    // fall through
+  if (typeof window === "undefined") return "";
+  // Local (ports): http://localhost:13000 -> http://localhost:3100
+  // Traefik (path): https://erpq.lan -> https://erpq.lan/login
+  if (
+    window.location.port === "" ||
+    window.location.port === "80" ||
+    window.location.port === "443"
+  ) {
+    return `${window.location.origin}/login`;
   }
-  // Fallback: same host as dashboard, auth-web default port 3100.
-  if (typeof window !== "undefined") {
-    return `${window.location.protocol}//${window.location.hostname}:3100`;
-  }
-  return "";
+  return `${window.location.protocol}//${window.location.hostname}:3100`;
 }
 
 /** Clears the stored token and redirects the browser to the login page. */

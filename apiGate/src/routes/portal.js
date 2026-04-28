@@ -55,6 +55,7 @@ function buildCrmMenuChildren() {
   return [
     { key: "crmq-dash", label: "Dashboard", path: "/m/crmq" },
     { key: "crmq-lead", label: "Leads", path: "/m/crmq/list/Lead" },
+    { key: "crmq-add-lead", label: "Add Lead", path: "/m/crmq/add-lead" },
     {
       key: "crmq-opp",
       label: "Opportunities",

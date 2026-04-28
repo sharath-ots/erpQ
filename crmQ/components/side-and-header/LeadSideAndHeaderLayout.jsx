@@ -41,7 +41,8 @@ const LeadSideBar = ({ isCollapsed, onToggleDesktop }) => {
     }, [searchParams, isInitialized]);
 
     const getFilterUrl = (filterRules) => {
-        return `/m/crmq/lead-list?filters=${encodeURIComponent(JSON.stringify(filterRules))}`;
+        const basePath = pathname.startsWith('/m/crmq') ? '/m/crmq/list/Lead' : '/crm/lead-list';
+        return `${basePath}?filters=${encodeURIComponent(JSON.stringify(filterRules))}`;
     };
 
     const navItems = [
@@ -100,7 +101,7 @@ const LeadSideBar = ({ isCollapsed, onToggleDesktop }) => {
                     ) : (
                         <ListItemButton
                             component={Link}
-                            href="/m/crmq" // 🚀 Updated to break out back to main portal
+                            href={pathname.startsWith('/m/crmq') ? '/m/crmq' : '/crm'}
                             sx={{ borderRadius: 2, bgcolor: '#ffffff', border: '1px solid #e2e8f0', transition: 'all 0.2s', '&:hover': { bgcolor: '#f8fafc' } }}
                         >
                             <ListItemIcon sx={{ minWidth: 0, mr: isCollapsed ? 0 : 1.5, color: '#475569' }}>

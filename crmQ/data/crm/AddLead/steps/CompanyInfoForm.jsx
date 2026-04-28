@@ -1,6 +1,5 @@
 import { Controller, useFormContext } from 'react-hook-form';
-import { Box, Divider, InputAdornment, Stack, TextField, Typography } from '@mui/material';
-import Grid from '@mui/material/Grid';
+import { Box, Divider, Grid, InputAdornment, Stack, TextField, Typography } from '@mui/material';
 import * as yup from 'yup';
 import IconifyIcon from 'components/base/IconifyIcon';
 import ContactFormSection from 'components/sections/crm/add-contact/ContactFormSection';

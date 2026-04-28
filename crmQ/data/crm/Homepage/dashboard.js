@@ -3,7 +3,7 @@ export const kpisData = [
         title: 'Leads',
         value: 57, // You can replace this with a dynamic variable later
         subtitle: 'View all open leads',
-        path: '/crm/lead-list',
+        path: '/m/crmq/list/Lead',
         icon: {
             name: 'material-symbols:leaderboard-outline-rounded',
             color: 'primary.main',
@@ -22,8 +22,8 @@ export const kpisData = [
     {
         title: 'Opportunities',
         value: 0,
-        subtitle: 'Coming soon',
-        path: '/crm/email/list/inbox',
+        subtitle: 'View all opportunities',
+        path: '/m/crmq/list/Opportunity',
         icon: {
             name: 'material-symbols:lightbulb-outline-rounded',
             color: 'warning.main',

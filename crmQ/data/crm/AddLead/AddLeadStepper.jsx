@@ -5,7 +5,7 @@ import { FormProvider, useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Box, Button, Container, Stack, Step, StepLabel, Stepper, Typography } from '@mui/material';
 import { useSnackbar } from 'notistack';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 import CompanyInfoForm, {
   companyInfoSchema,
 } from '../AddLead/steps/CompanyInfoForm';
@@ -174,7 +174,7 @@ const AddLeadStepper = () => {
       // Success actions
       enqueueSnackbar('Lead added successfully to ERPNext!', { variant: 'success' });
       reset();
-      router.push('/crm/lead-list');
+      router.push('/m/crmq/list/Lead');
 
     } catch (error) {
       console.error("Save Error:", error);

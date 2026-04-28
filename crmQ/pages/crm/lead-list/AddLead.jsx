@@ -5,7 +5,7 @@ import ThemeProvider from '@/shared-ui/providers/ThemeProvider';
 import MainLayout from '../../../src/layouts/main-layout';
 import SettingsProvider from '@/shared-ui/providers/SettingsProvider';
 import BreakpointsProvider from '@/shared-ui/providers/BreakpointsProvider';
-import AddLead from '../../../data/crm/AddLead/index';
+import AddLead from '../../../data/crm/AddLead/index.jsx';
 
 export default function AddLeadPage() {
 

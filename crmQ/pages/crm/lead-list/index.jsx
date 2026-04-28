@@ -1,15 +1,16 @@
 'use client';
-import { useRouter } from 'next/navigation';
-import { Button, CssBaseline, Box } from '@mui/material';
+import { CssBaseline, Box } from '@mui/material';
 import ThemeProvider from '@/shared-ui/providers/ThemeProvider';
-import MainLayout from '../../../src/layouts/main-layout';
 import SettingsProvider from '@/shared-ui/providers/SettingsProvider';
 import BreakpointsProvider from '@/shared-ui/providers/BreakpointsProvider'; // 👈 1. NEW IMPORT
 import LeadsTable from '../../../data/crm/LeadList';
 import LeadSideAndHeaderLayout from '../../../components/side-and-header/LeadSideAndHeaderLayout';
 
 export default function LeadListPage() {
-    const router = useRouter();
+    const openLeadInErpNext = (id) => {
+        if (typeof window === 'undefined') return;
+        window.location.assign(`/m/crmq/iframe/app/lead/${encodeURIComponent(id)}`);
+    };
 
     return (
         <SettingsProvider>
@@ -19,7 +20,7 @@ export default function LeadListPage() {
                     <LeadSideAndHeaderLayout>
                         <Box sx={{ p: 0 }}>
                             <LeadsTable
-                                onLeadClick={(id) => router.push(`/crm/lead-list/${id}`)}
+                                onLeadClick={openLeadInErpNext}
                             />
                         </Box>
                     </LeadSideAndHeaderLayout>

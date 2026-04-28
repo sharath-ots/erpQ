@@ -1,9 +1,13 @@
 services:
   # HTTPS edge for the stack (terminates TLS, routes by Host header)
   traefik:
-    image: traefik:v3.4
+    image: traefik:v3.6
     container_name: erpq-traefik
     restart: unless-stopped
+    environment:
+      # Traefik's Docker provider talks to the Docker Engine API over /var/run/docker.sock.
+      # Our Engine enforces a minimum API version (1.40). Pin the client API to a compatible version.
+      DOCKER_API_VERSION: "1.40"
     command:
       - --api.dashboard=true
       - --api.insecure=${TRAEFIK_DASHBOARD_INSECURE:-false}
@@ -31,7 +35,7 @@ services:
       - "${TRAEFIK_DASHBOARD_PORT:-8088}:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      - ${TRAEFIK_DYNAMIC_DIR:-./traefik/dynamic}:/etc/traefik/dynamic:ro
       - traefik_letsencrypt:/letsencrypt
     networks:
       - proxy
@@ -83,11 +87,31 @@ services:
   auth-web:
     labels:
       - traefik.enable=true
+      # auth-web can be reached either via subdomain (login.erpq.lan) OR path (/login) on the main host.
+      - traefik.http.services.authweb.loadbalancer.server.port=3000
+
+      # --- Option A: subdomain routing (login.erpq.lan) ---
       - traefik.http.routers.authweb.rule=Host(`${LOGIN_HOST:-login.${PUBLIC_HOST}}`)
       - traefik.http.routers.authweb.entrypoints=websecure
       - traefik.http.routers.authweb.tls=true
       - traefik.http.routers.authweb.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
-      - traefik.http.services.authweb.loadbalancer.server.port=3000
+
+      # --- Option B: single-domain path routing (https://erpq.lan/login/*) ---
+      - traefik.http.routers.authweb-path.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/login`)
+      - traefik.http.routers.authweb-path.entrypoints=websecure
+      - traefik.http.routers.authweb-path.tls=true
+      - traefik.http.routers.authweb-path.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.routers.authweb-path.service=authweb
+      # Do NOT strip /login: auth-web is built with basePath=/login and must see the prefix
+      - traefik.http.routers.authweb-path.middlewares=authweb-normalize-double-login
+
+      # Fix accidental double-prefix redirects like /login/login?redirect=...
+      - traefik.http.middlewares.authweb-normalize-double-login.redirectregex.regex=^https?://([^/]+)/login/login(.*)
+      - traefik.http.middlewares.authweb-normalize-double-login.redirectregex.replacement=https://$${1}/login$${2}
+      - traefik.http.middlewares.authweb-normalize-double-login.redirectregex.permanent=false
+
+      # NOTE: auth-web's canonical page is `/login` (its app route is `/login`),
+      # and it will handle any internal redirects from there.
 
   core:
     labels:

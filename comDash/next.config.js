@@ -12,6 +12,8 @@ function aliasMuiPackages(config) {
     ["@mui/system", path.join(nm, "@mui", "system")],
     ["@mui/lab", path.join(nm, "@mui", "lab")],
     ["@mui/utils", path.join(nm, "@mui", "utils")],
+    ["@mui/x-data-grid", path.join(nm, "@mui", "x-data-grid")],
+    ["@mui/x-date-pickers", path.join(nm, "@mui", "x-date-pickers")],
     ["@emotion/react", path.join(nm, "@emotion", "react")],
     ["@emotion/styled", path.join(nm, "@emotion", "styled")],
   ];
@@ -152,6 +154,15 @@ const nextConfig = {
         "components/sections/dashboards/crm",
       ),
       "data/crm/dashboard": path.join(crmqSrc, "data/crm/dashboard.js"),
+      /** crmQ email module uses bare imports that live outside crmQ/src. */
+      "data/email": path.resolve(__dirname, "../crmQ/data/email"),
+      "components/email": path.resolve(__dirname, "../crmQ/components/email"),
+      /** crmQ sometimes imports from `src/...` (treat as crmQ/src in this monorepo build). */
+      "src/layouts/email-layout": path.join(crmqSrc, "layouts/email-layout"),
+      "src/layouts/email-layout/EmailSidebar": path.join(
+        crmqSrc,
+        "layouts/email-layout/EmailSidebar.jsx",
+      ),
     });
 
     /** hrQ — HR module sibling package */

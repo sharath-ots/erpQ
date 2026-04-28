@@ -87,7 +87,7 @@ const SettingsProvider = ({ children }) => {
   }, [config.locale, i18n]);
 
   return (
-    <SettingsContext
+    <SettingsContext.Provider
       value={{
         config,
         configDispatch,
@@ -98,7 +98,7 @@ const SettingsProvider = ({ children }) => {
       }}
     >
       {children}
-    </SettingsContext>
+    </SettingsContext.Provider>
   );
 };
 

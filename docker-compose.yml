@@ -1,4 +1,4 @@
-# erpQ — single stack (repo root):  docker compose up -d --build
+# erpQ â€” single stack (repo root):  docker compose up -d --build
 #
 # --- Reverse proxy (pick ONE) ---
 #
@@ -7,13 +7,13 @@
 #    - If your Compose project/stack is named "proxy", the default network is usually proxy_default
 #      (see: docker network ls | findstr proxy).
 #    - Default: NGINX_PROXY_NETWORK=proxy_default (override in .env if yours differs, e.g. myproject_default).
-#    - Host port 8081→80 on the proxy avoids Windows issues with binding host :80.
+#    - Host port 8081â†’80 on the proxy avoids Windows issues with binding host :80.
 #    - Browse:  http://api.local:8081
 #
 # B) Optional compose-managed proxy on 8081:
 #      docker compose --profile proxy up -d
 #    Only one container should mount docker.sock for nginx-proxy.
-# Hosts/DNS: api.local mq.local core.local auth.local dashboard.local → server IP
+# Hosts/DNS: api.local mq.local core.local auth.local dashboard.local â†’ server IP
 # Override subdomains: VIRTUAL_HOST_API, VIRTUAL_HOST_MQ, etc.
 #
 # Direct host ports (optional): 13000 dashboard, 3100 auth login UI (Next), 14000 core, 14100 auth API, 18080 apigate, 5672/15672 rabbitmq
@@ -96,7 +96,7 @@ services:
       HOST: "0.0.0.0"
       JWT_SECRET: ${JWT_SECRET:-erpq-dev-jwt-change-me}
       CITYQ_INTERNAL_KEY: ${CITYQ_INTERNAL_KEY:-cityq-dev-internal-change-me}
-      # OAuth (Google / Zoho): set client IDs & secrets in .env — never commit real values
+      # OAuth (Google / Zoho): set client IDs & secrets in .env â€” never commit real values
       AUTHQ_PUBLIC_BASE_URL: ${AUTHQ_PUBLIC_BASE_URL:-http://localhost:14100}
       AUTHQ_OAUTH_RETURN_URL_PREFIXES: ${AUTHQ_OAUTH_RETURN_URL_PREFIXES:-http://localhost:13000,http://localhost:3000,http://127.0.0.1:13000}
       AUTHQ_OAUTH_DEFAULT_RETURN_URL: ${AUTHQ_OAUTH_DEFAULT_RETURN_URL:-http://localhost:13000/}
@@ -121,7 +121,7 @@ services:
       retries: 5
       start_period: 20s
 
-  # Browser login UI (comDash AuthGate → http://localhost:3100/login). Auth API alone (14100) has no /login page.
+  # Browser login UI (comDash AuthGate â†’ http://localhost:3100/login). Auth API alone (14100) has no /login page.
   auth-web:
     build:
       context: ./authQ/web
@@ -132,6 +132,7 @@ services:
         NEXT_PUBLIC_AUTHQ_URL: ${NEXT_PUBLIC_AUTHQ_URL:-http://localhost:14100}
         NEXT_PUBLIC_LOGIN_DEV_BYPASS: ${NEXT_PUBLIC_LOGIN_DEV_BYPASS:-false}
         NEXT_PUBLIC_ERPNEXT_SITE_LABEL: ${NEXT_PUBLIC_ERPNEXT_SITE_LABEL:-ERPNext (cityqerp.ortusolis.in)}
+        AUTH_WEB_ASSET_PREFIX: ${AUTH_WEB_ASSET_PREFIX:-}
     image: erpq/auth-web:latest
     ports:
       - "3100:3000"
@@ -211,7 +212,7 @@ services:
       HOSTNAME: "0.0.0.0"
       # Next.js rewrites /api/v1/* to this URL server-side (no client-side IP needed).
       APIGATE_INTERNAL_URL: http://apigate:8080
-      # Auth-web login page URL — must be reachable from the user's browser.
+      # Auth-web login page URL â€” must be reachable from the user's browser.
       # Override in .env if your server is not localhost (e.g. NEXT_PUBLIC_AUTH_URL=http://192.168.1.100:3100)
       NEXT_PUBLIC_AUTH_URL: ${NEXT_PUBLIC_AUTH_URL:-http://localhost:3100}
       ERPNEXT_API_KEY: ${ERPNEXT_API_KEY}
@@ -244,6 +245,7 @@ services:
     restart: unless-stopped
     networks:
       - default
+      - proxy
 
 volumes:
   rabbitmq_data:

@@ -12,8 +12,7 @@ import {
 import CRMDashboard from "../../pages/crm/index.jsx";
 import LeadListPage from "../../pages/crm/lead-list/index.jsx";
 import LeadDetailsPage from "../../pages/crm/lead-list/[id].jsx";
-import AddLeadPage from "../../pages/crm/lead-list/AddLead.jsx";
-
+import AddLeadScreen from "./AddLeadScreen.jsx";
 /**
  * Routes under /m/crmq/* — comDash sidebar; curated lists + optional ERPNext desk iframe.
  */
@@ -45,15 +44,16 @@ export function CrmqShell({
   }
 
   if (normalized === "/m/crmq/lead-list/AddLead") {
-    return <AddLeadPage />;
+    return <AddLeadScreen />;
   }
 
   const leadDetailsMatch = normalized.match(/^\/m\/crmq\/lead-list\/([^/]+)$/);
   if (leadDetailsMatch) {
     return <LeadDetailsPage id={leadDetailsMatch[1]} />;
   }
-
-
+  if (normalized === "/m/crmq/add-lead") {
+    return <AddLeadScreen />;
+  }
   if (normalized === "/m/crmq/other") {
     return (
       <CrmOtherDocTypesPage
@@ -84,6 +84,9 @@ export function CrmqShell({
           }
         />
       );
+    }
+    if (doctype === "Lead") {
+      return <LeadListPage />;
     }
     const cfg = getListViewConfig(doctype);
     return (

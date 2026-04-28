@@ -29,20 +29,12 @@ export function AuthGate({ children }) {
     if (typeof window === "undefined") return;
 
     (async () => {
-      // Fetch auth URL from server at runtime — avoids baking localhost:3100
-      // into the JS bundle when building inside Docker.
-      let authUrl =
-        typeof window !== "undefined"
-          ? `${window.location.protocol}//${window.location.hostname}:3100`
-          : "";
-      try {
-        const res = await fetch("/api/config");
-        if (res.ok) {
-          const cfg = await res.json();
-          if (cfg.authUrl) authUrl = cfg.authUrl;
-        }
-      } catch {
-        // fall through to default
+      // Derive auth-web URL from current origin.
+      // - Local (ports): http://localhost:13000 -> http://localhost:3100
+      // - Traefik (path): https://erpq.lan -> https://erpq.lan/login
+      let authUrl = `${window.location.protocol}//${window.location.hostname}:3100`;
+      if (window.location.port === "" || window.location.port === "80" || window.location.port === "443") {
+        authUrl = `${window.location.origin}/login`;
       }
 
       let token = consumeTokenFromHash();

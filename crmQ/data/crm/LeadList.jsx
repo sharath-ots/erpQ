@@ -6,7 +6,7 @@ import {
     ToggleButton, ToggleButtonGroup, Tooltip, Checkbox, Pagination
 } from '@mui/material';
 import { DataGrid, GRID_CHECKBOX_SELECTION_COL_DEF, gridClasses } from '@mui/x-data-grid';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 // --- ARORA COMPONENTS ---
 import IconifyIcon from '@/shared-ui/components/base/IconifyIcon';
@@ -60,7 +60,6 @@ const LeadsTable = ({ onLeadClick }) => {
     const [activeStatus, setActiveStatus] = useState('All');
     const [sortAnchor, setSortAnchor] = useState(null);
     const [activeSort, setActiveSort] = useState('Last Updated On');
-    const router = useRouter();
     const searchParams = useSearchParams();
 
     const [viewMode, setViewMode] = useState('table');
@@ -123,35 +122,28 @@ const LeadsTable = ({ onLeadClick }) => {
         }
     }, [isGroupModalOpen, emailGroups.length]);
 
+    const navigateTo = (path) => {
+        if (typeof window === 'undefined') return;
+        window.location.assign(path);
+    };
+
     useEffect(() => {
-        // Get the "filters" string from the URL (?filters=...)
-        const filtersRaw = searchParams.get('filters');
-
-        if (filtersRaw) {
+        const filtersQuery = searchParams?.get('filters');
+        if (filtersQuery) {
             try {
-                const incomingFilters = JSON.parse(filtersRaw);
+                const incomingFilters = JSON.parse(filtersQuery);
                 setAdvancedFilters(incomingFilters);
-
-                // Clean the URL so the filters don't stay in the address bar
-                // In App Router, replace only takes the path string.
-                router.replace('/m/crmq/lead-list');
+                if (typeof window !== 'undefined') {
+                    const basePath = window.location.pathname.startsWith('/m/crmq')
+                        ? '/m/crmq/list/Lead'
+                        : '/crm/lead-list';
+                    window.history.replaceState(null, '', basePath);
+                }
             } catch (error) {
                 console.error("Failed to parse URL filters:", error);
             }
         }
-    }, [searchParams, router]);
-
-    // useEffect(() => {
-    //     if (router.isReady && router.query.filters) {
-    //         try {
-    //             const incomingFilters = JSON.parse(router.query.filters);
-    //             setAdvancedFilters(incomingFilters);
-    //             router.replace('/crm/lead-list', undefined, { shallow: true });
-    //         } catch (error) {
-    //             console.error("Failed to parse URL filters:", error);
-    //         }
-    //     }
-    // }, [router.isReady, router.query.filters]);
+    }, [searchParams]);
 
     const handleAddToGroup = async () => {
         let safeIds = Array.isArray(selectedLeadIds) ? selectedLeadIds : Array.from(selectedLeadIds || []);
@@ -326,7 +318,7 @@ const LeadsTable = ({ onLeadClick }) => {
                             <Button
                                 variant="contained"
                                 color="primary"
-                                onClick={() => router.push('/m/crmq/lead-list/AddLead')}
+                                onClick={() => navigateTo('/m/crmq/add-lead')}
                                 sx={{ borderRadius: 2, px: 3, py: 1.2, fontWeight: 700, textTransform: 'none' }}
                             >
                                 Add lead
@@ -578,7 +570,7 @@ const LeadsTable = ({ onLeadClick }) => {
                                 variant="outlined"
                                 size="small"
                                 startIcon={<IconifyIcon icon="material-symbols:edit-outline" />}
-                                onClick={() => router.push(`/crm/lead-list/edit/${selectedDetailLeadId}`)}
+                                onClick={() => navigateTo(`/m/crmq/iframe/app/lead/${encodeURIComponent(selectedDetailLeadId)}`)}
                                 sx={{ fontWeight: 600, borderRadius: 1.5 }}
                             >
                                 Edit
@@ -589,7 +581,10 @@ const LeadsTable = ({ onLeadClick }) => {
                                 variant="contained"
                                 size="small"
                                 color="primary"
-                                onClick={() => router.push(`/m/crmq/lead-list/${selectedDetailLeadId}`)}
+                                onClick={() => {
+                                    if (onLeadClick) onLeadClick(selectedDetailLeadId);
+                                    else navigateTo(`/m/crmq/iframe/app/lead/${encodeURIComponent(selectedDetailLeadId)}`);
+                                }}
                                 sx={{ fontWeight: 600, borderRadius: 1.5, boxShadow: 'none' }}
                             >
                                 View Full Details
