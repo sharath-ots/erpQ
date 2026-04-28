@@ -21,7 +21,7 @@
 services:
   # Optional: official nginx-proxy; host ${NGINX_PROXY_HTTP_PORT:-8081} -> container 80 (avoids binding host :80)
   nginx-proxy:
-    profiles: ["proxy"]
+    profiles: [ "proxy" ]
     image: nginxproxy/nginx-proxy:latest
     container_name: erpq-nginx-proxy
     restart: unless-stopped
@@ -50,7 +50,7 @@ services:
       - default
       - proxy
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
       interval: 15s
       timeout: 10s
       retries: 5
@@ -78,13 +78,7 @@ services:
       - default
       - proxy
     healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "fetch('http://127.0.0.1:4000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
-        ]
+      test: [ "CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -121,13 +115,7 @@ services:
       - default
       - proxy
     healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "fetch('http://127.0.0.1:4100/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
-        ]
+      test: [ "CMD", "node", "-e", "fetch('http://127.0.0.1:4100/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -155,13 +143,7 @@ services:
       - default
       - proxy
     healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
-        ]
+      test: [ "CMD", "node", "-e", "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -210,13 +192,7 @@ services:
       - default
       - proxy
     healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
-        ]
+      test: [ "CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -230,6 +206,7 @@ services:
     ports:
       - "13000:3000"
     environment:
+      NODE_ENV: development
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
       # Next.js rewrites /api/v1/* to this URL server-side (no client-side IP needed).
@@ -237,20 +214,18 @@ services:
       # Auth-web login page URL — must be reachable from the user's browser.
       # Override in .env if your server is not localhost (e.g. NEXT_PUBLIC_AUTH_URL=http://192.168.1.100:3100)
       NEXT_PUBLIC_AUTH_URL: ${NEXT_PUBLIC_AUTH_URL:-http://localhost:3100}
+      ERPNEXT_API_KEY: ${ERPNEXT_API_KEY}
+      ERPNEXT_API_SECRET: ${ERPNEXT_API_SECRET}
+      ERPNEXT_URL: ${CITYQ_ERPNEXT_URL:-http://cityerp.ortusolis.in}
       VIRTUAL_HOST: ${VIRTUAL_HOST_DASHBOARD:-dashboard.local}
       VIRTUAL_PORT: "3000"
+
     restart: unless-stopped
     networks:
       - default
       - proxy
     healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
-        ]
+      test: [ "CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
       interval: 15s
       timeout: 5s
       retries: 5

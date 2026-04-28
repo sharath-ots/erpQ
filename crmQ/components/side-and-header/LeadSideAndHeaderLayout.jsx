@@ -41,7 +41,7 @@ const LeadSideBar = ({ isCollapsed, onToggleDesktop }) => {
     }, [searchParams, isInitialized]);
 
     const getFilterUrl = (filterRules) => {
-        return `/crm/lead-list?filters=${encodeURIComponent(JSON.stringify(filterRules))}`;
+        return `/m/crmq/lead-list?filters=${encodeURIComponent(JSON.stringify(filterRules))}`;
     };
 
     const navItems = [
@@ -99,8 +99,8 @@ const LeadSideBar = ({ isCollapsed, onToggleDesktop }) => {
                         </ListItemButton>
                     ) : (
                         <ListItemButton
-                            component="a"
-                            href="http://cityqerp.ortusolis.in:3005/crm" // 🚀 Updated to break out back to main portal
+                            component={Link}
+                            href="/m/crmq" // 🚀 Updated to break out back to main portal
                             sx={{ borderRadius: 2, bgcolor: '#ffffff', border: '1px solid #e2e8f0', transition: 'all 0.2s', '&:hover': { bgcolor: '#f8fafc' } }}
                         >
                             <ListItemIcon sx={{ minWidth: 0, mr: isCollapsed ? 0 : 1.5, color: '#475569' }}>

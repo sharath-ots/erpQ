@@ -1,5 +1,5 @@
 'use client';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 import { Button, CssBaseline, Box } from '@mui/material';
 import ThemeProvider from '@/shared-ui/providers/ThemeProvider';
 import MainLayout from '../../../src/layouts/main-layout';

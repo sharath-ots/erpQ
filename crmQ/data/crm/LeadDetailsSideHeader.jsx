@@ -55,7 +55,7 @@ const LeadDetailsSideHeader = ({ leadName, leadCRMId }) => {
                         size={downMd ? 'small' : 'medium'}
                         color="primary"
                         sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, boxShadow: 'none' }}
-                        onClick={() => router.push(`/crm/lead-list/${leadCRMId}`)}
+                        onClick={() => router.push(`/m/crmq/lead-list/${leadCRMId}`)}
                     >
                         View Full Details
                     </Button>

@@ -20,7 +20,7 @@ export const kpisData = [
     title: 'Leads',
     value: 89,
     subtitle: 'Total Leads',
-    path: 'crm/lead-list',
+    path: '/m/crmq/lead-list',
     icon: {
       name: 'material-symbols-light:location-away-outline-rounded',
       color: 'primary.main',

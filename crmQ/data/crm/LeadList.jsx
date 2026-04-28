@@ -6,7 +6,7 @@ import {
     ToggleButton, ToggleButtonGroup, Tooltip, Checkbox, Pagination
 } from '@mui/material';
 import { DataGrid, GRID_CHECKBOX_SELECTION_COL_DEF, gridClasses } from '@mui/x-data-grid';
-import { useRouter } from 'next/router';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 // --- ARORA COMPONENTS ---
 import IconifyIcon from '@/shared-ui/components/base/IconifyIcon';
@@ -61,6 +61,7 @@ const LeadsTable = ({ onLeadClick }) => {
     const [sortAnchor, setSortAnchor] = useState(null);
     const [activeSort, setActiveSort] = useState('Last Updated On');
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     const [viewMode, setViewMode] = useState('table');
     const [listZoom, setListZoom] = useState(0);
@@ -123,16 +124,34 @@ const LeadsTable = ({ onLeadClick }) => {
     }, [isGroupModalOpen, emailGroups.length]);
 
     useEffect(() => {
-        if (router.isReady && router.query.filters) {
+        // Get the "filters" string from the URL (?filters=...)
+        const filtersRaw = searchParams.get('filters');
+
+        if (filtersRaw) {
             try {
-                const incomingFilters = JSON.parse(router.query.filters);
+                const incomingFilters = JSON.parse(filtersRaw);
                 setAdvancedFilters(incomingFilters);
-                router.replace('/crm/lead-list', undefined, { shallow: true });
+
+                // Clean the URL so the filters don't stay in the address bar
+                // In App Router, replace only takes the path string.
+                router.replace('/m/crmq/lead-list');
             } catch (error) {
                 console.error("Failed to parse URL filters:", error);
             }
         }
-    }, [router.isReady, router.query.filters]);
+    }, [searchParams, router]);
+
+    // useEffect(() => {
+    //     if (router.isReady && router.query.filters) {
+    //         try {
+    //             const incomingFilters = JSON.parse(router.query.filters);
+    //             setAdvancedFilters(incomingFilters);
+    //             router.replace('/crm/lead-list', undefined, { shallow: true });
+    //         } catch (error) {
+    //             console.error("Failed to parse URL filters:", error);
+    //         }
+    //     }
+    // }, [router.isReady, router.query.filters]);
 
     const handleAddToGroup = async () => {
         let safeIds = Array.isArray(selectedLeadIds) ? selectedLeadIds : Array.from(selectedLeadIds || []);
@@ -307,7 +326,7 @@ const LeadsTable = ({ onLeadClick }) => {
                             <Button
                                 variant="contained"
                                 color="primary"
-                                onClick={() => router.push('/crm/lead-list/AddLead')}
+                                onClick={() => router.push('/m/crmq/lead-list/AddLead')}
                                 sx={{ borderRadius: 2, px: 3, py: 1.2, fontWeight: 700, textTransform: 'none' }}
                             >
                                 Add lead
@@ -570,7 +589,7 @@ const LeadsTable = ({ onLeadClick }) => {
                                 variant="contained"
                                 size="small"
                                 color="primary"
-                                onClick={() => router.push(`/crm/lead-list/${selectedDetailLeadId}`)}
+                                onClick={() => router.push(`/m/crmq/lead-list/${selectedDetailLeadId}`)}
                                 sx={{ fontWeight: 600, borderRadius: 1.5, boxShadow: 'none' }}
                             >
                                 View Full Details

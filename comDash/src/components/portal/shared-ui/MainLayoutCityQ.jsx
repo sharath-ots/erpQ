@@ -13,15 +13,23 @@ import Footer from "layouts/main-layout/footer";
 import CityQAppBar from "./CityQAppBar";
 import CityQSidenav from "./CityQSidenav";
 import CityQSidenavDrawerContent from "./CityQSidenavDrawerContent";
+import { usePathname } from "next/navigation";
 
 /**
  * Aurora MainLayout pattern (sidenav + app bar + footer) wired to CityQ portal routes.
  */
 export default function MainLayoutCityQ({ children }) {
+
+  const pathname = usePathname();
+
   const {
     config: { drawerWidth, openNavbarDrawer, navColor },
     setConfig,
   } = useSettingsContext();
+
+  if (pathname.includes('/lead-list')) {
+    return <>{children}</>;
+  }
 
   const toggleNavbarDrawer = () => {
     setConfig({

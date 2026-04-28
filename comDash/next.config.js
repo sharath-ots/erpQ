@@ -68,8 +68,10 @@ const nextConfig = {
 
     config.resolve.alias["@cityq/crmq"] = path.resolve(
       __dirname,
-      "../crmQ/src/index.js",
+      "../crmQ/src",
     );
+
+    config.resolve.alias["@crm-api"] = path.resolve(__dirname, "../crmQ/pages/api");
     /** Resolve shared-ui bare imports (providers/, theme/, …) from src/shared-ui — same webpack context, same node_modules. */
     const sharedUiComponentsRoot = path.join(sharedUiSrc, "components");
     /**
@@ -120,6 +122,8 @@ const nextConfig = {
 
     const sharedUiAliases = {
       /** Theme bundle mock data (`data/*` imports in src/shared-ui). */
+      "@secrets": path.join(__dirname, "src", "secrets.js"),
+      "@crm-api": path.resolve(__dirname, "../crmQ/pages/api"),
       data: path.join(sharedUiSrc, "data"),
       providers: path.join(sharedUiSrc, "providers"),
       layouts: path.join(sharedUiSrc, "layouts"),

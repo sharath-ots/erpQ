@@ -1,14 +1,14 @@
-import { ERPNEXT_API_KEY, ERPNEXT_API_SECRET, CITYQ_ERPNEXT_URL } from '../../secrets';
+import { NextResponse } from 'next/server';
+// Ensure this path aligns with your App Router structure
+import { ERPNEXT_API_KEY, ERPNEXT_API_SECRET, CITYQ_ERPNEXT_URL } from '../../../secrets';
 
-export default async function handler(req, res) {
-    if (req.method !== 'GET') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
-
-    const { lead_id } = req.query;
+export async function GET(request) {
+    // 1. App Router: Extract query parameters from the URL
+    const { searchParams } = new URL(request.url);
+    const lead_id = searchParams.get('lead_id');
 
     if (!lead_id) {
-        return res.status(400).json({ error: 'lead_id is required' });
+        return NextResponse.json({ error: 'lead_id is required' }, { status: 400 });
     }
 
     const authHeader = `token ${ERPNEXT_API_KEY}:${ERPNEXT_API_SECRET}`;
@@ -19,7 +19,12 @@ export default async function handler(req, res) {
     };
 
     try {
+        // 2. Add an .ok check to the initial lead fetch
         const leadRes = await fetch(`${CITYQ_ERPNEXT_URL}/api/resource/Lead/${lead_id}`, { headers });
+        if (!leadRes.ok) {
+            throw new Error(`Failed to fetch Lead details. Status: ${leadRes.status}`);
+        }
+
         const leadJson = await leadRes.json();
         const leadData = leadJson.data || {};
 
@@ -34,8 +39,10 @@ export default async function handler(req, res) {
             "sent_or_received", "recipients", "cc", "delivery_status"
         ];
 
+        // 3. Add .ok checks inside the Promise chains to prevent silent failures
         const fetchLinked = fetch(`${CITYQ_ERPNEXT_URL}/api/method/frappe.client.get_list`, {
-            method: 'POST', headers,
+            method: 'POST', // Frappe get_list expects POST
+            headers,
             body: JSON.stringify({
                 doctype: "Communication",
                 filters: {
@@ -48,11 +55,15 @@ export default async function handler(req, res) {
                 limit_page_length: 100,
                 order_by: "creation desc"
             })
-        }).then(r => r.json());
+        }).then(async r => {
+            if (!r.ok) throw new Error(`Linked Comm Fetch Failed: ${r.status}`);
+            return r.json();
+        });
 
         const senderFetchPromises = senderEmailsList.map(email => {
             return fetch(`${CITYQ_ERPNEXT_URL}/api/method/frappe.client.get_list`, {
-                method: 'POST', headers,
+                method: 'POST',
+                headers,
                 body: JSON.stringify({
                     doctype: "Communication",
                     filters: {
@@ -63,7 +74,10 @@ export default async function handler(req, res) {
                     limit_page_length: 100,
                     order_by: "creation desc"
                 })
-            }).then(r => r.json());
+            }).then(async r => {
+                if (!r.ok) throw new Error(`Sender Comm Fetch Failed: ${r.status}`);
+                return r.json();
+            });
         });
 
         const allResults = await Promise.all([fetchLinked, ...senderFetchPromises]);
@@ -81,9 +95,7 @@ export default async function handler(req, res) {
         });
 
         // 🚀 EXPERT FIX: THE MASTER MAPPER
-        // This transforms Frappe data into the EXACT shape the UI Template expects!
         const mappedEmails = rawEmails.map(email => {
-
             // Clean HTML tags for the short preview snippet in the list view
             const cleanDescription = (email.content || '').replace(/<[^>]+>/g, '').substring(0, 120) + '...';
 
@@ -114,11 +126,13 @@ export default async function handler(req, res) {
             };
         });
 
-        // Return the perfectly formatted data to the frontend!
-        return res.status(200).json(mappedEmails);
+        // 4. Return the perfectly formatted data using NextResponse!
+        return NextResponse.json(mappedEmails, { status: 200 });
 
     } catch (error) {
-        console.error("API Error fetching emails:", error);
-        return res.status(500).json({ error: error.message });
+        console.error("API Error fetching emails:", error.message);
+
+        // 5. Return error using NextResponse
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

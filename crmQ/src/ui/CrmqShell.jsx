@@ -11,6 +11,9 @@ import {
 } from "../constants/crmListViews.js";
 import CRMDashboard from "../../pages/crm/index.jsx";
 import LeadListPage from "../../pages/crm/lead-list/index.jsx";
+import LeadDetailsPage from "../../pages/crm/lead-list/[id].jsx";
+import AddLeadPage from "../../pages/crm/lead-list/AddLead.jsx";
+
 /**
  * Routes under /m/crmq/* — comDash sidebar; curated lists + optional ERPNext desk iframe.
  */
@@ -37,9 +40,19 @@ export function CrmqShell({
     return <CRMDashboard />;
   }
 
-  if (normalized === "crm/lead-list") {
+  if (normalized === "/m/crmq/lead-list") {
     return <LeadListPage />;
   }
+
+  if (normalized === "/m/crmq/lead-list/AddLead") {
+    return <AddLeadPage />;
+  }
+
+  const leadDetailsMatch = normalized.match(/^\/m\/crmq\/lead-list\/([^/]+)$/);
+  if (leadDetailsMatch) {
+    return <LeadDetailsPage id={leadDetailsMatch[1]} />;
+  }
+
 
   if (normalized === "/m/crmq/other") {
     return (

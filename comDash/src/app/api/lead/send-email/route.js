@@ -1,13 +1,14 @@
-import { ERPNEXT_API_KEY, ERPNEXT_API_SECRET, CITYQ_ERPNEXT_URL } from '../../../secrets';
+import { NextResponse } from 'next/server';
+// Ensure this path aligns with your App Router structure
+import { ERPNEXT_API_KEY, ERPNEXT_API_SECRET, CITYQ_ERPNEXT_URL } from '../../../../secrets';
 
-export default async function handler(req, res) {
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
-
+export async function POST(request) {
     const authHeader = `token ${ERPNEXT_API_KEY}:${ERPNEXT_API_SECRET}`;
 
     try {
+        // 1. App Router requires manual parsing of the JSON body
+        const body = await request.json();
+
         const {
             lead_id,
             from,
@@ -18,7 +19,7 @@ export default async function handler(req, res) {
             content,
             send_me_a_copy,
             read_receipt
-        } = req.body;
+        } = body;
 
         // 🚀 We use Frappe's standard email builder endpoint
         const response = await fetch(`${CITYQ_ERPNEXT_URL}/api/method/frappe.core.doctype.communication.email.make`, {
@@ -62,14 +63,17 @@ export default async function handler(req, res) {
                 errorMessage = typeof data.message === 'string' ? data.message : JSON.stringify(data.message);
             }
 
+            // Throwing here drops us into the catch block below to return the 500 error
             throw new Error(errorMessage);
         }
 
-        return res.status(200).json({ success: true, data });
+        // 2. Return success using NextResponse
+        return NextResponse.json({ success: true, data }, { status: 200 });
 
     } catch (error) {
         console.error("Email Send Error:", error);
-        // 🚀 Pass the REAL error back to the frontend popup!
-        return res.status(500).json({ error: error.message });
+
+        // 3. Return the error using NextResponse so the frontend popup can display it
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

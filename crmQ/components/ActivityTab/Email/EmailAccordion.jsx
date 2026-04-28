@@ -10,7 +10,7 @@ import {
 import dayjs from 'dayjs';
 import SimpleBar from '@/shared-ui/components/base/SimpleBar';
 import IconifyIcon from '@/shared-ui/components/base/IconifyIcon';
-import EmailComposeEditor from 'components/email/common/EmailComposeEditor';
+import EmailComposeEditor from '../../../components/email/common/EmailComposeEditor';
 
 const EmailAccordion = ({ email, leadId }) => {
   const [open, setOpen] = useState(false);

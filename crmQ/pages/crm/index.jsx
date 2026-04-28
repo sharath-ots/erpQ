@@ -1,6 +1,9 @@
 import Grid from '@mui/material/Grid';
 import { dealsData, kpisData } from '../../src/data/crm/dashboard';
 import CRMGreeting from '../../src/components/sections/dashboards/crm/CRMGreeting';
+
+import LeadSummaryCards from '../../components/crm-dashboard/LeadSummaryCards';
+
 import AcquisitionCost from '../../src/components/sections/dashboards/crm/acquisition-cost/AcquisitionCost';
 import ActiveUsers from '../../src/components/sections/dashboards/crm/active-users/ActiveUsers';
 import AvgLifetimeValue from '../../src/components/sections/dashboards/crm/avg-lifetime-value/AvgLifetimeValue';
@@ -12,12 +15,17 @@ import SaleFunnel from '../../src/components/sections/dashboards/crm/sale-funnel
 
 const CRMDashboard = () => {
     return (
-        <Grid container>
+        <Grid container >
+
             <Grid size={12}>
                 <CRMGreeting data={dealsData} />
             </Grid>
 
-            <Grid container size={12}>
+            <Grid size={12}>
+                <LeadSummaryCards />
+            </Grid>
+
+            <Grid container size={12} >
                 <Grid container size={{ xs: 12, lg: 5, xl: 6 }}>
                     <CRMKPIs data={kpisData} />
                 </Grid>
@@ -27,8 +35,8 @@ const CRMDashboard = () => {
             </Grid>
 
             <Grid container size={12}>
-                <Grid container size={{ xs: 12, xl: 8 }}>
-                    <Grid container size={12}>
+                <Grid container size={{ xs: 12, xl: 8 }} >
+                    <Grid container size={12} >
                         <Grid size={{ xs: 12, sm: 6 }}>
                             <CustomerFeedback />
                         </Grid>
@@ -48,7 +56,7 @@ const CRMDashboard = () => {
                 </Grid>
             </Grid>
 
-            <Grid container size={12}>
+            <Grid container size={12} >
                 <Grid size={{ xs: 12, md: 6, xl: 4 }}>
                     <AvgLifetimeValue />
                 </Grid>

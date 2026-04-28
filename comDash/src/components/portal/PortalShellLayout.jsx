@@ -71,7 +71,7 @@ export function PortalShellLayout({ children }) {
       value={{ menuItems, email, deskBaseUrl, deskIframeQuery, selectedKey }}
     >
       <MainLayoutCityQ>
-        <Box sx={{ p: { xs: 2, md: 3 } }}>{children}</Box>
+        <Box sx={{ p: 0 }}>{children}</Box>
       </MainLayoutCityQ>
     </PortalMenuProvider>
   );

@@ -19,6 +19,12 @@ const CRMKPIs = ({ data }) => {
             sx={{
               height: '100%',
               cursor: kpi.path ? 'pointer' : 'default',
+              // '&:hover': {
+              //   bgcolor: card.isAction ? '#eff6ff' : '#f8fafc',
+              //   transform: 'translateY(-2px)',
+              //   boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
+              //   zIndex: 1 // Pops the card over its neighbors when hovered
+              // }
             }}
           >
             <KPI {...kpi} />

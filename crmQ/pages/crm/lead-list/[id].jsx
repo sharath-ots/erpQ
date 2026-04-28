@@ -1,4 +1,4 @@
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 import { CssBaseline, Box, Button } from '@mui/material';
 import { createTheme } from '@/shared-ui/theme/theme';
 import MainLayout from '../../../src/layouts/main-layout';
@@ -6,9 +6,9 @@ import SettingsProvider from '@/shared-ui/providers/SettingsProvider';
 import ThemeProvider from '@/shared-ui/providers/ThemeProvider';
 import LeadDetails from '../../../data/crm/LeadDeatils';
 
-export default function LeadDetailsPage() {
+export default function LeadDetailsPage({ id }) {
     const router = useRouter();
-    const { id } = router.query;
+    //const { id } = router.query;
 
     return (
         <SettingsProvider>
