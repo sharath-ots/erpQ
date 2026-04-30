@@ -11,7 +11,7 @@ const AddLead = () => {
         <PageHeader
           title="Add New Lead"
           breadcrumb={[
-            { label: 'Home', url: paths.crm },
+            { label: 'Home', url: '/m/crmq/lead-list' },
             { label: 'Add Lead', active: true },
           ]}
         // actionComponent={

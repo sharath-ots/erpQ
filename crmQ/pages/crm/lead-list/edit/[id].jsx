@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 import { Box, Paper, Typography, CircularProgress, Button, TextField, Grid, MenuItem, FormControl, InputLabel, Select, CssBaseline } from '@mui/material';
 
 import ThemeProvider from '@/shared-ui/providers/ThemeProvider';
 import MainLayout from '../../../../src/layouts/main-layout';
 import SettingsProvider from '@/shared-ui/providers/SettingsProvider';
 
-export default function EditLeadPage() {
+export default function EditLeadPage({ id }) {
     const router = useRouter();
-    const { id } = router.query;
+    //const { id } = router.query;
 
     const [leadData, setLeadData] = useState({
         salutation: '', first_name: '', middle_name: '', last_name: '', gender: '', job_title: '',
@@ -242,7 +242,7 @@ export default function EditLeadPage() {
             });
 
             if (response.ok) {
-                router.push(`/crm/lead-list/${id}`);
+                router.push(`/m/crmq/view-lead/${id}`);
             } else {
                 alert("Failed to update lead.");
             }
@@ -261,268 +261,268 @@ export default function EditLeadPage() {
     if (loading) return <Box sx={{ p: 10, textAlign: 'center' }}><CircularProgress /></Box>;
 
     return (
-        <SettingsProvider>
-            <ThemeProvider >
-                <CssBaseline />
-                <MainLayout>
-                    <Box sx={{ p: { xs: 2, md: 4 } }}>
-                        <Paper sx={{ p: { xs: 3, md: 5 }, maxWidth: 1200, mx: 'auto', display: 'block' }}>
+        // <SettingsProvider>
+        //     <ThemeProvider >
+        //         <CssBaseline />
+        //         <MainLayout>
+        <Box sx={{ p: { xs: 2, md: 4 } }}>
+            <Paper sx={{ p: { xs: 3, md: 5 }, maxWidth: 1200, mx: 'auto', display: 'block' }}>
 
-                            <form onSubmit={handleSave}>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 5, pb: 2, borderBottom: '1px solid #eaeaea' }}>
-                                    <Box>
-                                        <Typography variant="h4" fontWeight={600} gutterBottom>Edit Lead</Typography>
-                                        <Typography variant="subtitle1" color="text.secondary">{id}</Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', gap: 2 }}>
-                                        <Button
-                                            variant="outlined"
-                                            color="inherit"
-                                            size="large"
-                                            onClick={() => router.push(`/crm/lead-list/${id}`)}
-                                            disabled={isSaving}
-                                        >
-                                            Cancel
-                                        </Button>
-                                        <Button
-                                            type="submit"
-                                            variant="contained"
-                                            color="primary"
-                                            size="large"
-                                            disabled={isSaving}
-                                        >
-                                            {isSaving ? 'Saving...' : 'Save Changes'}
-                                        </Button>
-                                    </Box>
-                                </Box>
-
-                                {/* --- FORM BODY --- */}
-                                <Box sx={{ display: 'block' }}>
-
-                                    {/* PERSONAL INFORMATION */}
-                                    <Box sx={{ mb: 6 }}>
-                                        <Typography variant="h6" sx={{ mb: 3, fontWeight: 700, color: 'primary.main' }}>
-                                            Personal Information
-                                        </Typography>
-                                        <Grid container spacing={3}>
-                                            <Grid item xs={12} sm={6} md={4}>
-                                                <TextField select label="Salutation" name="salutation" value={leadData.salutation || ''} onChange={handleChange} fullWidth>
-                                                    <MenuItem value=""><em>None</em></MenuItem>
-                                                    <MenuItem value="Mr">Mr</MenuItem>
-                                                    <MenuItem value="Mrs">Mrs</MenuItem>
-                                                    <MenuItem value="Prof">Prof</MenuItem>
-                                                    <MenuItem value="Master">Master</MenuItem>
-                                                    <MenuItem value="Dr">Dr</MenuItem>
-                                                    <MenuItem value="Miss">Miss</MenuItem>
-                                                    <MenuItem value="Mx">Mx</MenuItem>
-                                                    <MenuItem value="Ms">Ms</MenuItem>
-                                                    <MenuItem value="Madam">Madam</MenuItem>
-                                                </TextField>
-                                            </Grid>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="First Name" name="first_name" value={leadData.first_name || ''} onChange={handleChange} fullWidth required /></Grid>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="Middle Name" name="middle_name" value={leadData.middle_name || ''} onChange={handleChange} fullWidth /></Grid>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="Last Name" name="last_name" value={leadData.last_name || ''} onChange={handleChange} fullWidth /></Grid>
-                                            <Grid item xs={12} sm={6} md={4}>
-                                                <TextField select label="Gender" name="gender" value={leadData.gender || ''} onChange={handleChange} fullWidth>
-                                                    <MenuItem value=""><em>None</em></MenuItem>
-                                                    <MenuItem value="Male">Male</MenuItem>
-                                                    <MenuItem value="Female">Female</MenuItem>
-                                                    <MenuItem value="Prefer not to say">Prefer not to say</MenuItem>
-                                                    <MenuItem value="Other">Other</MenuItem>
-                                                </TextField>
-                                            </Grid>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="Job Title" name="job_title" value={leadData.job_title || ''} onChange={handleChange} fullWidth /></Grid>
-                                        </Grid>
-                                    </Box>
-
-                                    {/* CONTACT DETAILS */}
-                                    <Box sx={{ mb: 6 }}>
-                                        <Typography variant="h6" sx={{ mb: 3, fontWeight: 700, color: 'primary.main' }}>
-                                            Contact Details
-                                        </Typography>
-                                        <Grid container spacing={3}>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="Primary Email" type="email" name="email_id" value={leadData.email_id || ''} onChange={handleChange} fullWidth /></Grid>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="Alternate Email 1" type="email" name="alternate_email_1" value={leadData.alternate_email_1 || ''} onChange={handleChange} fullWidth /></Grid>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="Alternate Email 2" type="email" name="alternate_email_2" value={leadData.alternate_email_2 || ''} onChange={handleChange} fullWidth /></Grid>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="Mobile No." name="mobile_no" value={leadData.mobile_no || ''} onChange={handleChange} fullWidth /></Grid>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="WhatsApp" name="whatsapp_no" value={leadData.whatsapp_no || ''} onChange={handleChange} fullWidth /></Grid>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="Phone" name="phone" value={leadData.phone || ''} onChange={handleChange} fullWidth /></Grid>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="Phone Ext." name="phone_ext" value={leadData.phone_ext || ''} onChange={handleChange} fullWidth /></Grid>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="Website URL" type="url" name="website" value={leadData.website || ''} onChange={handleChange} fullWidth /></Grid>
-                                        </Grid>
-                                    </Box>
-
-                                    {/* ORGANIZATION DETAILS */}
-                                    <Box sx={{ mb: 6 }}>
-                                        <Typography variant="h6" sx={{ mb: 3, fontWeight: 700, color: 'primary.main' }}>
-                                            Organization Details
-                                        </Typography>
-                                        <Grid container spacing={3}>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="Organization Name" name="company_name" value={leadData.company_name || ''} onChange={handleChange} fullWidth /></Grid>
-                                            <Grid item xs={12} sm={6} md={4}>
-                                                <TextField select label="Employees" name="no_of_employees" value={leadData.no_of_employees || ''} onChange={handleChange} fullWidth>
-                                                    <MenuItem value=""><em>None</em></MenuItem>
-                                                    <MenuItem value="1-10">1-10</MenuItem>
-                                                    <MenuItem value="11-50">11-50</MenuItem>
-                                                    <MenuItem value="51-200">51-200</MenuItem>
-                                                    <MenuItem value="201-500">201-500</MenuItem>
-                                                    <MenuItem value="501-1000">501-1000</MenuItem>
-                                                    <MenuItem value="1000+">1000+</MenuItem>
-                                                </TextField>
-                                            </Grid>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="Annual Revenue" type="number" name="annual_revenue" value={leadData.annual_revenue || ''} onChange={handleChange} fullWidth /></Grid>
-                                            <Grid item xs={12} sm={6} md={4}>
-                                                <TextField select label="Industry" name="industry" value={leadData.industry || ''} onChange={handleChange} fullWidth>
-                                                    <MenuItem value=""><em>None</em></MenuItem>
-                                                    {industryOptions.map((option) => (
-                                                        <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
-                                                    ))}
-                                                </TextField>
-                                            </Grid>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="Territory" name="territory" value={leadData.territory || ''} onChange={handleChange} fullWidth /></Grid>
-                                            <Grid item xs={12} sm={6} md={4}>
-                                                <TextField select label="Market Segment" name="market_segment" value={leadData.market_segment || ''} onChange={handleChange} fullWidth>
-                                                    <MenuItem value=""><em>None</em></MenuItem>
-                                                    {marketSegmentOptions.map((option) => (
-                                                        <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
-                                                    ))}
-                                                </TextField>
-                                            </Grid>
-                                        </Grid>
-                                    </Box>
-
-                                    {/* ADDRESS DETAILS */}
-                                    <Box sx={{ mb: 6 }}>
-                                        <Typography variant="h6" sx={{ mb: 3, fontWeight: 700, color: 'primary.main' }}>
-                                            Address Details
-                                        </Typography>
-                                        <Grid container spacing={3}>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="City" name="city" value={leadData.city || ''} onChange={handleChange} fullWidth /></Grid>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="State/Province" name="state" value={leadData.state || ''} onChange={handleChange} fullWidth /></Grid>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="Country" name="country" value={leadData.country || ''} onChange={handleChange} fullWidth /></Grid>
-                                        </Grid>
-                                    </Box>
-
-                                    {/* CLASSIFICATION */}
-                                    <Box sx={{ mb: 6 }}>
-                                        <Typography variant="h6" sx={{ mb: 3, fontWeight: 700, color: 'primary.main' }}>
-                                            Classification
-                                        </Typography>
-                                        <Grid container spacing={3}>
-                                            <Grid item xs={12} sm={6} md={4}>
-                                                <TextField select label="Source" name="source" value={leadData.source || ''} onChange={handleChange} fullWidth>
-                                                    <MenuItem value=""><em>None</em></MenuItem>
-                                                    {sourceOptions.map((option) => (
-                                                        <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
-                                                    ))}
-                                                </TextField>
-                                            </Grid>
-                                            <Grid item xs={12} sm={6} md={4}>
-                                                <TextField select label="Request Type" name="request_type" value={leadData.request_type || ''} onChange={handleChange} fullWidth>
-                                                    <MenuItem value=""><em>None</em></MenuItem>
-                                                    {requestOptions.map((option) => (
-                                                        <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
-                                                    ))}
-                                                </TextField>
-                                            </Grid>
-                                            <Grid item xs={12} sm={6} md={4}>
-                                                <TextField select label="Lead Type" name="type" value={leadData.type || ''} onChange={handleChange} fullWidth>
-                                                    <MenuItem value=""><em>None</em></MenuItem>
-                                                    {typeOptions.map((option) => (
-                                                        <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
-                                                    ))}
-                                                </TextField>
-                                            </Grid>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="Campaign Name" name="campaign_name" value={leadData.campaign_name || ''} onChange={handleChange} fullWidth /></Grid>
-                                        </Grid>
-                                    </Box>
-
-                                    {/* QUALIFICATION & STATUS */}
-                                    <Box sx={{ mb: 6 }}>
-                                        <Typography variant="h6" sx={{ mb: 3, fontWeight: 700, color: 'primary.main' }}>
-                                            Qualification & Status
-                                        </Typography>
-                                        <Grid container spacing={3}>
-                                            <Grid item xs={12} sm={6} md={4}>
-                                                <TextField select label="Status" name="status" value={leadData.status || ''} onChange={handleChange} fullWidth>
-                                                    <MenuItem value=""><em>None</em></MenuItem>
-                                                    {statusOptions.map((option) => (
-                                                        <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
-                                                    ))}
-                                                </TextField>
-                                            </Grid>
-                                            <Grid item xs={12} sm={6} md={4}>
-                                                <TextField select label="Lead Stage" name="lead_stage" value={leadData.lead_stage || ''} onChange={handleChange} fullWidth>
-                                                    <MenuItem value=""><em>None</em></MenuItem>
-                                                    {stageOptions.map((option) => (
-                                                        <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
-                                                    ))}
-                                                </TextField>
-                                            </Grid>
-                                            <Grid item xs={12} sm={6} md={4}>
-                                                <TextField select label="Urgency" name="urgency" value={leadData.urgency || ''} onChange={handleChange} fullWidth>
-                                                    <MenuItem value=""><em>None</em></MenuItem>
-                                                    {urgencyOptions.map((option) => (
-                                                        <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
-                                                    ))}
-                                                </TextField>
-                                            </Grid>
-                                            <Grid item xs={12} sm={6} md={4}>
-                                                <TextField select label="Potential Volume" name="potential_volume" value={leadData.potential_volume || ''} onChange={handleChange} fullWidth>
-                                                    <MenuItem value=""><em>None</em></MenuItem>
-                                                    {volumeOptions.map((option) => (
-                                                        <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
-                                                    ))}
-                                                </TextField>
-                                            </Grid>
-                                            <Grid item xs={12} sm={6} md={4}>
-                                                <TextField select label="Conversion Potential" name="conversion_potential" value={leadData.conversion_potential || ''} onChange={handleChange} fullWidth>
-                                                    <MenuItem value=""><em>None</em></MenuItem>
-                                                    {conversionOptions.map((option) => (
-                                                        <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
-                                                    ))}
-                                                </TextField>
-                                            </Grid>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="Service Location" name="service_location" value={leadData.service_location || ''} onChange={handleChange} fullWidth /></Grid>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="Qualified By" name="qualified_by" value={leadData.qualified_by || ''} onChange={handleChange} fullWidth /></Grid>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="Qualified On" type="date" name="qualified_on" value={leadData.qualified_on || ''} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} /></Grid>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="Lead Owner" name="lead_owner" value={leadData.lead_owner || ''} onChange={handleChange} fullWidth /></Grid>
-                                        </Grid>
-                                    </Box>
-
-                                    {/* ADDITIONAL INFO */}
-                                    <Box>
-                                        <Typography variant="h6" sx={{ mb: 3, fontWeight: 700, color: 'primary.main' }}>
-                                            Additional Information
-                                        </Typography>
-                                        <Grid container spacing={3}>
-                                            <Grid item xs={12} sm={6} md={4}><TextField label="Print Language" name="language" value={leadData.language || ''} onChange={handleChange} fullWidth /></Grid>
-                                            <Grid item xs={12} sm={6} md={4}>
-                                                <TextField select label="Email Consent" name="email_consent" value={leadData.email_consent !== undefined ? leadData.email_consent : ''} onChange={handleChange} fullWidth>
-                                                    <MenuItem value=""><em>None</em></MenuItem>
-                                                    <MenuItem value={1}>Yes</MenuItem>
-                                                    <MenuItem value={0}>No</MenuItem>
-                                                </TextField>
-                                            </Grid>
-                                            <Grid item xs={12} sm={6} md={4}>
-                                                <TextField select label="Blog Subscriber" name="blog_subscriber" value={leadData.blog_subscriber !== undefined ? leadData.blog_subscriber : ''} onChange={handleChange} fullWidth>
-                                                    <MenuItem value=""><em>None</em></MenuItem>
-                                                    <MenuItem value={1}>Yes</MenuItem>
-                                                    <MenuItem value={0}>No</MenuItem>
-                                                </TextField>
-                                            </Grid>
-                                            {/* The Message field is the only one set to md=12 so it spans the whole bottom row */}
-                                            <Grid item xs={12}><TextField label="Message" name="message" value={leadData.message || ''} onChange={handleChange} fullWidth multiline rows={3} /></Grid>
-                                        </Grid>
-                                    </Box>
-
-                                </Box>
-                            </form>
-
-                        </Paper>
+                <form onSubmit={handleSave}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 5, pb: 2, borderBottom: '1px solid #eaeaea' }}>
+                        <Box>
+                            <Typography variant="h4" fontWeight={600} gutterBottom>Edit Lead</Typography>
+                            <Typography variant="subtitle1" color="text.secondary">{id}</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 2 }}>
+                            <Button
+                                variant="outlined"
+                                color="inherit"
+                                size="large"
+                                onClick={() => router.push(`/m/crmq/view-lead/${id}`)}
+                                disabled={isSaving}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="submit"
+                                variant="contained"
+                                color="primary"
+                                size="large"
+                                disabled={isSaving}
+                            >
+                                {isSaving ? 'Saving...' : 'Save Changes'}
+                            </Button>
+                        </Box>
                     </Box>
-                </MainLayout>
-            </ThemeProvider>
-        </SettingsProvider>
+
+                    {/* --- FORM BODY --- */}
+                    <Box sx={{ display: 'block' }}>
+
+                        {/* PERSONAL INFORMATION */}
+                        <Box sx={{ mb: 6 }}>
+                            <Typography variant="h6" sx={{ mb: 3, fontWeight: 700, color: 'primary.main' }}>
+                                Personal Information
+                            </Typography>
+                            <Grid container spacing={3}>
+                                <Grid item xs={12} sm={6} md={4}>
+                                    <TextField select label="Salutation" name="salutation" value={leadData.salutation || ''} onChange={handleChange} fullWidth>
+                                        <MenuItem value=""><em>None</em></MenuItem>
+                                        <MenuItem value="Mr">Mr</MenuItem>
+                                        <MenuItem value="Mrs">Mrs</MenuItem>
+                                        <MenuItem value="Prof">Prof</MenuItem>
+                                        <MenuItem value="Master">Master</MenuItem>
+                                        <MenuItem value="Dr">Dr</MenuItem>
+                                        <MenuItem value="Miss">Miss</MenuItem>
+                                        <MenuItem value="Mx">Mx</MenuItem>
+                                        <MenuItem value="Ms">Ms</MenuItem>
+                                        <MenuItem value="Madam">Madam</MenuItem>
+                                    </TextField>
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="First Name" name="first_name" value={leadData.first_name || ''} onChange={handleChange} fullWidth required /></Grid>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="Middle Name" name="middle_name" value={leadData.middle_name || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="Last Name" name="last_name" value={leadData.last_name || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid item xs={12} sm={6} md={4}>
+                                    <TextField select label="Gender" name="gender" value={leadData.gender || ''} onChange={handleChange} fullWidth>
+                                        <MenuItem value=""><em>None</em></MenuItem>
+                                        <MenuItem value="Male">Male</MenuItem>
+                                        <MenuItem value="Female">Female</MenuItem>
+                                        <MenuItem value="Prefer not to say">Prefer not to say</MenuItem>
+                                        <MenuItem value="Other">Other</MenuItem>
+                                    </TextField>
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="Job Title" name="job_title" value={leadData.job_title || ''} onChange={handleChange} fullWidth /></Grid>
+                            </Grid>
+                        </Box>
+
+                        {/* CONTACT DETAILS */}
+                        <Box sx={{ mb: 6 }}>
+                            <Typography variant="h6" sx={{ mb: 3, fontWeight: 700, color: 'primary.main' }}>
+                                Contact Details
+                            </Typography>
+                            <Grid container spacing={3}>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="Primary Email" type="email" name="email_id" value={leadData.email_id || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="Alternate Email 1" type="email" name="alternate_email_1" value={leadData.alternate_email_1 || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="Alternate Email 2" type="email" name="alternate_email_2" value={leadData.alternate_email_2 || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="Mobile No." name="mobile_no" value={leadData.mobile_no || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="WhatsApp" name="whatsapp_no" value={leadData.whatsapp_no || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="Phone" name="phone" value={leadData.phone || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="Phone Ext." name="phone_ext" value={leadData.phone_ext || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="Website URL" type="url" name="website" value={leadData.website || ''} onChange={handleChange} fullWidth /></Grid>
+                            </Grid>
+                        </Box>
+
+                        {/* ORGANIZATION DETAILS */}
+                        <Box sx={{ mb: 6 }}>
+                            <Typography variant="h6" sx={{ mb: 3, fontWeight: 700, color: 'primary.main' }}>
+                                Organization Details
+                            </Typography>
+                            <Grid container spacing={3}>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="Organization Name" name="company_name" value={leadData.company_name || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid item xs={12} sm={6} md={4}>
+                                    <TextField select label="Employees" name="no_of_employees" value={leadData.no_of_employees || ''} onChange={handleChange} fullWidth>
+                                        <MenuItem value=""><em>None</em></MenuItem>
+                                        <MenuItem value="1-10">1-10</MenuItem>
+                                        <MenuItem value="11-50">11-50</MenuItem>
+                                        <MenuItem value="51-200">51-200</MenuItem>
+                                        <MenuItem value="201-500">201-500</MenuItem>
+                                        <MenuItem value="501-1000">501-1000</MenuItem>
+                                        <MenuItem value="1000+">1000+</MenuItem>
+                                    </TextField>
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="Annual Revenue" type="number" name="annual_revenue" value={leadData.annual_revenue || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid item xs={12} sm={6} md={4}>
+                                    <TextField select label="Industry" name="industry" value={leadData.industry || ''} onChange={handleChange} fullWidth>
+                                        <MenuItem value=""><em>None</em></MenuItem>
+                                        {industryOptions.map((option) => (
+                                            <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="Territory" name="territory" value={leadData.territory || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid item xs={12} sm={6} md={4}>
+                                    <TextField select label="Market Segment" name="market_segment" value={leadData.market_segment || ''} onChange={handleChange} fullWidth>
+                                        <MenuItem value=""><em>None</em></MenuItem>
+                                        {marketSegmentOptions.map((option) => (
+                                            <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Grid>
+                            </Grid>
+                        </Box>
+
+                        {/* ADDRESS DETAILS */}
+                        <Box sx={{ mb: 6 }}>
+                            <Typography variant="h6" sx={{ mb: 3, fontWeight: 700, color: 'primary.main' }}>
+                                Address Details
+                            </Typography>
+                            <Grid container spacing={3}>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="City" name="city" value={leadData.city || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="State/Province" name="state" value={leadData.state || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="Country" name="country" value={leadData.country || ''} onChange={handleChange} fullWidth /></Grid>
+                            </Grid>
+                        </Box>
+
+                        {/* CLASSIFICATION */}
+                        <Box sx={{ mb: 6 }}>
+                            <Typography variant="h6" sx={{ mb: 3, fontWeight: 700, color: 'primary.main' }}>
+                                Classification
+                            </Typography>
+                            <Grid container spacing={3}>
+                                <Grid item xs={12} sm={6} md={4}>
+                                    <TextField select label="Source" name="source" value={leadData.source || ''} onChange={handleChange} fullWidth>
+                                        <MenuItem value=""><em>None</em></MenuItem>
+                                        {sourceOptions.map((option) => (
+                                            <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={4}>
+                                    <TextField select label="Request Type" name="request_type" value={leadData.request_type || ''} onChange={handleChange} fullWidth>
+                                        <MenuItem value=""><em>None</em></MenuItem>
+                                        {requestOptions.map((option) => (
+                                            <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={4}>
+                                    <TextField select label="Lead Type" name="type" value={leadData.type || ''} onChange={handleChange} fullWidth>
+                                        <MenuItem value=""><em>None</em></MenuItem>
+                                        {typeOptions.map((option) => (
+                                            <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="Campaign Name" name="campaign_name" value={leadData.campaign_name || ''} onChange={handleChange} fullWidth /></Grid>
+                            </Grid>
+                        </Box>
+
+                        {/* QUALIFICATION & STATUS */}
+                        <Box sx={{ mb: 6 }}>
+                            <Typography variant="h6" sx={{ mb: 3, fontWeight: 700, color: 'primary.main' }}>
+                                Qualification & Status
+                            </Typography>
+                            <Grid container spacing={3}>
+                                <Grid item xs={12} sm={6} md={4}>
+                                    <TextField select label="Status" name="status" value={leadData.status || ''} onChange={handleChange} fullWidth>
+                                        <MenuItem value=""><em>None</em></MenuItem>
+                                        {statusOptions.map((option) => (
+                                            <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={4}>
+                                    <TextField select label="Lead Stage" name="lead_stage" value={leadData.lead_stage || ''} onChange={handleChange} fullWidth>
+                                        <MenuItem value=""><em>None</em></MenuItem>
+                                        {stageOptions.map((option) => (
+                                            <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={4}>
+                                    <TextField select label="Urgency" name="urgency" value={leadData.urgency || ''} onChange={handleChange} fullWidth>
+                                        <MenuItem value=""><em>None</em></MenuItem>
+                                        {urgencyOptions.map((option) => (
+                                            <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={4}>
+                                    <TextField select label="Potential Volume" name="potential_volume" value={leadData.potential_volume || ''} onChange={handleChange} fullWidth>
+                                        <MenuItem value=""><em>None</em></MenuItem>
+                                        {volumeOptions.map((option) => (
+                                            <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={4}>
+                                    <TextField select label="Conversion Potential" name="conversion_potential" value={leadData.conversion_potential || ''} onChange={handleChange} fullWidth>
+                                        <MenuItem value=""><em>None</em></MenuItem>
+                                        {conversionOptions.map((option) => (
+                                            <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="Service Location" name="service_location" value={leadData.service_location || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="Qualified By" name="qualified_by" value={leadData.qualified_by || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="Qualified On" type="date" name="qualified_on" value={leadData.qualified_on || ''} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} /></Grid>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="Lead Owner" name="lead_owner" value={leadData.lead_owner || ''} onChange={handleChange} fullWidth /></Grid>
+                            </Grid>
+                        </Box>
+
+                        {/* ADDITIONAL INFO */}
+                        <Box>
+                            <Typography variant="h6" sx={{ mb: 3, fontWeight: 700, color: 'primary.main' }}>
+                                Additional Information
+                            </Typography>
+                            <Grid container spacing={3}>
+                                <Grid item xs={12} sm={6} md={4}><TextField label="Print Language" name="language" value={leadData.language || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid item xs={12} sm={6} md={4}>
+                                    <TextField select label="Email Consent" name="email_consent" value={leadData.email_consent !== undefined ? leadData.email_consent : ''} onChange={handleChange} fullWidth>
+                                        <MenuItem value=""><em>None</em></MenuItem>
+                                        <MenuItem value={1}>Yes</MenuItem>
+                                        <MenuItem value={0}>No</MenuItem>
+                                    </TextField>
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={4}>
+                                    <TextField select label="Blog Subscriber" name="blog_subscriber" value={leadData.blog_subscriber !== undefined ? leadData.blog_subscriber : ''} onChange={handleChange} fullWidth>
+                                        <MenuItem value=""><em>None</em></MenuItem>
+                                        <MenuItem value={1}>Yes</MenuItem>
+                                        <MenuItem value={0}>No</MenuItem>
+                                    </TextField>
+                                </Grid>
+                                {/* The Message field is the only one set to md=12 so it spans the whole bottom row */}
+                                <Grid item xs={12}><TextField label="Message" name="message" value={leadData.message || ''} onChange={handleChange} fullWidth multiline rows={3} /></Grid>
+                            </Grid>
+                        </Box>
+
+                    </Box>
+                </form>
+
+            </Paper>
+        </Box>
+        //         </MainLayout>
+        //     </ThemeProvider>
+        // </SettingsProvider>
     );
 }

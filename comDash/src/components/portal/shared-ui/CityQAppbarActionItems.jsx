@@ -21,8 +21,8 @@ export default function CityQAppbarActionItems() {
         ml: "auto",
       }}
     >
-      <LanguageMenu type="default" />
-      <ThemeToggler type="default" />
+      {/* <LanguageMenu type="default" /> */}
+      {/* <ThemeToggler type="default" /> */}
       <NotificationMenu type="default" />
       <CityQProfileMenu type={hasUser ? "default" : "default"} />
     </Stack>

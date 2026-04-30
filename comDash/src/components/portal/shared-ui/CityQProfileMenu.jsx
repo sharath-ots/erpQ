@@ -132,10 +132,10 @@ export default function CityQProfileMenu({ type = "default" }) {
           <MenuRow icon="material-symbols:settings-outline-rounded" onClick={handleClose}>
             Preferences
           </MenuRow>
-          <MenuRow icon="material-symbols:dark-mode-outline-rounded" onClick={handleThemeToggle}>
+          {/* <MenuRow icon="material-symbols:dark-mode-outline-rounded" onClick={handleThemeToggle}>
             Dark mode
             <Switch checked={isDark} onChange={handleThemeToggle} sx={{ ml: "auto" }} />
-          </MenuRow>
+          </MenuRow> */}
         </Box>
 
         <Divider />

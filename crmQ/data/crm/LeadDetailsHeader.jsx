@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -16,12 +16,12 @@ import IconifyIcon from '@/shared-ui/components/base/IconifyIcon';
 import PageBreadcrumb from '@/shared-ui/components/sections/common/PageBreadcrumb';
 import CRMDropdownMenu from '@/shared-ui/components/sections/crm/common/CRMDropdownMenu';
 
-const LeadDetailsHeader = ({ leadName }) => {
+const LeadDetailsHeader = ({ leadName, leadId }) => {
     const [anchorEl, setAnchorEl] = useState(null);
     const [starred, setStarred] = useState(false);
 
     const router = useRouter();
-    const { id } = router.query;
+    //const { id } = router.query;
     // const { down } = useBreakpoints();
 
     // const downSm = down('sm');
@@ -36,7 +36,7 @@ const LeadDetailsHeader = ({ leadName }) => {
                 <Stack direction="column" gap={2}>
                     <PageBreadcrumb
                         items={[
-                            { label: 'Home', url: paths.crm },
+                            { label: 'Back', url: '/m/crmq/lead-list' },
                             { label: 'Lead Details', active: true },
                         ]}
                         sx={{ mb: 2 }}
@@ -71,7 +71,7 @@ const LeadDetailsHeader = ({ leadName }) => {
                         shape={downSm ? 'square' : undefined}
                         color="neutral"
                         sx={{ gap: 0.5 }}
-                        onClick={() => router.push(`/crm/lead-list/edit/${id}`)}
+                        onClick={() => router.push(`/crm/lead-list/edit/${leadId}`)}
                     >
                         <IconifyIcon icon="material-symbols:edit-outline" />
                         <Box component="span" sx={{ display: { xs: 'none', sm: 'block' } }}>

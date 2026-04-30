@@ -41,7 +41,7 @@ export async function GET(request) {
 
         // 3. Add .ok checks inside the Promise chains to prevent silent failures
         const fetchLinked = fetch(`${CITYQ_ERPNEXT_URL}/api/method/frappe.client.get_list`, {
-            method: 'POST', // Frappe get_list expects POST
+            method: 'POST',
             headers,
             body: JSON.stringify({
                 doctype: "Communication",
@@ -60,6 +60,7 @@ export async function GET(request) {
             return r.json();
         });
 
+        // 🚀 FIX 1: Search for the lead's email in Sender, Recipients, OR CC
         const senderFetchPromises = senderEmailsList.map(email => {
             return fetch(`${CITYQ_ERPNEXT_URL}/api/method/frappe.client.get_list`, {
                 method: 'POST',
@@ -67,9 +68,14 @@ export async function GET(request) {
                 body: JSON.stringify({
                     doctype: "Communication",
                     filters: {
-                        sender: ["like", `%${email}%`],
                         communication_medium: "Email"
                     },
+                    // or_filters allows us to catch emails sent TO the lead
+                    or_filters: [
+                        ["Communication", "sender", "like", `%${email}%`],
+                        ["Communication", "recipients", "like", `%${email}%`],
+                        ["Communication", "cc", "like", `%${email}%`]
+                    ],
                     fields: commFields,
                     limit_page_length: 100,
                     order_by: "creation desc"
@@ -94,45 +100,42 @@ export async function GET(request) {
             return new Date(b.creation) - new Date(a.creation);
         });
 
-        // 🚀 EXPERT FIX: THE MASTER MAPPER
+        // 🚀 FIX 2: THE MASTER MAPPER
         const mappedEmails = rawEmails.map(email => {
-            // Clean HTML tags for the short preview snippet in the list view
             const cleanDescription = (email.content || '').replace(/<[^>]+>/g, '').substring(0, 120) + '...';
 
-            // Extract a name from the email address if Frappe didn't provide one
             const senderName = email.sender ? email.sender.split('@')[0] : 'Unknown';
 
             return {
-                id: email.name,                      // Frappe ID
+                id: email.name,
                 user: {
                     name: senderName,
                     email: email.sender,
                     avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(senderName)}&background=random`
                 },
-                sender_email: email.sender,          // Stored for your custom Reply logic
+                sender_email: email.sender,
                 subject: email.subject || '(No Subject)',
-                description: cleanDescription,       // The plain text preview
-                details: email.content,              // The raw HTML body
+                description: cleanDescription,
+                details: email.content,
                 time: email.creation,
                 starred: false,
                 important: email.sent_or_received === 'Received',
-                readAt: email.sent_or_received === 'Sent' ? new Date().toISOString() : null, // Auto-read sent emails
+                readAt: email.sent_or_received === 'Sent' ? new Date().toISOString() : null,
                 snoozedTill: null,
 
-                // Route 'Sent' emails to the Sent folder, everything else to Inbox
-                folder: email.sent_or_received === 'Sent' ? 'sent' : 'inbox',
+                // 🚀 Force ALL interactions into the 'inbox' view so it acts as a unified timeline
+                folder: 'inbox',
+
+                // Keep the label distinct so you can visually style "Sent" vs "Received" differently if you want
                 label: email.sent_or_received === 'Sent' ? 'sent' : 'inbox',
-                attachments: [] // Default empty array so the UI doesn't crash checking for files
+                attachments: []
             };
         });
 
-        // 4. Return the perfectly formatted data using NextResponse!
         return NextResponse.json(mappedEmails, { status: 200 });
 
     } catch (error) {
         console.error("API Error fetching emails:", error.message);
-
-        // 5. Return error using NextResponse
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

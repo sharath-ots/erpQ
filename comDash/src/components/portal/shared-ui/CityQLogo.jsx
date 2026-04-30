@@ -16,14 +16,12 @@ export default function CityQLogo({ showName = true }) {
         gap: 0.5,
       }}
     >
-      <Typography variant="h6" fontWeight={700}>
-        CityQ
+      <Typography variant="h6" fontWeight={900}>
+        Q
       </Typography>
-      {showName && (
-        <Typography variant="subtitle2" sx={{ opacity: 0.85 }}>
-          Portal
-        </Typography>
-      )}
+      <Typography variant="subtitle2" sx={{ opacity: 0.85 }}>
+        Portal
+      </Typography>
     </Box>
   );
 }

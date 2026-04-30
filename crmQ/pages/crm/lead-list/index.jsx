@@ -7,10 +7,10 @@ import LeadsTable from '../../../data/crm/LeadList';
 import LeadSideAndHeaderLayout from '../../../components/side-and-header/LeadSideAndHeaderLayout';
 
 export default function LeadListPage() {
-    const openLeadInErpNext = (id) => {
-        if (typeof window === 'undefined') return;
-        window.location.assign(`/m/crmq/iframe/app/lead/${encodeURIComponent(id)}`);
-    };
+    // const openLeadInErpNext = (id) => {
+    //     if (typeof window === 'undefined') return;
+    //     window.location.assign(`/m/crmq/iframe/app/lead/${encodeURIComponent(id)}`);
+    // };
 
     return (
         <SettingsProvider>
@@ -19,9 +19,7 @@ export default function LeadListPage() {
                 <BreakpointsProvider>
                     <LeadSideAndHeaderLayout>
                         <Box sx={{ p: 0 }}>
-                            <LeadsTable
-                                onLeadClick={openLeadInErpNext}
-                            />
+                            <LeadsTable />
                         </Box>
                     </LeadSideAndHeaderLayout>
                 </BreakpointsProvider>

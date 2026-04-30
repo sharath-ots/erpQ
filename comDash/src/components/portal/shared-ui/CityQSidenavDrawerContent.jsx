@@ -24,33 +24,65 @@ function safePathName(v) {
     .replace(/(^-|-$)/g, "");
 }
 
+// --- 1. THE UPDATED ICON GUESSER ---
 function guessIcon(node, hasChildren) {
+  // Always respect an explicitly provided icon first
   if (node?.icon) return node.icon;
-  const key = String(node?.key ?? node?.label ?? node?.path ?? "").toLowerCase();
-  // Top-level module groups: avoid generic "folder" icon.
-  if (key.includes("crm")) return "material-symbols:contact-phone-outline-rounded";
-  if (key.includes("hr")) return "material-symbols:badge-outline-rounded";
-  if (key.includes("pur") || key.includes("purchase")) return "material-symbols:shopping-cart-outline-rounded";
-  if (key.includes("erpnext") && (key.includes("full") || key.includes("desk")))
-    return "material-symbols:desktop-windows-outline";
 
-  // Common leaf routes (helps avoid everything looking identical)
-  if (key.includes("dashboard") || key === "/") return "material-symbols:dashboard-outline-rounded";
-  if (key.includes("lead")) return "material-symbols:person-search-outline-rounded";
-  if (key.includes("opportun")) return "material-symbols:trending-up-rounded";
-  if (key.includes("customer") || key.includes("client"))
-    return "material-symbols:groups-outline-rounded";
-  if (key.includes("contact")) return "material-symbols:contacts-outline-rounded";
-  if (key.includes("quotation") || key.includes("quote"))
-    return "material-symbols:request-quote-outline-rounded";
-  if (key.includes("doctype") || key.includes("other")) return "material-symbols:category-outline-rounded";
-  if (key.includes("core") || key.includes("settings")) return "material-symbols:settings-outline-rounded";
-  if (key.includes("auth") || key.includes("login")) return "material-symbols:security-rounded";
+  // Combine all possible identifiers into one lowercase string to check against
+  const identifier = String(node?.key ?? node?.label ?? node?.name ?? node?.path ?? "").toLowerCase();
 
-  // Fallbacks: keep parents distinguishable from leaf nodes.
+  // TOP LEVEL MODULES
+  if (identifier.includes("crm")) return "material-symbols:headset-mic-outline-rounded";
+  if (identifier.includes("hr")) return "material-symbols:badge-outline-rounded";
+  if (identifier.includes("pur") || identifier.includes("purchase")) return "material-symbols:shopping-cart-outline-rounded";
+  if (identifier.includes("erpnext") || identifier.includes("desk")) return "material-symbols:desktop-windows-outline-rounded";
+
+  // SPECIFIC LEAF ROUTES
+  if (identifier.includes("dashboard") || identifier === "/") return "material-symbols:dashboard-outline-rounded";
+  if (identifier.includes("lead")) return "material-symbols:person-search-outline-rounded";
+  if (identifier.includes("opportun")) return "material-symbols:trending-up-rounded";
+  if (identifier.includes("customer") || identifier.includes("client")) return "material-symbols:groups-outline-rounded";
+  if (identifier.includes("contact")) return "material-symbols:contacts-outline-rounded";
+  if (identifier.includes("quotation") || identifier.includes("quote")) return "material-symbols:request-quote-outline-rounded";
+  if (identifier.includes("doctype") || identifier.includes("other")) return "material-symbols:category-outline-rounded";
+  if (identifier.includes("core") || identifier.includes("setting")) return "material-symbols:settings-outline-rounded";
+  if (identifier.includes("auth") || identifier.includes("login")) return "material-symbols:security-rounded";
+
+  // PREMIUM FALLBACKS
+  // If it's a folder, give it a nice folder icon. If it's a leaf, give it a tiny dot.
   return hasChildren
     ? "material-symbols:folder-open-outline-rounded"
-    : "material-symbols:circle-outline";
+    : "material-symbols:radio-button-unchecked-rounded";
+}
+
+// --- 2. THE UPDATED MAPPER ---
+function toAuroraItem(node, idx, parentKey = "menu") {
+  const label = String(node?.label ?? node?.key ?? node?.path ?? "Item");
+  const rawKey = node?.key || node?.path || `${parentKey}-${idx}-${label}`;
+  const pathName = safePathName(rawKey) || `${parentKey}-${idx}`;
+
+  const children = Array.isArray(node?.children) ? node.children : [];
+  const hasChildren = children.length > 0;
+
+  const base = {
+    pathName,
+    key: label,
+    name: label,
+    path: typeof node?.path === "string" ? node.path : "#",
+    // Call the fixed guessIcon function
+    icon: guessIcon(node, hasChildren),
+    active: node?.active !== false,
+    selectionPrefix: typeof node?.selectionPrefix === "string" ? node.selectionPrefix : undefined,
+  };
+
+  if (hasChildren) {
+    return {
+      ...base,
+      items: children.map((c, i) => toAuroraItem(c, i, pathName)),
+    };
+  }
+  return base;
 }
 
 function toAuroraItem(node, idx, parentKey = "menu") {
@@ -175,7 +207,7 @@ export default function CityQSidenavDrawerContent({ variant = "permanent" }) {
               expanded && { px: { xs: 1, md: 2 } },
             ]}
           >
-            
+
             <List
               dense
               sx={{

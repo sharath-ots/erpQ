@@ -27,7 +27,7 @@ const CRMGreeting = ({ data }) => {
       >
         <div>
           <Typography variant="h4" sx={{ mb: 1 }}>
-            Good Evening, Captain!
+            Hello, Maximilian!
           </Typography>
           <Typography variant="subtitle1" color="text.secondary" sx={{ pb: 1 }}>
             See what's happening in real-time
