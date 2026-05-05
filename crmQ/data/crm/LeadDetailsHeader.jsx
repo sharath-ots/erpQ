@@ -71,7 +71,7 @@ const LeadDetailsHeader = ({ leadName, leadId }) => {
                         shape={downSm ? 'square' : undefined}
                         color="neutral"
                         sx={{ gap: 0.5 }}
-                        onClick={() => router.push(`/crm/lead-list/edit/${leadId}`)}
+                        onClick={() => router.push(`/m/crmq/edit-lead/${leadId}`)}
                     >
                         <IconifyIcon icon="material-symbols:edit-outline" />
                         <Box component="span" sx={{ display: { xs: 'none', sm: 'block' } }}>

@@ -6,12 +6,17 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { findMenuItem } from "@/lib/menuMatch";
 import { apiBase, apiFetch, getAccessToken } from "@/lib/apigate";
-import { usePortalMenu } from "./shared-ui/PortalMenuContext";
+import CRMQ from "../../ui/components/sections/dashboards/crm-q/index"
+import LeadListPage from '../../../../crmQ/pages/crm/lead-list/index'; // Update path if needed
+import AddLeadScreen from "../../../../crmQ/src/ui/AddLeadScreen"; // Update path if needed
+import ViewLeadScreen from "../../../../crmQ/src/ui/ViewLeadScreen"; // Update path if needed
+import EditLeadPage from "../../../../crmQ/pages/crm/lead-list/edit/[id]"; // Update path if needed
+//import { usePortalMenu } from "./shared-ui/PortalMenuContext";
 
-const CrmqShell = dynamic(
-  () => import("@cityq/crmq").then((m) => ({ default: m.CrmqShell })),
-  { ssr: false, loading: () => <Spin style={{ display: "block", margin: "40px auto" }} /> },
-);
+// const CrmqShell = dynamic(
+//   () => import("@cityq/crmq").then((m) => ({ default: m.CrmqShell })),
+//   { ssr: false, loading: () => <Spin style={{ display: "block", margin: "40px auto" }} /> },
+// );
 
 const HrqShell = dynamic(
   () => import("@cityq/hrq").then((m) => ({ default: m.HrqShell })),
@@ -23,8 +28,7 @@ const PurqShell = dynamic(
   { ssr: false, loading: () => <Spin style={{ display: "block", margin: "40px auto" }} /> },
 );
 
-export function ModuleOutlet() {
-  const { menuItems, deskBaseUrl, deskIframeQuery } = usePortalMenu();
+export function ModuleOutlet({ menuItems = [], deskBaseUrl, deskIframeQuery }) {
   const pathname = usePathname();
   const mod = findMenuItem(menuItems, pathname);
   const lastSentRef = useRef(null);
@@ -44,6 +48,44 @@ export function ModuleOutlet() {
     });
   }, [pathname, mod?.key]);
 
+  if (pathname.startsWith("/m/crmq")) {
+    const normalized = pathname.replace(/\/$/, ""); // Strip trailing slashes
+
+    // EXACT MATCH: Main Dashboard
+    if (normalized === "/m/crmq") {
+      return <CRMQ />;
+    }
+
+    // EXACT MATCH: Lead List
+    if (normalized === "/m/crmq/lead-list" || normalized === "/m/crmq/list/Lead") {
+      return <LeadListPage />;
+    }
+
+    // EXACT MATCH: Add Lead
+    if (normalized === "/m/crmq/add-lead") {
+      return <AddLeadScreen />;
+    }
+
+    // DYNAMIC MATCH: View Lead Details
+    const viewLeadMatch = normalized.match(/^\/m\/crmq\/view-lead\/([^/]+)$/);
+    if (viewLeadMatch) {
+      return <ViewLeadScreen id={viewLeadMatch[1]} />;
+    }
+
+    const editLeadMatch = normalized.match(/^\/m\/crmq\/edit-lead\/([^/]+)$/);
+    if (editLeadMatch) {
+      return <EditLeadPage id={editLeadMatch[1]} />;
+    }
+
+    // FALLBACK: If the route is missing
+    return (
+      <Card>
+        <Typography.Title level={4}>CRM Page Not Found</Typography.Title>
+        <Typography.Paragraph>No matching CRM route for: {pathname}</Typography.Paragraph>
+      </Card>
+    );
+  }
+
   if (!mod) {
     return (
       <Card>
@@ -57,17 +99,7 @@ export function ModuleOutlet() {
     );
   }
 
-  if (pathname.startsWith("/m/crmq")) {
-    return (
-      <CrmqShell
-        pathname={pathname}
-        deskBaseUrl={deskBaseUrl ?? undefined}
-        deskIframeQuery={deskIframeQuery ?? undefined}
-        apiBase={apiBase}
-        getAccessToken={getAccessToken}
-      />
-    );
-  }
+
 
   if (pathname.startsWith("/m/hrq")) {
     return (
