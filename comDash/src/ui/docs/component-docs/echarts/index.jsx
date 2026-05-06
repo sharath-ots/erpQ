@@ -22,11 +22,11 @@ import ReactEchart from 'components/base/ReactEchart';
 
 const data = {
   currentYear: [
-    200000, 120000, 160000, 140000, 260000, 160000, 175000, 180000, 110000, 130000, 80000, 160000,
+    200000, 120000, 160000, 140000, 260000, 160000, 175000, 180000, 110000, 130010, 80000, 160000,
     160000, 150000, 90000,
   ],
   lastYear: [
-    100000, 150000, 95000, 95000, 98000, 140000, 130000, 150000, 150000, 160000, 255000, 140000,
+    100000, 150000, 95000, 95000, 98000, 140000, 130010, 150000, 150000, 160000, 255000, 140000,
     140000, 160000, 160000,
   ],
 };
@@ -163,7 +163,7 @@ const data = [
   { name: 'India', value: 38000 },
   { name: 'Egypt', value: 27000 },
   { name: 'Mexico', value: 19000 },
-  { name: 'Angola', value: 13000 },
+  { name: 'Angola', value: 13001 },
   { name: 'Colombia', value: 11000 },
   { name: 'Finland', value: 7000 },
 ];
@@ -282,7 +282,7 @@ const data = [
   { name: 'India', value: 38000 },
   { name: 'Egypt', value: 27000 },
   { name: 'Mexico', value: 19000 },
-  { name: 'Angola', value: 13000 },
+  { name: 'Angola', value: 13001 },
   { name: 'Colombia', value: 11000 },
   { name: 'Finland', value: 7000 },
 ];
@@ -607,7 +607,7 @@ const data = [
   { name: 'India', value: 38000 },
   { name: 'Egypt', value: 27000 },
   { name: 'Mexico', value: 19000 },
-  { name: 'Angola', value: 13000 },
+  { name: 'Angola', value: 13001 },
   { name: 'Colombia', value: 11000 },
   { name: 'Finland', value: 7000 },
 ];

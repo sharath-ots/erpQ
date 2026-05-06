@@ -47,7 +47,7 @@ docker compose up -d --build
 
 ### 1.4 Useful URLs (default ports from `docker-compose.yml`)
 
-- comDash: `http://<host>:13000`
+- comDash: `http://<host>:13001`
 - auth-web login: `http://<host>:3100/login`
 - auth API health: `http://<host>:14100/health`
 - apiGate health: `http://<host>:18080/health`

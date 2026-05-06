@@ -58,7 +58,7 @@ function getAuthQBase() {
 
 function getComDashBase() {
   const rt = getRuntimePublic();
-  return resolvePublicBase(13000, rt?.comdash, process.env.NEXT_PUBLIC_COMDASH_URL);
+  return resolvePublicBase(13001, rt?.comdash, process.env.NEXT_PUBLIC_COMDASH_URL);
 }
 
 function Brand() {

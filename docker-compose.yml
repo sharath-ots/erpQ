@@ -1,4 +1,4 @@
-# erpQ â€” single stack (repo root):  docker compose up -d --build
+# erpQ - single stack (repo root): docker compose up -d --build
 #
 # --- Reverse proxy (pick ONE) ---
 #
@@ -7,7 +7,7 @@
 #    - If your Compose project/stack is named "proxy", the default network is usually proxy_default
 #      (see: docker network ls | findstr proxy).
 #    - Default: NGINX_PROXY_NETWORK=proxy_default (override in .env if yours differs, e.g. myproject_default).
-#    - Host port 8081â†’80 on the proxy avoids Windows issues with binding host :80.
+#    - Host port 8081 -> 80 on the proxy avoids Windows issues with binding host :80.
 #    - Browse:  http://api.local:8081
 #
 # B) Optional compose-managed proxy on 8081:
@@ -15,7 +15,8 @@
 #    Only one container should mount docker.sock for nginx-proxy.
 # Optional nginx-proxy hostnames: set VIRTUAL_HOST_* in .env only if you use --profile proxy (real DNS names).
 #
-# Direct host ports (optional): 13000 dashboard, 3100 auth login UI (Next), 14000 core, 14100 auth API, 18080 apigate, 5672/15672 rabbitmq
+# Direct host ports are configurable with the same *_PUBLISH_* variables documented in
+# .env.production.example. Host ports are runtime-only; they are not baked into images.
 
 services:
   # Optional: official nginx-proxy; host ${NGINX_PROXY_HTTP_PORT:-8081} -> container 80 (avoids binding host :80)
@@ -35,11 +36,11 @@ services:
     image: rabbitmq:3.13-management-alpine
     hostname: rabbitmq
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "${RABBITMQ_PUBLISH_AMQP:-5672}:5672"
+      - "${RABBITMQ_PUBLISH_UI:-15672}:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: erpq
-      RABBITMQ_DEFAULT_PASS: erpq_dev_change_me
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-erpq}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-erpq_dev_change_me}
       VIRTUAL_HOST: ${VIRTUAL_HOST_MQ}
       VIRTUAL_PORT: "15672"
     volumes:
@@ -61,15 +62,15 @@ services:
       dockerfile: Dockerfile
     image: erpq/core:latest
     ports:
-      - "14000:4000"
+      - "${CORE_PUBLISH_PORT:-14000}:4000"
     environment:
       PORT: "4000"
       HOST: "0.0.0.0"
       # Default 1 so portal menus + ERP REST register when you set ERPNEXT_* in .env. Set to 0 to disable.
       CITYQ_MODULE_ERP: ${CITYQ_MODULE_ERP:-1}
       CITYQ_MODULE_CRM: ${CITYQ_MODULE_CRM:-1}
-      # Optional: enables minimal MQ consumer in coreQ
-      CITYQ_MQ_URL: ${CITYQ_MQ_URL:-amqp://cityq:erpq_dev_change_me@rabbitmq:5672}
+      # IMPORTANT: this is container-to-container; keep host as `rabbitmq`, not PUBLIC_HOST / IP.
+      CITYQ_MQ_URL: ${CITYQ_MQ_URL:-amqp://${RABBITMQ_DEFAULT_USER:-erpq}:${RABBITMQ_DEFAULT_PASS:-erpq_dev_change_me}@rabbitmq:5672}
       VIRTUAL_HOST: ${VIRTUAL_HOST_CORE}
       VIRTUAL_PORT: "4000"
     restart: unless-stopped
@@ -89,23 +90,23 @@ services:
       dockerfile: Dockerfile
     image: erpq/auth:latest
     ports:
-      - "14100:4100"
+      - "${AUTH_PUBLISH_PORT:-14100}:4100"
     environment:
       PORT: "4100"
       HOST: "0.0.0.0"
       JWT_SECRET: ${JWT_SECRET:-erpq-dev-jwt-change-me}
       CITYQ_INTERNAL_KEY: ${CITYQ_INTERNAL_KEY:-cityq-dev-internal-change-me}
-      # OAuth (Google / Zoho): set client IDs & secrets in .env â€” never commit real values
+      # OAuth (Google / Zoho): set client IDs & secrets in .env - never commit real values.
       AUTHQ_PUBLIC_BASE_URL: ${AUTHQ_PUBLIC_BASE_URL:-http://localhost:14100}
-      AUTHQ_OAUTH_RETURN_URL_PREFIXES: ${AUTHQ_OAUTH_RETURN_URL_PREFIXES:-http://localhost:13000,http://localhost:3000,http://127.0.0.1:13000}
-      AUTHQ_OAUTH_DEFAULT_RETURN_URL: ${AUTHQ_OAUTH_DEFAULT_RETURN_URL:-http://localhost:13000/}
+      AUTHQ_OAUTH_RETURN_URL_PREFIXES: ${AUTHQ_OAUTH_RETURN_URL_PREFIXES:-http://localhost:13001,http://localhost:3000,http://127.0.0.1:13001}
+      AUTHQ_OAUTH_DEFAULT_RETURN_URL: ${AUTHQ_OAUTH_DEFAULT_RETURN_URL:-http://localhost:13001/}
       AUTHQ_OAUTH_DEFAULT_ALLOWED_DOC_TYPES: ${AUTHQ_OAUTH_DEFAULT_ALLOWED_DOC_TYPES:-*}
       AUTHQ_GOOGLE_CLIENT_ID: ${AUTHQ_GOOGLE_CLIENT_ID:-}
       AUTHQ_GOOGLE_CLIENT_SECRET: ${AUTHQ_GOOGLE_CLIENT_SECRET:-}
-      AUTHQ_GOOGLE_REDIRECT_URI: ${AUTHQ_GOOGLE_REDIRECT_URI:-http://localhost:14100/oauth/google/callback}
+      AUTHQ_GOOGLE_REDIRECT_URI: ${AUTHQ_GOOGLE_REDIRECT_URI:-${AUTHQ_PUBLIC_BASE_URL:-http://localhost:14100}/oauth/google/callback}
       AUTHQ_ZOHO_CLIENT_ID: ${AUTHQ_ZOHO_CLIENT_ID:-}
       AUTHQ_ZOHO_CLIENT_SECRET: ${AUTHQ_ZOHO_CLIENT_SECRET:-}
-      AUTHQ_ZOHO_REDIRECT_URI: ${AUTHQ_ZOHO_REDIRECT_URI:-http://localhost:14100/oauth/zoho/callback}
+      AUTHQ_ZOHO_REDIRECT_URI: ${AUTHQ_ZOHO_REDIRECT_URI:-${AUTHQ_PUBLIC_BASE_URL:-http://localhost:14100}/oauth/zoho/callback}
       AUTHQ_ZOHO_ACCOUNTS_HOST: ${AUTHQ_ZOHO_ACCOUNTS_HOST:-accounts.zoho.com}
       VIRTUAL_HOST: ${VIRTUAL_HOST_AUTH}
       VIRTUAL_PORT: "4100"
@@ -120,27 +121,35 @@ services:
       retries: 5
       start_period: 20s
 
-  # Browser login UI (comDash AuthGate â†’ http://localhost:3100/login). Auth API alone (14100) has no /login page.
+  # Browser login UI (comDash AuthGate -> http://localhost:3100/login). Auth API alone (14100) has no /login page.
   auth-web:
     build:
       context: ./authQ/web
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_APIGATE_URL: ${NEXT_PUBLIC_APIGATE_URL:-http://localhost:18080}
-        NEXT_PUBLIC_COMDASH_URL: ${NEXT_PUBLIC_COMDASH_URL:-http://localhost:13000}
+        NEXT_PUBLIC_COMDASH_URL: ${NEXT_PUBLIC_COMDASH_URL:-http://localhost:13001}
         NEXT_PUBLIC_AUTHQ_URL: ${NEXT_PUBLIC_AUTHQ_URL:-http://localhost:14100}
         NEXT_PUBLIC_LOGIN_DEV_BYPASS: ${NEXT_PUBLIC_LOGIN_DEV_BYPASS:-false}
-        NEXT_PUBLIC_ERPNEXT_SITE_LABEL: ${NEXT_PUBLIC_ERPNEXT_SITE_LABEL:-ERPNext (cityqerp.ortusolis.in)}
+        NEXT_PUBLIC_ERPNEXT_SITE_LABEL: ${NEXT_PUBLIC_ERPNEXT_SITE_LABEL:-ERPNext}
         AUTH_WEB_ASSET_PREFIX: ${AUTH_WEB_ASSET_PREFIX:-}
     image: erpq/auth-web:latest
     ports:
-      - "3100:3000"
+      - "${AUTH_WEB_PUBLISH_PORT:-3100}:3000"
     environment:
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
+      # These are browser-facing URLs. In production they come from .env.production.
+      NEXT_PUBLIC_APIGATE_URL: ${NEXT_PUBLIC_APIGATE_URL:-http://localhost:18080}
+      NEXT_PUBLIC_COMDASH_URL: ${NEXT_PUBLIC_COMDASH_URL:-http://localhost:13001}
+      NEXT_PUBLIC_AUTHQ_URL: ${NEXT_PUBLIC_AUTHQ_URL:-http://localhost:14100}
+      # Runtime values override baked NEXT_PUBLIC_* in the login UI.
       AUTH_WEB_RUNTIME_APIGATE: ${NEXT_PUBLIC_APIGATE_URL:-http://localhost:18080}
-      AUTH_WEB_RUNTIME_COMDASH: ${NEXT_PUBLIC_COMDASH_URL:-http://localhost:13000}
+      AUTH_WEB_RUNTIME_COMDASH: ${NEXT_PUBLIC_COMDASH_URL:-http://localhost:13001}
       AUTH_WEB_RUNTIME_AUTHQ: ${NEXT_PUBLIC_AUTHQ_URL:-http://localhost:14100}
+      NEXT_PUBLIC_LOGIN_DEV_BYPASS: ${NEXT_PUBLIC_LOGIN_DEV_BYPASS:-false}
+      NEXT_PUBLIC_ERPNEXT_SITE_LABEL: ${NEXT_PUBLIC_ERPNEXT_SITE_LABEL:-ERPNext}
+      AUTH_WEB_ASSET_PREFIX: ${AUTH_WEB_ASSET_PREFIX:-}
     restart: unless-stopped
     networks:
       - default
@@ -158,7 +167,9 @@ services:
       dockerfile: apiGate/Dockerfile
     image: erpq/apigate:latest
     ports:
-      - "18080:8080"
+      - "${APIGATE_PUBLISH_PORT:-18080}:8080"
+    extra_hosts:
+      - "${ERPNEXT_PUBLIC_HOSTNAME:-cityqerp.ortusolis.in}:${ERPNEXT_ROUTE_IP:-82.29.181.92}"
     environment:
       PORT: "8080"
       HOST: "0.0.0.0"
@@ -166,10 +177,9 @@ services:
       CORE_BACKEND_URL: http://core:4000
       AUTHQ_URL: http://auth:4100
       CITYQ_INTERNAL_KEY: ${CITYQ_INTERNAL_KEY:-cityq-dev-internal-change-me}
-      # Optional: enables MQ publish endpoint /api/v1/mq/events
-      CITYQ_MQ_URL: ${CITYQ_MQ_URL:-amqp://cityq:erpq_dev_change_me@rabbitmq:5672}
+      # IMPORTANT: this is container-to-container; keep host as `rabbitmq`, not PUBLIC_HOST / IP.
+      CITYQ_MQ_URL: ${CITYQ_MQ_URL:-amqp://${RABBITMQ_DEFAULT_USER:-erpq}:${RABBITMQ_DEFAULT_PASS:-erpq_dev_change_me}@rabbitmq:5672}
       ERPNEXT_URL: ${ERPNEXT_URL:-}
-      # Optional: public browser URL if ERPNEXT_URL is an internal hostname
       ERPNEXT_PUBLIC_URL: ${ERPNEXT_PUBLIC_URL:-}
       ERPNEXT_API_KEY: ${ERPNEXT_API_KEY:-}
       ERPNEXT_API_SECRET: ${ERPNEXT_API_SECRET:-}
@@ -207,23 +217,25 @@ services:
       dockerfile: comDash/Dockerfile
     image: erpq/comdash:latest
     ports:
-      - "13000:3000"
+      - "${COMDASH_PUBLISH_PORT:-13001}:3000"
+    extra_hosts:
+      - "${ERPNEXT_PUBLIC_HOSTNAME:-cityqerp.ortusolis.in}:${ERPNEXT_ROUTE_IP:-82.29.181.92}"
     environment:
-      NODE_ENV: development
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
+      PUBLIC_HOST: ${PUBLIC_HOST:-localhost}
+      PUBLIC_SCHEME: ${PUBLIC_SCHEME:-http}
       # Next.js rewrites /api/v1/* to this URL server-side (no client-side IP needed).
       APIGATE_INTERNAL_URL: http://apigate:8080
-      # Auth-web login page URL â€” must be reachable from the user's browser.
-      # Override in .env if your server is not localhost (e.g. NEXT_PUBLIC_AUTH_URL=http://192.168.1.100:3100)
+      # Auth-web login page URL - must be reachable from the user's browser.
       NEXT_PUBLIC_AUTH_URL: ${NEXT_PUBLIC_AUTH_URL:-http://localhost:3100}
-      ERPNEXT_API_KEY: ${ERPNEXT_API_KEY}
-      ERPNEXT_API_SECRET: ${ERPNEXT_API_SECRET}
-      ERPNEXT_URL: ${CITYQ_ERPNEXT_URL:-http://cityerp.ortusolis.in}
+      NEXT_PUBLIC_APIGATE_URL: ${NEXT_PUBLIC_APIGATE_URL:-}
+      ERPNEXT_URL: ${ERPNEXT_URL:-}
+      ERPNEXT_PUBLIC_URL: ${ERPNEXT_PUBLIC_URL:-}
+      ERPNEXT_API_KEY: ${ERPNEXT_API_KEY:-}
+      ERPNEXT_API_SECRET: ${ERPNEXT_API_SECRET:-}
       VIRTUAL_HOST: ${VIRTUAL_HOST_DASHBOARD}
       VIRTUAL_PORT: "3000"
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-secret}
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:13000}
 
     restart: unless-stopped
     networks:
@@ -245,7 +257,9 @@ services:
       dockerfile: Dockerfile
     image: erpq/erp-proxy:latest
     ports:
-      - "13002:80"
+      - "${ERP_PROXY_PUBLISH_PORT:-13002}:80"
+    extra_hosts:
+      - "${ERPNEXT_PUBLIC_HOSTNAME:-cityqerp.ortusolis.in}:${ERPNEXT_ROUTE_IP:-82.29.181.92}"
     restart: unless-stopped
     networks:
       - default

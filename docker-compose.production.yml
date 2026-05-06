@@ -36,7 +36,7 @@
 ##   (defaults match the numbers below; set e.g. CORE_PUBLISH_PORT=14001)
 ##
 ## Hostnames for nginx-proxy only (optional):
-## - Default stack uses published ports (13000, 3100, …). You do NOT need mq.local / api.local.
+## - Default stack uses published ports (13001, 3100, …). You do NOT need mq.local / api.local.
 ## - If you enable the `proxy` profile (nginx-proxy), each service can advertise a hostname via
 ##   VIRTUAL_HOST_* so the proxy can route by Host header. Set these in .env.production to REAL
 ##   DNS names you control (e.g. mq.portal.example.com), or leave them unset (empty) if not using proxy.
@@ -186,10 +186,6 @@ services:
     image: ${APIGATE_IMAGE:-ghcr.io/${GHCR_OWNER}/${GHCR_PREFIX:-erpq}-apigate:${APP_VERSION:-latest}}
     restart: unless-stopped
     # No host ports in HTTPS edge mode (Traefik routes internally).
-    # If the host machine's /etc/hosts maps your public ERP hostname to loopback, Docker copies that
-    # into containers and breaks HTTPS calls. This override applies ONLY inside this container.
-    extra_hosts:
-      - "${ERPNEXT_PUBLIC_HOSTNAME:-cityqerp.ortusolis.in}:${ERPNEXT_ROUTE_IP:-82.29.181.92}"
     environment:
       PORT: "8080"
       HOST: "0.0.0.0"
@@ -238,8 +234,6 @@ services:
     image: ${COMDASH_IMAGE:-ghcr.io/${GHCR_OWNER}/${GHCR_PREFIX:-erpq}-comdash:${APP_VERSION:-latest}}
     restart: unless-stopped
     # No host ports in HTTPS edge mode (Traefik routes internally).
-    extra_hosts:
-      - "${ERPNEXT_PUBLIC_HOSTNAME:-cityqerp.ortusolis.in}:${ERPNEXT_ROUTE_IP:-82.29.181.92}"
     environment:
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
@@ -274,10 +268,9 @@ services:
     image: ${ERP_PROXY_IMAGE:-ghcr.io/${GHCR_OWNER}/${GHCR_PREFIX:-erpq}-erp-proxy:${APP_VERSION:-latest}}
     restart: unless-stopped
     # No host ports in HTTPS edge mode (Traefik routes internally).
-    extra_hosts:
-      - "${ERPNEXT_PUBLIC_HOSTNAME:-cityqerp.ortusolis.in}:${ERPNEXT_ROUTE_IP:-82.29.181.92}"
     networks:
       - default
+      - proxy
 
 volumes:
   rabbitmq_data:
