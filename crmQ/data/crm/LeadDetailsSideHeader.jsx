@@ -44,7 +44,7 @@ const LeadDetailsSideHeader = ({ leadName, leadCRMId }) => {
                         size={downMd ? 'small' : 'medium'}
                         color="inherit"
                         sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
-                        onClick={() => router.push(`/crm/lead-list/edit/${leadCRMId}`)}
+                        onClick={() => router.push(`/m/crmq/edit-lead/${leadCRMId}`)}
                         startIcon={<IconifyIcon icon="material-symbols:edit-outline" />}
                     >
                         <Box component="span" sx={{ display: { xs: 'none', sm: 'block' } }}>Edit</Box>
@@ -55,7 +55,7 @@ const LeadDetailsSideHeader = ({ leadName, leadCRMId }) => {
                         size={downMd ? 'small' : 'medium'}
                         color="primary"
                         sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, boxShadow: 'none' }}
-                        onClick={() => router.push(`/m/crmq/lead-list/${leadCRMId}`)}
+                        onClick={() => router.push(`/m/crmq/view-lead/${leadCRMId}`)}
                     >
                         View Full Details
                     </Button>

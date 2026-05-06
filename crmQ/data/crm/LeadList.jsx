@@ -3,7 +3,7 @@ import {
     Box, Chip, Stack, Typography, Button, TextField,
     MenuItem, Menu, Avatar, IconButton, Select, Breadcrumbs, Link, InputAdornment,
     Dialog, DialogTitle, DialogContent, DialogActions, FormControl, InputLabel, CircularProgress,
-    ToggleButton, ToggleButtonGroup, Tooltip, Checkbox, Pagination
+    ToggleButton, ToggleButtonGroup, Tooltip, Checkbox, Pagination, Card
 } from '@mui/material';
 import { DataGrid, GRID_CHECKBOX_SELECTION_COL_DEF, gridClasses } from '@mui/x-data-grid';
 import { useSearchParams } from 'next/navigation';
@@ -62,7 +62,7 @@ const LeadsTable = ({ onLeadClick }) => {
     const [activeSort, setActiveSort] = useState('Last Updated On');
     const searchParams = useSearchParams();
 
-    const [viewMode, setViewMode] = useState('table');
+    const [viewMode, setViewMode] = useState('grid');
     const [listZoom, setListZoom] = useState(0);
 
     const [paginationModel, setPaginationModel] = useState({ pageSize: defaultPageSize, page: 0 });
@@ -296,25 +296,11 @@ const LeadsTable = ({ onLeadClick }) => {
 
                 <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
                     <Box>
-                        {/* <Breadcrumbs separator="/" sx={{ mb: 0.5 }}>
-                            <Link underline="hover" color="primary" href="/" sx={{ fontSize: '0.875rem' }}>Home</Link>
-                            <Typography color="text.primary" sx={{ fontSize: '0.875rem' }}>Leads</Typography>
-                        </Breadcrumbs> */}
                         <Typography variant="h4" sx={{ fontWeight: 800 }}>Lead list</Typography>
                     </Box>
 
                     {!selectedDetailLeadId && (
                         <Stack direction="row" spacing={2} alignItems="center">
-                            {/* <Button
-                                variant="contained"
-                                color="secondary"
-                                onClick={() => setIsGroupModalOpen(true)}
-                                disabled={selectedLeadIds.length === 0}
-                                sx={{ borderRadius: 2, px: 3, py: 1.2, fontWeight: 700, textTransform: 'none' }}
-                            >
-                                Add to Email group ({selectedLeadIds.length})
-                            </Button> */}
-
                             <Button
                                 variant="contained"
                                 color="primary"
@@ -337,7 +323,6 @@ const LeadsTable = ({ onLeadClick }) => {
                             sx={{ flexGrow: 1, minWidth: 150, '& .MuiOutlinedInput-root': { bgcolor: '#f1f5f9', borderRadius: 2, height: 44, '& fieldset': { border: 'none' } } }}
                         />
 
-                        {/* 🚀 THE NEW COMPACT FILTER BUTTON FOR THE MARKED AREA */}
                         {selectedDetailLeadId && (
                             <Tooltip title="Advanced Filters">
                                 <IconButton
@@ -381,6 +366,10 @@ const LeadsTable = ({ onLeadClick }) => {
                                 </Tooltip>
                                 <Tooltip title="Compact List">
                                     <ToggleButton value="compact"><IconifyIcon icon="material-symbols:view-list-rounded" /></ToggleButton>
+                                </Tooltip>
+                                {/* 🚀 NEW: Grid View Toggle Button */}
+                                <Tooltip title="Grid View">
+                                    <ToggleButton value="grid"><IconifyIcon icon="material-symbols:grid-view-rounded" /></ToggleButton>
                                 </Tooltip>
                             </ToggleButtonGroup>
 
@@ -427,7 +416,6 @@ const LeadsTable = ({ onLeadClick }) => {
                     )}
                 </Stack>
 
-                {/* 🚀 MOVED THIS OUTSIDE SO IT CAN BE OPENED FROM EITHER VIEW */}
                 <AdvancedFilterPopover
                     anchorEl={filterAnchorEl}
                     onClose={() => setFilterAnchorEl(null)}
@@ -454,6 +442,7 @@ const LeadsTable = ({ onLeadClick }) => {
                     </Stack>
                 )}
 
+                {/* --- 1. TABLE VIEW --- */}
                 <Box sx={{ width: '100%', display: (viewMode === 'table' && !selectedDetailLeadId) ? 'flex' : 'none', flexDirection: 'column' }}>
                     <DataGrid
                         rows={filteredRows}
@@ -485,8 +474,11 @@ const LeadsTable = ({ onLeadClick }) => {
                     />
                 </Box>
 
-                <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 1, pb: 2, display: (viewMode === 'compact' || selectedDetailLeadId) ? 'block' : 'none' }}>
-                    <Box sx={{ border: '1px solid #e2e8f0', borderRadius: 2, bgcolor: 'white', overflow: 'hidden' }}>
+                {/* --- WRAPPER FOR COMPACT AND GRID VIEWS --- */}
+                <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 1, pb: 2, display: (viewMode !== 'table' || selectedDetailLeadId) ? 'flex' : 'none', flexDirection: 'column' }}>
+
+                    {/* --- 2. COMPACT VIEW (Or Side Panel Split View) --- */}
+                    <Box sx={{ border: '1px solid #e2e8f0', borderRadius: 2, bgcolor: 'white', overflow: 'hidden', display: (viewMode === 'compact' || selectedDetailLeadId) ? 'block' : 'none' }}>
                         {filteredRows.slice(paginationModel.page * paginationModel.pageSize, (paginationModel.page + 1) * paginationModel.pageSize).map((lead) => {
                             const name = lead.displayName || lead.name || 'Unknown';
                             const color = stringToColor(name);
@@ -522,7 +514,92 @@ const LeadsTable = ({ onLeadClick }) => {
                         {filteredRows.length === 0 && <Box sx={{ p: 4, textAlign: 'center' }}><Typography color="text.secondary">No leads found.</Typography></Box>}
                     </Box>
 
-                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 2, p: 1.5, bgcolor: 'white', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+                    {/* --- 3. 🚀 NEW: GRID IMAGE VIEW --- */}
+                    <Box sx={{
+                        display: (viewMode === 'grid' && !selectedDetailLeadId) ? 'grid' : 'none',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', // Widened slightly for better text fitting
+                        gap: 3
+                    }}>
+                        {filteredRows.slice(paginationModel.page * paginationModel.pageSize, (paginationModel.page + 1) * paginationModel.pageSize).map((lead) => {
+                            const name = lead.displayName || lead.name || 'Unknown';
+                            const color = stringToColor(name);
+                            const isChecked = selectedLeadIds.includes(lead.id);
+
+                            return (
+                                <Card
+                                    key={lead.id}
+                                    variant="outlined"
+                                    onClick={() => setSelectedDetailLeadId(lead.id)}
+                                    sx={{
+                                        cursor: 'pointer',
+                                        borderRadius: 3,
+                                        transition: 'all 0.2s',
+                                        borderColor: isChecked ? 'primary.main' : '#e2e8f0',
+                                        bgcolor: isChecked ? '#eff6ff' : 'white',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        height: '100%', // Ensures all cards in a row are the exact same height
+                                        p: 2.5,
+                                        '&:hover': {
+                                            boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
+                                            transform: 'translateY(-2px)',
+                                            borderColor: 'primary.light'
+                                        }
+                                    }}
+                                >
+                                    {/* Top Row: Avatar & Checkbox */}
+                                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2 }}>
+                                        <Avatar
+                                            variant="rounded" // Modern rounded-square look
+                                            sx={{
+                                                width: 48, height: 48,
+                                                bgcolor: color, fontSize: '1.1rem', fontWeight: 700,
+                                                borderRadius: 2
+                                            }}
+                                        >
+                                            {getInitials(name)}
+                                        </Avatar>
+                                        <Checkbox
+                                            size="small"
+                                            checked={isChecked}
+                                            onClick={(e) => e.stopPropagation()}
+                                            onChange={(e) => {
+                                                if (e.target.checked) setSelectedLeadIds(prev => [...prev, lead.id]);
+                                                else setSelectedLeadIds(prev => prev.filter(id => id !== lead.id));
+                                            }}
+                                            sx={{ p: 0, color: 'text.disabled', '&.Mui-checked': { color: 'primary.main' } }}
+                                        />
+                                    </Stack>
+
+                                    {/* Middle Row: Name & Company */}
+                                    {/* The minWidth: 0 is the magic fix that stops the text from pushing outside the card! */}
+                                    <Box sx={{ mb: 3, flexGrow: 1, minWidth: 0 }}>
+                                        <Typography variant="h6" fontWeight={700} color="text.primary" noWrap sx={{ fontSize: '1.05rem', mb: 0.5 }}>
+                                            {name}
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary" fontWeight={500} noWrap>
+                                            {lead.company || 'No Company'}
+                                        </Typography>
+                                    </Box>
+
+                                    {/* Bottom Row: Status & ID */}
+                                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 'auto' }}>
+                                        <Chip
+                                            label={lead.status || 'Open'}
+                                            size="small"
+                                            sx={{ bgcolor: '#dcfce7', color: '#166534', fontWeight: 700, px: 0.5, height: 24, fontSize: '0.75rem' }}
+                                        />
+                                        {/* <Typography variant="caption" sx={{ color: 'text.disabled', fontWeight: 600 }}>
+                                            {lead.id.substring(0, 8)}
+                                        </Typography> */}
+                                    </Stack>
+                                </Card>
+                            );
+                        })}
+                    </Box>
+
+                    {/* --- SHARED PAGINATION CONTROLS (Grid & Compact Modes) --- */}
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 3, p: 1.5, bgcolor: 'white', borderRadius: 2, border: '1px solid #e2e8f0' }}>
                         {!selectedDetailLeadId && <Typography variant="body2" color="text.secondary" fontWeight={500}>Showing {(paginationModel.page * paginationModel.pageSize) + 1} to {Math.min((paginationModel.page + 1) * paginationModel.pageSize, filteredRows.length)} of {filteredRows.length} entries</Typography>}
                         <Pagination count={Math.ceil(filteredRows.length / paginationModel.pageSize) || 1} page={paginationModel.page + 1} onChange={(e, val) => setPaginationModel(prev => ({ ...prev, page: val - 1 }))} color="primary" shape="rounded" size={selectedDetailLeadId ? "small" : "medium"} siblingCount={selectedDetailLeadId ? 0 : 1} />
                     </Stack>
@@ -548,18 +625,15 @@ const LeadsTable = ({ onLeadClick }) => {
                 </Dialog>
             </Box>
 
-            {/* 🚀 THE NEW 75% RIGHT PANE WITH THE COMPONENT WIRING! */}
+            {/* 🚀 DETAILS PANE */}
             {selectedDetailLeadId && (
                 <Box sx={{ width: '75%', p: { xs: 2, md: 4 }, overflowY: 'auto', height: '100%', bgcolor: '#ffffff', borderLeft: '1px solid #e2e8f0' }}>
 
-                    {/* Top Header */}
                     <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 4, pb: 2, borderBottom: '1px solid #e2e8f0' }}>
                         <Box>
-                            {/* Display Name instead of ID */}
                             <Typography variant="h5" fontWeight={800} color="#1e293b">
                                 {rows.find(r => r.id === selectedDetailLeadId)?.displayName || selectedDetailLeadId}
                             </Typography>
-                            {/* Optional: Keeping the ID small underneath looks incredibly professional! */}
                             <Typography variant="body2" color="text.secondary" fontWeight={500}>
                                 {selectedDetailLeadId}
                             </Typography>
@@ -570,20 +644,19 @@ const LeadsTable = ({ onLeadClick }) => {
                                 variant="outlined"
                                 size="small"
                                 startIcon={<IconifyIcon icon="material-symbols:edit-outline" />}
-                                onClick={() => navigateTo(`/m/crmq/iframe/app/lead/${encodeURIComponent(selectedDetailLeadId)}`)}
+                                onClick={() => navigateTo(`/m/crmq/edit-lead/${selectedDetailLeadId}`)}
                                 sx={{ fontWeight: 600, borderRadius: 1.5 }}
                             >
                                 Edit
                             </Button>
 
-                            {/* The View Button! */}
                             <Button
                                 variant="contained"
                                 size="small"
                                 color="primary"
                                 onClick={() => {
                                     if (onLeadClick) onLeadClick(selectedDetailLeadId);
-                                    else navigateTo(`/m/crmq/iframe/app/lead/${encodeURIComponent(selectedDetailLeadId)}`);
+                                    else navigateTo(`/m/crmq/view-lead/${selectedDetailLeadId}`);
                                 }}
                                 sx={{ fontWeight: 600, borderRadius: 1.5, boxShadow: 'none' }}
                             >
@@ -596,7 +669,6 @@ const LeadsTable = ({ onLeadClick }) => {
                         </Stack>
                     </Stack>
 
-                    {/* Content Area -> Renders whatever is selected in the Global Sidebar! */}
                     <Box>
                         <LeadDetailPanels
                             leadId={selectedDetailLeadId}

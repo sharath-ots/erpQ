@@ -222,6 +222,8 @@ services:
       ERPNEXT_URL: ${CITYQ_ERPNEXT_URL:-http://cityerp.ortusolis.in}
       VIRTUAL_HOST: ${VIRTUAL_HOST_DASHBOARD}
       VIRTUAL_PORT: "3000"
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-secret}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:13000}
 
     restart: unless-stopped
     networks:

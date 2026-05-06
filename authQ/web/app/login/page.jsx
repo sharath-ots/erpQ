@@ -66,7 +66,7 @@ function Brand() {
     <div className="flex items-center gap-2 select-none">
       <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 shadow-sm" />
       <div className="leading-tight">
-        <div className="text-base font-semibold text-slate-900">CityQ</div>
+        <div className="text-base font-semibold text-slate-900">Q-Portal</div>
         <div className="text-[11px] text-slate-500 -mt-0.5">Sign in</div>
       </div>
     </div>
@@ -84,7 +84,7 @@ function IllustrationPanel() {
           Welcome back
         </Typography.Title>
         <Typography.Paragraph className="!mb-10 !text-slate-600 max-w-md">
-          Sign in to continue to the CityQ portal. Use your {erpSiteLabel} credentials or SSO.
+          Sign in to continue to the Q portal. Use your {erpSiteLabel} credentials or SSO.
         </Typography.Paragraph>
 
         {/* Lightweight inline illustration (no external assets) */}

@@ -1,8 +1,10 @@
 import { PortalClientRoot } from "@/components/portal/PortalClientRoot";
 import { Plus_Jakarta_Sans, Spline_Sans_Mono } from "next/font/google";
+import InitColorSchemeScript from '@mui/material/InitColorSchemeScript';
+import { getServerSession } from 'next-auth';
+import { authOptions } from 'lib/next-auth/nextAuthOptions'; // Check this path!
 import "./globals.css";
 
-/** JWT + client-only shell: avoid build-time static prerender of Aurora/MUI (fragile with server externals). */
 export const dynamic = "force-dynamic";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -18,11 +20,13 @@ const splineSansMono = Spline_Sans_Mono({
 });
 
 export const metadata = {
-  title: "CityQ ERP — Portal",
+  title: "Q — Portal",
   description: "Central dashboard and module loader",
 };
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  const session = await getServerSession(authOptions);
+
   return (
     <html
       lang="en"
@@ -30,7 +34,11 @@ export default function RootLayout({ children }) {
       className={`${plusJakartaSans.className} ${splineSansMono.className}`}
     >
       <body>
-        <PortalClientRoot>{children}</PortalClientRoot>
+        {/* MUI Color Scheme Script MUST be right inside body */}
+        <InitColorSchemeScript attribute="data-aurora-color-scheme" modeStorageKey="aurora-mode" />
+        <PortalClientRoot session={session}>
+          {children}
+        </PortalClientRoot>
       </body>
     </html>
   );

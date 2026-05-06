@@ -14,11 +14,18 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@ant-design/nextjs-registry": "^1.3.0",
     "@fastify/cors": "^10.0.1",
     "@fastify/jwt": "^9.0.2",
-    "fastify": "^5.1.0"
+    "fastify": "^5.1.0",
+    "next": "^16.2.4",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
   },
   "devDependencies": {
-    "@types/node": "^22.10.0"
+    "@types/node": "^22.19.17",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^6.0.3"
   }
 }

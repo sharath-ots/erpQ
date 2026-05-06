@@ -84,7 +84,7 @@ const LeadDetails = ({ leadId }) => {
 
     return (
         <Stack direction="column" spacing={4}>
-            <LeadDetailsHeader leadName={rawLeadData?.lead_name} />
+            <LeadDetailsHeader leadName={rawLeadData?.lead_name} leadId={leadId} />
 
             {/* --- HORIZONTAL SCROLLABLE SECTION --- */}
             <Box sx={{

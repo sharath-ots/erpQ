@@ -1,10 +1,38 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@cityq/crmq": ["../crmQ/src/index.js"],
-      "data/*": ["./src/aurora/data/*"]
+      "@/*": [
+        "./src/*"
+      ],
+      // 🚀 FIX 1: This intercepts crmQ's old imports and forces them to your new UI folder
+      "@/shared-ui/*": [
+        "./src/ui/*"
+      ],
+      "@cityq/crmq": [
+        "../crmQ/src/index.js"
+      ],
+      // 🚀 FIX 2: If you copied the data folder inside your ui folder, use this array to check both places!
+      "data/*": [
+        "./src/aurora/data/*",
+        "./src/ui/data/*",
+        "./src/data/*"
+      ],
+      "@ui/*": [
+        "./src/ui/*"
+      ],
+      "*": [
+        "./src/ui/*",
+        "./src/*"
+      ],
+      "assets/*": [
+        "./public/assets/*"
+      ]
     }
   },
-  "exclude": ["node_modules", "dist", ".next"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".next"
+  ]
 }

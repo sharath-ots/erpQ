@@ -13,6 +13,8 @@ import CRMDashboard from "../../pages/crm/index.jsx";
 import LeadListPage from "../../pages/crm/lead-list/index.jsx";
 import LeadDetailsPage from "../../pages/crm/lead-list/[id].jsx";
 import AddLeadScreen from "./AddLeadScreen.jsx";
+import ViewLeadScreen from "./ViewLeadScreen.jsx";
+import EditLeadPage from "../../pages/crm/lead-list/edit/[id].jsx";
 /**
  * Routes under /m/crmq/* — comDash sidebar; curated lists + optional ERPNext desk iframe.
  */
@@ -43,17 +45,32 @@ export function CrmqShell({
     return <LeadListPage />;
   }
 
-  if (normalized === "/m/crmq/lead-list/AddLead") {
-    return <AddLeadScreen />;
-  }
+  // if (normalized === "/m/crmq/lead-list/AddLead") {
+  //   return <AddLeadScreen />;
+  // }
 
-  const leadDetailsMatch = normalized.match(/^\/m\/crmq\/lead-list\/([^/]+)$/);
-  if (leadDetailsMatch) {
-    return <LeadDetailsPage id={leadDetailsMatch[1]} />;
-  }
+  // const leadDetailsMatch = normalized.match(/^\/m\/crmq\/lead-list\/([^/]+)$/);
+  // if (leadDetailsMatch) {
+  //   return <LeadDetailsPage id={leadDetailsMatch[1]} />;
+  // }
   if (normalized === "/m/crmq/add-lead") {
     return <AddLeadScreen />;
   }
+
+  // if (normalized === "/m/crmq/view-lead") {
+  //   return <ViewLeadScreen />;
+  // }
+
+  const viewLeadMatch = normalized.match(/^\/m\/crmq\/view-lead\/([^/]+)$/);
+  if (viewLeadMatch) {
+    return <ViewLeadScreen id={viewLeadMatch[1]} />;
+  }
+
+  const editLeadMatch = normalized.match(/^\/m\/crmq\/edit-lead\/([^/]+)$/);
+  if (editLeadMatch) {
+    return <EditLeadPage id={editLeadMatch[1]} />;
+  }
+
   if (normalized === "/m/crmq/other") {
     return (
       <CrmOtherDocTypesPage

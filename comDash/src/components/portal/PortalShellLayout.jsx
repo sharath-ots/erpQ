@@ -5,22 +5,11 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/apigate";
 import { findMenuItem } from "@/lib/menuMatch";
-import MainLayoutCityQ from "./shared-ui/MainLayoutCityQ";
-import { PortalMenuProvider } from "./shared-ui/PortalMenuContext";
+import MainLayout from "../../ui/layouts/main-layout/MainLayout";
 
-/**
- * Persistent shell: fetches the portal menu once, then renders MainLayoutCityQ
- * (sidebar + topbar) with {children} as the content slot.
- *
- * Lives in a Next.js route-group layout so it is never unmounted during
- * client-side navigation — only the page content slot re-renders.
- */
 export function PortalShellLayout({ children }) {
   const pathname = usePathname();
   const [menuItems, setMenuItems] = useState([]);
-  const [deskBaseUrl, setDeskBaseUrl] = useState(null);
-  const [deskIframeQuery, setDeskIframeQuery] = useState(null);
-  const [email, setEmail] = useState(undefined);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,16 +17,9 @@ export function PortalShellLayout({ children }) {
     (async () => {
       try {
         const res = await apiFetch("/api/v1/portal/menu");
-        if (!res.ok) {
-          if (!cancelled) setMenuItems([]);
-          return;
-        }
-        const data = await res.json();
-        if (!cancelled) {
-          setMenuItems(data.items ?? []);
-          setDeskBaseUrl(data.deskBaseUrl ?? null);
-          setDeskIframeQuery(data.deskIframeQuery ?? null);
-          setEmail(data.email);
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled) setMenuItems(data.items ?? []);
         }
       } catch {
         if (!cancelled) setMenuItems([]);
@@ -45,34 +27,21 @@ export function PortalShellLayout({ children }) {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, []); // fetch once on mount — layout never unmounts during navigation
-
-  const selectedKey = useMemo(() => {
-    const hit = findMenuItem(menuItems, pathname);
-    return hit?.key ?? hit?.path ?? "/";
-  }, [pathname, menuItems]);
+    return () => { cancelled = true; };
+  }, []);
 
   if (loading) {
     return (
-      <Box
-        className="flex min-h-screen items-center justify-center"
-        sx={{ bgcolor: "background.default" }}
-      >
+      <Box className="flex min-h-screen items-center justify-center" sx={{ bgcolor: "background.default" }}>
         <CircularProgress aria-label="Loading portal" />
       </Box>
     );
   }
 
+  // Look how clean this is now!
   return (
-    <PortalMenuProvider
-      value={{ menuItems, email, deskBaseUrl, deskIframeQuery, selectedKey }}
-    >
-      <MainLayoutCityQ>
-        <Box sx={{ p: 0 }}>{children}</Box>
-      </MainLayoutCityQ>
-    </PortalMenuProvider>
+    <MainLayout>
+      <Box sx={{ p: 0 }}>{children}</Box>
+    </MainLayout>
   );
 }
