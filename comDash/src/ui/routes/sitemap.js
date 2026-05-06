@@ -2,21 +2,21 @@ import docSitemap from 'docs/routes/docSitemap';
 import paths from './paths';
 
 const sitemap = [
-  {
-    id: 'configuration',
-    subheader: 'Configuration',
-    key: 'configuration',
-    icon: 'mingcute:settings-2-line',
-    items: [
-      {
-        name: 'ERP Config',
-        path: paths.erpConfig,
-        pathKey: 'erp-config',
-        icon: 'mingcute:key-2-line',
-        active: true,
-      }
-    ]
-  },
+  // {
+  //   id: 'configuration',
+  //   subheader: 'Configuration',
+  //   key: 'configuration',
+  //   icon: 'mingcute:settings-2-line',
+  //   items: [
+  //     {
+  //       name: 'ERP Config',
+  //       path: paths.erpConfig,
+  //       pathKey: 'erp-config',
+  //       icon: 'mingcute:key-2-line',
+  //       active: true,
+  //     }
+  //   ]
+  // },
   {
     id: 'dashboard',
     subheader: 'Homepage',
