@@ -29,12 +29,16 @@ export function AuthGate({ children }) {
     if (typeof window === "undefined") return;
 
     (async () => {
-      // Derive auth-web URL from current origin.
-      // - Local (ports): http://localhost:13000 -> http://localhost:3100
-      // - Traefik (path): https://erpq.lan -> https://erpq.lan/login
-      let authUrl = `${window.location.protocol}//${window.location.hostname}:3100`;
-      if (window.location.port === "" || window.location.port === "80" || window.location.port === "443") {
-        authUrl = `${window.location.origin}/login`;
+      // Prefer NEXT_PUBLIC_AUTH_URL from build/runtime; else match /api/config logic.
+      let authUrl = (process.env.NEXT_PUBLIC_AUTH_URL || "")
+        .replace(/\/$/, "")
+        .replace(/\/login$/, "");
+      if (!authUrl) {
+        const port = window.location.port;
+        const usePathLogin = !port || port === "80" || port === "443";
+        authUrl = usePathLogin
+          ? window.location.origin
+          : `${window.location.protocol}//${window.location.hostname}:3100`;
       }
 
       let token = consumeTokenFromHash();

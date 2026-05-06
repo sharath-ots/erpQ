@@ -67,6 +67,7 @@ jobs:
             type=ref,event=branch
             type=ref,event=tag
             type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -76,4 +77,11 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            NEXT_PUBLIC_APIGATE_URL=${{ vars.NEXT_PUBLIC_APIGATE_URL || 'http://localhost:18080' }}
+            NEXT_PUBLIC_COMDASH_URL=${{ vars.NEXT_PUBLIC_COMDASH_URL || 'http://localhost:13000' }}
+            NEXT_PUBLIC_AUTHQ_URL=${{ vars.NEXT_PUBLIC_AUTHQ_URL || 'http://localhost:14100' }}
+            NEXT_PUBLIC_LOGIN_DEV_BYPASS=${{ vars.NEXT_PUBLIC_LOGIN_DEV_BYPASS || 'false' }}
+            NEXT_PUBLIC_ERPNEXT_SITE_LABEL=${{ vars.NEXT_PUBLIC_ERPNEXT_SITE_LABEL || 'ERPNext' }}
+            AUTH_WEB_ASSET_PREFIX=${{ vars.AUTH_WEB_ASSET_PREFIX || '' }}
 

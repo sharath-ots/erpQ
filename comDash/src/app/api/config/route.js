@@ -3,18 +3,17 @@ export const dynamic = "force-dynamic";
 export async function GET(request) {
   const url = new URL(request.url);
 
-  // Local: http://localhost:13000 -> auth-web default http://localhost:3100
-  // Traefik: https://erpq.lan -> auth-web is usually https://erpq.lan/login
+  // Port-based: http(s)://host:13000 -> auth-web on host:3100. Standard 80/443 -> same-origin /login (reverse proxy).
   const origin = url.origin;
-  const defaultAuthUrl =
-    url.hostname === "localhost" || url.hostname === "127.0.0.1"
-      ? `${url.protocol}//${url.hostname}:3100`
-      : `${origin}/login`;
+  const port = url.port;
+  const usePathLogin = !port || port === "80" || port === "443";
+  const defaultAuthUrl = usePathLogin
+    ? origin
+    : `${url.protocol}//${url.hostname}:3100`;
 
-  const authUrl = (process.env.NEXT_PUBLIC_AUTH_URL || defaultAuthUrl).replace(
-    /\/$/,
-    "",
-  );
+  const authUrl = (process.env.NEXT_PUBLIC_AUTH_URL || defaultAuthUrl)
+    .replace(/\/$/, "")
+    .replace(/\/login$/, "");
   const apiUrl = (process.env.NEXT_PUBLIC_APIGATE_URL || `${origin}/api`).replace(
     /\/$/,
     "",

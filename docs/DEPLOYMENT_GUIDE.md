@@ -57,7 +57,7 @@ docker compose up -d --build
 ### 1.5 Run using prebuilt images (no build)
 
 ```bash
-docker compose -f docker-compose.production.yml --env-file .env up -d
+docker compose -f docker-compose.production.yml --env-file .env.production up -d
 docker compose ps
 ```
 

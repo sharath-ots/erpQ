@@ -1,18 +1,49 @@
 ## Production compose
-## - Uses pre-built GHCR images (no local builds)
-## - Loads environment from repo-root .env
+## - Uses pre-built GHCR images only — there are no `build:` sections here (unlike docker-compose.yml).
+## - Pulls the same images you push with build-and-push.ps1 / debug-production.sh push from docker-compose.yml:
+##     compose service   →   GHCR image (defaults below when CORE_IMAGE etc. unset)
+##     core              →   ghcr.io/${GHCR_OWNER}/${GHCR_PREFIX}-core:${APP_VERSION}
+##     auth              →   ghcr.io/.../erpq-auth:${APP_VERSION}
+##     auth-web          →   ghcr.io/.../erpq-auth-web:${APP_VERSION}
+##     apigate           →   ghcr.io/.../erpq-apigate:${APP_VERSION}
+##     comdash           →   ghcr.io/.../erpq-comdash:${APP_VERSION}
+##     erp-proxy         →   ghcr.io/.../erpq-erp-proxy:${APP_VERSION}
+##   Set APP_VERSION in .env.production to the same tag you pushed (e.g. match ./VERSION / -Version / -Bump).
+##   Set GHCR_OWNER and GHCR_PREFIX to the same values as -GhcrOwner and -GhcrPrefix when building.
+## - Reads variables from .env.production (template: .env.production.example), or ENV_FILE via deploy.sh
+## - Does not include Traefik. Test Traefik locally before layering docker-compose.traefik.yml.
 ##
-## Required in .env (recommended):
+## Required in .env.production (recommended):
 ##   GHCR_OWNER=sharath-ots
 ##   GHCR_PREFIX=erpq
 ##   APP_VERSION=0.1.1
 ##
-## Optional (if you mirrored upstream images to GHCR):
+## Optional image overrides:
+##   CORE_IMAGE=ghcr.io/<owner>/<prefix>-core:<tag>
+##   AUTH_IMAGE=ghcr.io/<owner>/<prefix>-auth:<tag>
+##   AUTH_WEB_IMAGE=ghcr.io/<owner>/<prefix>-auth-web:<tag>
+##   APIGATE_IMAGE=ghcr.io/<owner>/<prefix>-apigate:<tag>
+##   COMDASH_IMAGE=ghcr.io/<owner>/<prefix>-comdash:<tag>
+##   ERP_PROXY_IMAGE=ghcr.io/<owner>/<prefix>-erp-proxy:<tag>
+##
+## Optional upstream image overrides:
 ##   RABBITMQ_IMAGE=ghcr.io/<owner>/<prefix>-rabbitmq:0.1.1
 ##   NGINX_PROXY_IMAGE=ghcr.io/<owner>/<prefix>-nginx-proxy:0.1.1
 ##
+## Optional host port overrides (if "port is already allocated" on the server):
+##   CORE_PUBLISH_PORT, AUTH_PUBLISH_PORT, AUTH_WEB_PUBLISH_PORT, APIGATE_PUBLISH_PORT,
+##   COMDASH_PUBLISH_PORT, ERP_PROXY_PUBLISH_PORT, RABBITMQ_PUBLISH_AMQP, RABBITMQ_PUBLISH_UI
+##   (defaults match the numbers below; set e.g. CORE_PUBLISH_PORT=14001)
+##
+## Hostnames for nginx-proxy only (optional):
+## - Default stack uses published ports (13000, 3100, …). You do NOT need mq.local / api.local.
+## - If you enable the `proxy` profile (nginx-proxy), each service can advertise a hostname via
+##   VIRTUAL_HOST_* so the proxy can route by Host header. Set these in .env.production to REAL
+##   DNS names you control (e.g. mq.portal.example.com), or leave them unset (empty) if not using proxy.
+## - Do not rely on *.local unless you maintain DNS/hosts yourself.
+##
 ## Deploy:
-##   docker compose -f docker-compose.production.yml --env-file .env up -d
+##   docker compose -f docker-compose.production.yml --env-file .env.production up -d
 
 services:
   nginx-proxy:
@@ -20,8 +51,6 @@ services:
     image: ${NGINX_PROXY_IMAGE:-nginxproxy/nginx-proxy:latest}
     container_name: erpq-nginx-proxy
     restart: unless-stopped
-    env_file:
-      - ./.env
     ports:
       - "${NGINX_PROXY_HTTP_PORT:-8081}:80"
     volumes:
@@ -33,15 +62,11 @@ services:
     image: ${RABBITMQ_IMAGE:-rabbitmq:3.13-management-alpine}
     hostname: rabbitmq
     restart: unless-stopped
-    env_file:
-      - ./.env
-    ports:
-      - "5672:5672"
-      - "15672:15672"
+    # No host ports in HTTPS edge mode (Traefik routes internally).
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-erpq}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-erpq_dev_change_me}
-      VIRTUAL_HOST: ${VIRTUAL_HOST_MQ:-mq.local}
+      VIRTUAL_HOST: ${VIRTUAL_HOST_MQ}
       VIRTUAL_PORT: "15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
@@ -56,19 +81,17 @@ services:
       start_period: 40s
 
   core:
-    image: ghcr.io/${GHCR_OWNER}/${GHCR_PREFIX:-erpq}-core:${APP_VERSION:-latest}
+    image: ${CORE_IMAGE:-ghcr.io/${GHCR_OWNER}/${GHCR_PREFIX:-erpq}-core:${APP_VERSION:-latest}}
     restart: unless-stopped
-    env_file:
-      - ./.env
-    ports:
-      - "14000:4000"
+    # No host ports in HTTPS edge mode (Traefik routes internally).
     environment:
       PORT: "4000"
       HOST: "0.0.0.0"
       CITYQ_MODULE_ERP: ${CITYQ_MODULE_ERP:-1}
       CITYQ_MODULE_CRM: ${CITYQ_MODULE_CRM:-1}
-      CITYQ_MQ_URL: ${CITYQ_MQ_URL:-amqp://cityq:erpq_dev_change_me@rabbitmq:5672}
-      VIRTUAL_HOST: ${VIRTUAL_HOST_CORE:-core.local}
+      # IMPORTANT: this is container-to-container; keep host as `rabbitmq`, not PUBLIC_HOST / IP.
+      CITYQ_MQ_URL: ${CITYQ_MQ_URL:-amqp://${RABBITMQ_DEFAULT_USER:-erpq}:${RABBITMQ_DEFAULT_PASS:-erpq_dev_change_me}@rabbitmq:5672}
+      VIRTUAL_HOST: ${VIRTUAL_HOST_CORE}
       VIRTUAL_PORT: "4000"
     networks:
       - default
@@ -87,29 +110,27 @@ services:
       start_period: 20s
 
   auth:
-    image: ghcr.io/${GHCR_OWNER}/${GHCR_PREFIX:-erpq}-auth:${APP_VERSION:-latest}
+    image: ${AUTH_IMAGE:-ghcr.io/${GHCR_OWNER}/${GHCR_PREFIX:-erpq}-auth:${APP_VERSION:-latest}}
     restart: unless-stopped
-    env_file:
-      - ./.env
-    ports:
-      - "14100:4100"
+    # No host ports in HTTPS edge mode (Traefik routes internally).
     environment:
       PORT: "4100"
       HOST: "0.0.0.0"
       JWT_SECRET: ${JWT_SECRET:-erpq-dev-jwt-change-me}
       CITYQ_INTERNAL_KEY: ${CITYQ_INTERNAL_KEY:-cityq-dev-internal-change-me}
-      AUTHQ_PUBLIC_BASE_URL: ${AUTHQ_PUBLIC_BASE_URL:-http://localhost:14100}
-      AUTHQ_OAUTH_RETURN_URL_PREFIXES: ${AUTHQ_OAUTH_RETURN_URL_PREFIXES:-http://localhost:13000,http://localhost:3000,http://127.0.0.1:13000}
-      AUTHQ_OAUTH_DEFAULT_RETURN_URL: ${AUTHQ_OAUTH_DEFAULT_RETURN_URL:-http://localhost:13000/}
+      # These are used to generate/validate OAuth redirect URLs (browser-facing). Require them in production.
+      AUTHQ_PUBLIC_BASE_URL: ${AUTHQ_PUBLIC_BASE_URL:?Set AUTHQ_PUBLIC_BASE_URL in .env.production}
+      AUTHQ_OAUTH_RETURN_URL_PREFIXES: ${AUTHQ_OAUTH_RETURN_URL_PREFIXES:?Set AUTHQ_OAUTH_RETURN_URL_PREFIXES in .env.production}
+      AUTHQ_OAUTH_DEFAULT_RETURN_URL: ${AUTHQ_OAUTH_DEFAULT_RETURN_URL:?Set AUTHQ_OAUTH_DEFAULT_RETURN_URL in .env.production}
       AUTHQ_OAUTH_DEFAULT_ALLOWED_DOC_TYPES: ${AUTHQ_OAUTH_DEFAULT_ALLOWED_DOC_TYPES:-*}
       AUTHQ_GOOGLE_CLIENT_ID: ${AUTHQ_GOOGLE_CLIENT_ID:-}
       AUTHQ_GOOGLE_CLIENT_SECRET: ${AUTHQ_GOOGLE_CLIENT_SECRET:-}
-      AUTHQ_GOOGLE_REDIRECT_URI: ${AUTHQ_GOOGLE_REDIRECT_URI:-http://localhost:14100/oauth/google/callback}
+      AUTHQ_GOOGLE_REDIRECT_URI: ${AUTHQ_GOOGLE_REDIRECT_URI:-${AUTHQ_PUBLIC_BASE_URL}/oauth/google/callback}
       AUTHQ_ZOHO_CLIENT_ID: ${AUTHQ_ZOHO_CLIENT_ID:-}
       AUTHQ_ZOHO_CLIENT_SECRET: ${AUTHQ_ZOHO_CLIENT_SECRET:-}
-      AUTHQ_ZOHO_REDIRECT_URI: ${AUTHQ_ZOHO_REDIRECT_URI:-http://localhost:14100/oauth/zoho/callback}
+      AUTHQ_ZOHO_REDIRECT_URI: ${AUTHQ_ZOHO_REDIRECT_URI:-${AUTHQ_PUBLIC_BASE_URL}/oauth/zoho/callback}
       AUTHQ_ZOHO_ACCOUNTS_HOST: ${AUTHQ_ZOHO_ACCOUNTS_HOST:-accounts.zoho.com}
-      VIRTUAL_HOST: ${VIRTUAL_HOST_AUTH:-auth.local}
+      VIRTUAL_HOST: ${VIRTUAL_HOST_AUTH}
       VIRTUAL_PORT: "4100"
     networks:
       - default
@@ -128,15 +149,23 @@ services:
       start_period: 20s
 
   auth-web:
-    image: ghcr.io/${GHCR_OWNER}/${GHCR_PREFIX:-erpq}-auth-web:${APP_VERSION:-latest}
+    image: ${AUTH_WEB_IMAGE:-ghcr.io/${GHCR_OWNER}/${GHCR_PREFIX:-erpq}-auth-web:${APP_VERSION:-latest}}
     restart: unless-stopped
-    env_file:
-      - ./.env
-    ports:
-      - "3100:3000"
+    # No host ports in HTTPS edge mode (Traefik routes internally).
     environment:
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
+      # These are browser-facing URLs. Require them so we never fall back to localhost.
+      NEXT_PUBLIC_APIGATE_URL: ${NEXT_PUBLIC_APIGATE_URL:?Set NEXT_PUBLIC_APIGATE_URL in .env.production}
+      NEXT_PUBLIC_COMDASH_URL: ${NEXT_PUBLIC_COMDASH_URL:?Set NEXT_PUBLIC_COMDASH_URL in .env.production}
+      NEXT_PUBLIC_AUTHQ_URL: ${NEXT_PUBLIC_AUTHQ_URL:?Set NEXT_PUBLIC_AUTHQ_URL in .env.production}
+      # Browser login reads these at runtime (see authQ/web/app/layout.jsx) — fixes wrong URLs baked at image build (e.g. old erpq.lan).
+      AUTH_WEB_RUNTIME_APIGATE: ${NEXT_PUBLIC_APIGATE_URL:?Set NEXT_PUBLIC_APIGATE_URL in .env.production}
+      AUTH_WEB_RUNTIME_COMDASH: ${NEXT_PUBLIC_COMDASH_URL:?Set NEXT_PUBLIC_COMDASH_URL in .env.production}
+      AUTH_WEB_RUNTIME_AUTHQ: ${NEXT_PUBLIC_AUTHQ_URL:?Set NEXT_PUBLIC_AUTHQ_URL in .env.production}
+      NEXT_PUBLIC_LOGIN_DEV_BYPASS: ${NEXT_PUBLIC_LOGIN_DEV_BYPASS:-false}
+      NEXT_PUBLIC_ERPNEXT_SITE_LABEL: ${NEXT_PUBLIC_ERPNEXT_SITE_LABEL:-ERPNext}
+      AUTH_WEB_ASSET_PREFIX: ${AUTH_WEB_ASSET_PREFIX:-}
     networks:
       - default
       - proxy
@@ -154,12 +183,13 @@ services:
       start_period: 40s
 
   apigate:
-    image: ghcr.io/${GHCR_OWNER}/${GHCR_PREFIX:-erpq}-apigate:${APP_VERSION:-latest}
+    image: ${APIGATE_IMAGE:-ghcr.io/${GHCR_OWNER}/${GHCR_PREFIX:-erpq}-apigate:${APP_VERSION:-latest}}
     restart: unless-stopped
-    env_file:
-      - ./.env
-    ports:
-      - "18080:8080"
+    # No host ports in HTTPS edge mode (Traefik routes internally).
+    # If the host machine's /etc/hosts maps your public ERP hostname to loopback, Docker copies that
+    # into containers and breaks HTTPS calls. This override applies ONLY inside this container.
+    extra_hosts:
+      - "${ERPNEXT_PUBLIC_HOSTNAME:-cityqerp.ortusolis.in}:${ERPNEXT_ROUTE_IP:-82.29.181.92}"
     environment:
       PORT: "8080"
       HOST: "0.0.0.0"
@@ -167,7 +197,8 @@ services:
       CORE_BACKEND_URL: http://core:4000
       AUTHQ_URL: http://auth:4100
       CITYQ_INTERNAL_KEY: ${CITYQ_INTERNAL_KEY:-cityq-dev-internal-change-me}
-      CITYQ_MQ_URL: ${CITYQ_MQ_URL:-amqp://cityq:erpq_dev_change_me@rabbitmq:5672}
+      # IMPORTANT: this is container-to-container; keep host as `rabbitmq`, not PUBLIC_HOST / IP.
+      CITYQ_MQ_URL: ${CITYQ_MQ_URL:-amqp://${RABBITMQ_DEFAULT_USER:-erpq}:${RABBITMQ_DEFAULT_PASS:-erpq_dev_change_me}@rabbitmq:5672}
       ERPNEXT_URL: ${ERPNEXT_URL:-}
       ERPNEXT_PUBLIC_URL: ${ERPNEXT_PUBLIC_URL:-}
       ERPNEXT_API_KEY: ${ERPNEXT_API_KEY:-}
@@ -180,7 +211,7 @@ services:
       ERP_PARTNER_RATE_MAX: ${ERP_PARTNER_RATE_MAX:-600}
       PAYMENT_PARTNER_RATE_MAX: ${PAYMENT_PARTNER_RATE_MAX:-120}
       ERP_DEFAULT_DOCTYPES: ${ERP_DEFAULT_DOCTYPES:-Lead,Opportunity,Customer,Contact,DocType,Quotation}
-      VIRTUAL_HOST: ${VIRTUAL_HOST_API:-api.local}
+      VIRTUAL_HOST: ${VIRTUAL_HOST_API}
       VIRTUAL_PORT: "8080"
     depends_on:
       auth:
@@ -204,18 +235,24 @@ services:
       start_period: 30s
 
   comdash:
-    image: ghcr.io/${GHCR_OWNER}/${GHCR_PREFIX:-erpq}-comdash:${APP_VERSION:-latest}
+    image: ${COMDASH_IMAGE:-ghcr.io/${GHCR_OWNER}/${GHCR_PREFIX:-erpq}-comdash:${APP_VERSION:-latest}}
     restart: unless-stopped
-    env_file:
-      - ./.env
-    ports:
-      - "13000:3000"
+    # No host ports in HTTPS edge mode (Traefik routes internally).
+    extra_hosts:
+      - "${ERPNEXT_PUBLIC_HOSTNAME:-cityqerp.ortusolis.in}:${ERPNEXT_ROUTE_IP:-82.29.181.92}"
     environment:
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
+      PUBLIC_HOST: ${PUBLIC_HOST:-localhost}
+      PUBLIC_SCHEME: ${PUBLIC_SCHEME:-http}
       APIGATE_INTERNAL_URL: http://apigate:8080
-      NEXT_PUBLIC_AUTH_URL: ${NEXT_PUBLIC_AUTH_URL:-http://localhost:3100}
-      VIRTUAL_HOST: ${VIRTUAL_HOST_DASHBOARD:-dashboard.local}
+      NEXT_PUBLIC_AUTH_URL: ${NEXT_PUBLIC_AUTH_URL:?Set NEXT_PUBLIC_AUTH_URL in .env.production}
+      NEXT_PUBLIC_APIGATE_URL: ${NEXT_PUBLIC_APIGATE_URL:?Set NEXT_PUBLIC_APIGATE_URL in .env.production}
+      ERPNEXT_URL: ${ERPNEXT_URL:-}
+      ERPNEXT_PUBLIC_URL: ${ERPNEXT_PUBLIC_URL:-}
+      ERPNEXT_API_KEY: ${ERPNEXT_API_KEY:-}
+      ERPNEXT_API_SECRET: ${ERPNEXT_API_SECRET:-}
+      VIRTUAL_HOST: ${VIRTUAL_HOST_DASHBOARD}
       VIRTUAL_PORT: "3000"
     networks:
       - default
@@ -234,12 +271,11 @@ services:
       start_period: 40s
 
   erp-proxy:
-    image: ghcr.io/${GHCR_OWNER}/${GHCR_PREFIX:-erpq}-erp-proxy:${APP_VERSION:-latest}
+    image: ${ERP_PROXY_IMAGE:-ghcr.io/${GHCR_OWNER}/${GHCR_PREFIX:-erpq}-erp-proxy:${APP_VERSION:-latest}}
     restart: unless-stopped
-    env_file:
-      - ./.env
-    ports:
-      - "13002:80"
+    # No host ports in HTTPS edge mode (Traefik routes internally).
+    extra_hosts:
+      - "${ERPNEXT_PUBLIC_HOSTNAME:-cityqerp.ortusolis.in}:${ERPNEXT_ROUTE_IP:-82.29.181.92}"
     networks:
       - default
 
@@ -249,5 +285,5 @@ volumes:
 networks:
   # Default: create an internal network named "<project>_proxy" automatically.
   # If you want to attach to an existing external nginx-proxy network, use:
-  #   docker compose -f docker-compose.production.yml -f docker-compose.production.external-proxy.yml --env-file .env up -d
+  #   docker compose -f docker-compose.production.yml -f docker-compose.external-proxy.yml --env-file .env.production up -d
   proxy: {}

@@ -32,15 +32,13 @@ export function isTokenExpired(token) {
  */
 async function getAuthUrl() {
   if (typeof window === "undefined") return "";
-  // Local (ports): http://localhost:13000 -> http://localhost:3100
-  // Traefik (path): https://erpq.lan -> https://erpq.lan/login
-  if (
-    window.location.port === "" ||
-    window.location.port === "80" ||
-    window.location.port === "443"
-  ) {
-    return `${window.location.origin}/login`;
-  }
+  const fromEnv = (process.env.NEXT_PUBLIC_AUTH_URL || "")
+    .replace(/\/$/, "")
+    .replace(/\/login$/, "");
+  if (fromEnv) return fromEnv;
+  const port = window.location.port;
+  const usePathLogin = !port || port === "80" || port === "443";
+  if (usePathLogin) return window.location.origin;
   return `${window.location.protocol}//${window.location.hostname}:3100`;
 }
 

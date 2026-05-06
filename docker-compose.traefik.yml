@@ -44,23 +44,24 @@ services:
   comdash:
     labels:
       - traefik.enable=true
-      - traefik.http.routers.comdash.rule=Host(`${PUBLIC_HOST}`)
+      # Main portal + modules as path segments (single host)
+      - traefik.http.routers.comdash.rule=Host(`${PUBLIC_HOST}`) && (PathPrefix(`/`) && !PathPrefix(`/api`) && !PathPrefix(`/auth`) && !PathPrefix(`/login`) && !PathPrefix(`/erp`) && !PathPrefix(`/mq`))
       - traefik.http.routers.comdash.entrypoints=websecure
       - traefik.http.routers.comdash.tls=true
       - traefik.http.routers.comdash.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
       - traefik.http.services.comdash.loadbalancer.server.port=3000
-      # Optional: module subdomains -> same portal (UI routes decide module)
-      - traefik.http.routers.comdash-crm.rule=Host(`${CRM_HOST:-crm.${PUBLIC_HOST}}`)
-      - traefik.http.routers.comdash-crm.entrypoints=websecure
-      - traefik.http.routers.comdash-crm.tls=true
-      - traefik.http.routers.comdash-crm.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
-      - traefik.http.routers.comdash-crm.service=comdash
-      - traefik.http.routers.comdash-hr.rule=Host(`${HR_HOST:-hr.${PUBLIC_HOST}}`)
+      # Explicit module paths (optional, but makes intent obvious)
+      - traefik.http.routers.comdash-hr.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/hr`)
       - traefik.http.routers.comdash-hr.entrypoints=websecure
       - traefik.http.routers.comdash-hr.tls=true
       - traefik.http.routers.comdash-hr.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
       - traefik.http.routers.comdash-hr.service=comdash
-      - traefik.http.routers.comdash-pur.rule=Host(`${PUR_HOST:-pur.${PUBLIC_HOST}}`)
+      - traefik.http.routers.comdash-crm.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/crm`)
+      - traefik.http.routers.comdash-crm.entrypoints=websecure
+      - traefik.http.routers.comdash-crm.tls=true
+      - traefik.http.routers.comdash-crm.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.routers.comdash-crm.service=comdash
+      - traefik.http.routers.comdash-pur.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/pur`)
       - traefik.http.routers.comdash-pur.entrypoints=websecure
       - traefik.http.routers.comdash-pur.tls=true
       - traefik.http.routers.comdash-pur.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
@@ -69,34 +70,36 @@ services:
   apigate:
     labels:
       - traefik.enable=true
-      - traefik.http.routers.apigate.rule=Host(`${API_HOST:-api.${PUBLIC_HOST}}`)
+      # Expose apiGate at https://<PUBLIC_HOST>/api/*
+      - traefik.http.routers.apigate.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/api`)
       - traefik.http.routers.apigate.entrypoints=websecure
       - traefik.http.routers.apigate.tls=true
       - traefik.http.routers.apigate.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
       - traefik.http.services.apigate.loadbalancer.server.port=8080
+      # Strip /api before proxying to keep backend routes unchanged
+      - traefik.http.routers.apigate.middlewares=apigate-strip-api
+      - traefik.http.middlewares.apigate-strip-api.stripprefix.prefixes=/api
 
   auth:
     labels:
       - traefik.enable=true
-      - traefik.http.routers.auth.rule=Host(`${AUTH_HOST:-auth.${PUBLIC_HOST}}`)
+      # Expose Auth API at https://<PUBLIC_HOST>/auth/*
+      - traefik.http.routers.auth.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/auth`)
       - traefik.http.routers.auth.entrypoints=websecure
       - traefik.http.routers.auth.tls=true
       - traefik.http.routers.auth.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
       - traefik.http.services.auth.loadbalancer.server.port=4100
+      # Strip /auth before proxying (auth service routes remain /health, /oauth/*, etc.)
+      - traefik.http.routers.auth.middlewares=auth-strip-auth
+      - traefik.http.middlewares.auth-strip-auth.stripprefix.prefixes=/auth
 
   auth-web:
     labels:
       - traefik.enable=true
-      # auth-web can be reached either via subdomain (login.erpq.lan) OR path (/login) on the main host.
+      # auth-web can be reached either via subdomain (e.g. login.example.com) OR path (/login) on the main host.
       - traefik.http.services.authweb.loadbalancer.server.port=3000
 
-      # --- Option A: subdomain routing (login.erpq.lan) ---
-      - traefik.http.routers.authweb.rule=Host(`${LOGIN_HOST:-login.${PUBLIC_HOST}}`)
-      - traefik.http.routers.authweb.entrypoints=websecure
-      - traefik.http.routers.authweb.tls=true
-      - traefik.http.routers.authweb.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
-
-      # --- Option B: single-domain path routing (https://erpq.lan/login/*) ---
+      # --- Option B: single-domain path routing (https://your-host/login/*) ---
       - traefik.http.routers.authweb-path.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/login`)
       - traefik.http.routers.authweb-path.entrypoints=websecure
       - traefik.http.routers.authweb-path.tls=true
@@ -116,29 +119,38 @@ services:
   core:
     labels:
       - traefik.enable=true
-      - traefik.http.routers.core.rule=Host(`${CORE_HOST:-core.${PUBLIC_HOST}}`)
+      # Optional: expose core behind a path if needed for debugging
+      - traefik.http.routers.core.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/core`)
       - traefik.http.routers.core.entrypoints=websecure
       - traefik.http.routers.core.tls=true
       - traefik.http.routers.core.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
       - traefik.http.services.core.loadbalancer.server.port=4000
+      - traefik.http.routers.core.middlewares=core-strip-core
+      - traefik.http.middlewares.core-strip-core.stripprefix.prefixes=/core
 
   erp-proxy:
     labels:
       - traefik.enable=true
-      - traefik.http.routers.erpproxy.rule=Host(`${ERP_PROXY_HOST:-erp-proxy.${PUBLIC_HOST}}`)
+      # Optional: ERP iframe proxy at https://<PUBLIC_HOST>/erp/*
+      - traefik.http.routers.erpproxy.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/erp`)
       - traefik.http.routers.erpproxy.entrypoints=websecure
       - traefik.http.routers.erpproxy.tls=true
       - traefik.http.routers.erpproxy.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
       - traefik.http.services.erpproxy.loadbalancer.server.port=80
+      - traefik.http.routers.erpproxy.middlewares=erpproxy-strip-erp
+      - traefik.http.middlewares.erpproxy-strip-erp.stripprefix.prefixes=/erp
 
   rabbitmq:
     labels:
       - traefik.enable=true
-      - traefik.http.routers.rabbitmq.rule=Host(`${MQ_HOST:-mq.${PUBLIC_HOST}}`)
+      # Optional: RabbitMQ UI at https://<PUBLIC_HOST>/mq/*
+      - traefik.http.routers.rabbitmq.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/mq`)
       - traefik.http.routers.rabbitmq.entrypoints=websecure
       - traefik.http.routers.rabbitmq.tls=true
       - traefik.http.routers.rabbitmq.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
       - traefik.http.services.rabbitmq.loadbalancer.server.port=15672
+      - traefik.http.routers.rabbitmq.middlewares=rabbitmq-strip-mq
+      - traefik.http.middlewares.rabbitmq-strip-mq.stripprefix.prefixes=/mq
 
 volumes:
   traefik_letsencrypt:

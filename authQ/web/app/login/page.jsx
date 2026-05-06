@@ -19,16 +19,46 @@ function trimTrailingSlash(url) {
   return (url ?? "").replace(/\/$/, "");
 }
 
+/** Build-time NEXT_PUBLIC_* often still points at an old LAN host that the browser cannot resolve. */
+function bakedPointsAtErpqLan(url) {
+  if (!url || typeof url !== "string") return false;
+  try {
+    return new URL(url).hostname === "erpq.lan";
+  } catch {
+    return false;
+  }
+}
+
+/** Injected in root layout from AUTH_WEB_RUNTIME_* (Docker) — overrides baked NEXT_PUBLIC_*. */
+function getRuntimePublic() {
+  if (typeof window === "undefined") return null;
+  const w = window.__AUTH_WEB_PUBLIC__;
+  if (!w || typeof w !== "object") return null;
+  return w;
+}
+
+/** Prefer explicit URL; never use erpq.lan in the browser (DNS); else same-host :port guess. */
+function resolvePublicBase(port, runtimeVal, bakedVal) {
+  const fromRt = runtimeVal && String(runtimeVal).trim();
+  if (fromRt && !bakedPointsAtErpqLan(fromRt)) return trimTrailingSlash(fromRt);
+  const baked = bakedVal && String(bakedVal).trim();
+  if (baked && !bakedPointsAtErpqLan(baked)) return trimTrailingSlash(baked);
+  return trimTrailingSlash(guessBase(port));
+}
+
 function getApiBase() {
-  return trimTrailingSlash(process.env.NEXT_PUBLIC_APIGATE_URL || guessBase(18080));
+  const rt = getRuntimePublic();
+  return resolvePublicBase(18080, rt?.apigate, process.env.NEXT_PUBLIC_APIGATE_URL);
 }
 
 function getAuthQBase() {
-  return trimTrailingSlash(process.env.NEXT_PUBLIC_AUTHQ_URL || guessBase(14100));
+  const rt = getRuntimePublic();
+  return resolvePublicBase(14100, rt?.authq, process.env.NEXT_PUBLIC_AUTHQ_URL);
 }
 
 function getComDashBase() {
-  return trimTrailingSlash(process.env.NEXT_PUBLIC_COMDASH_URL || guessBase(13000));
+  const rt = getRuntimePublic();
+  return resolvePublicBase(13000, rt?.comdash, process.env.NEXT_PUBLIC_COMDASH_URL);
 }
 
 function Brand() {
