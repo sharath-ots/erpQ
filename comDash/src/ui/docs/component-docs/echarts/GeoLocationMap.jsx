@@ -26,7 +26,7 @@ const data = [
   { name: 'India', value: 38000 },
   { name: 'Egypt', value: 27000 },
   { name: 'Mexico', value: 19000 },
-  { name: 'Angola', value: 13000 },
+  { name: 'Angola', value: 13001 },
   { name: 'Colombia', value: 11000 },
   { name: 'Finland', value: 7000 },
 ];

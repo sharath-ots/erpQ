@@ -79,7 +79,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             NEXT_PUBLIC_APIGATE_URL=${{ vars.NEXT_PUBLIC_APIGATE_URL || 'http://localhost:18080' }}
-            NEXT_PUBLIC_COMDASH_URL=${{ vars.NEXT_PUBLIC_COMDASH_URL || 'http://localhost:13000' }}
+            NEXT_PUBLIC_COMDASH_URL=${{ vars.NEXT_PUBLIC_COMDASH_URL || 'http://localhost:13001' }}
             NEXT_PUBLIC_AUTHQ_URL=${{ vars.NEXT_PUBLIC_AUTHQ_URL || 'http://localhost:14100' }}
             NEXT_PUBLIC_LOGIN_DEV_BYPASS=${{ vars.NEXT_PUBLIC_LOGIN_DEV_BYPASS || 'false' }}
             NEXT_PUBLIC_ERPNEXT_SITE_LABEL=${{ vars.NEXT_PUBLIC_ERPNEXT_SITE_LABEL || 'ERPNext' }}

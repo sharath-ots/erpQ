@@ -42,10 +42,10 @@ param(
     [string]$ComposeFile = "./docker-compose.yml",
 
     [Parameter(Mandatory = $false)]
-    [string]$EnvFile = "",
+    [string]$EnvFile = ".env.production",
 
     [Parameter(Mandatory = $false)]
-    [string]$GhcrOwner = "",
+    [string]$GhcrOwner = "sharath-ots",
 
     # PAT with write:packages. Prefer env GHCR_TOKEN — avoid committing secrets in the script defaults block.
     [Parameter(Mandatory = $false)]
@@ -53,13 +53,13 @@ param(
 
     # GitHub username for docker login (your account). For org namespaces (-GhcrOwner orgname), this is still YOUR username.
     [Parameter(Mandatory = $false)]
-    [string]$GhcrLoginUser = "",
+    [string]$GhcrLoginUser = "sharath-ots",
 
     [Parameter(Mandatory = $false)]
     [string]$GhcrPrefix = "erpq",
 
     [Parameter(Mandatory = $false)]
-    [string]$Version = "",
+    [string]$Version = "latest",
 
     [Parameter(Mandatory = $false)]
     [ValidateSet("patch", "minor", "major", "none")]

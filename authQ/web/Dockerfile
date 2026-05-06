@@ -10,7 +10,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN mkdir -p public
 ARG NEXT_PUBLIC_APIGATE_URL=http://localhost:18080
-ARG NEXT_PUBLIC_COMDASH_URL=http://localhost:13000
+ARG NEXT_PUBLIC_COMDASH_URL=http://localhost:13001
 ARG NEXT_PUBLIC_AUTHQ_URL=http://localhost:14100
 ARG NEXT_PUBLIC_LOGIN_DEV_BYPASS=false
 ARG NEXT_PUBLIC_ERPNEXT_SITE_LABEL=ERPNext

@@ -1,7 +1,7 @@
 /**
  * API base URL strategy:
  *
- * Browser calls always go to the SAME origin as comDash (e.g. http://192.168.1.100:13000).
+ * Browser calls always go to the SAME origin as comDash (e.g. http://192.168.1.100:13001).
  * The Next.js App Router proxy at /api/v1/[...path]/route.js forwards those calls to
  * APIGATE_INTERNAL_URL (http://apigate:8080) at runtime inside Docker.
  * This avoids CORS, avoids baking server IPs into the client bundle, and works on any network.
