@@ -100,7 +100,8 @@ const NotesTabPanel = ({ leadId }) => {
         disabled={isSubmitting}
         sx={{
           mb: 1,
-          bgcolor: isSubmitting ? '#f8fafc' : 'white',
+          // 🚀 Changed from hardcoded white to paper!
+          bgcolor: isSubmitting ? 'action.hover' : 'background.paper',
           [`& .${inputBaseClasses.root}.${inputBaseClasses.multiline}`]: {
             py: 1.5,
             px: 2
@@ -120,8 +121,9 @@ const NotesTabPanel = ({ leadId }) => {
         ) : (
           <Stack
             direction="column"
-            divider={<Divider sx={{ borderColor: 'dividerLight' }} />}
-            sx={{ borderBottom: 1, borderColor: 'dividerLight' }}
+            // 🚀 Replaced 'dividerLight' with standard 'divider' for theme consistency
+            divider={<Divider sx={{ borderColor: 'divider' }} />}
+            sx={{ borderBottom: 1, borderColor: 'divider' }}
           >
             {notes.map((note) => (
               <Note key={note.id} note={note} />
@@ -129,8 +131,6 @@ const NotesTabPanel = ({ leadId }) => {
           </Stack>
         )}
       </SimpleBar>
-
-      {/* {notes.length > 0 && <Button sx={{ mt: 3 }}>Load more notes</Button>} */}
     </Container>
   );
 };

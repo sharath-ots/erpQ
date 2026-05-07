@@ -20,9 +20,45 @@ import Topnav from './topnav';
 import TopNavStacked from './topnav/TopNavStacked';
 import TopnavSlim from './topnav/TopnavSlim';
 import { usePathname } from "next/navigation";
+import { useThemeMode } from '../../hooks/useThemeMode';
+import { ConfigProvider, theme } from 'antd';
+
+const GlobalWatermark = ({ isDark }) => (
+  <Box
+    sx={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100vw',
+      height: '100vh',
+      pointerEvents: 'none',
+      zIndex: 50,
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+    }}
+  >
+    <Box
+      component="img"
+      src="/logoq.png"
+      alt="Watermark"
+      sx={{
+        width: '50%',
+        maxWidth: '600px',
+        filter: isDark
+          ? 'grayscale(100%) brightness(0) invert(1) opacity(4%)'
+          : 'grayscale(100%) brightness(0) opacity(6%)',
+        transition: 'filter 0.3s ease-in-out', // Smooth fade when switching themes
+      }}
+    />
+  </Box>
+);
 
 const MainLayout = ({ children }) => {
   const pathname = usePathname();
+
+  const { isDark } = useThemeMode();
+
   const {
     config: {
       drawerWidth,
@@ -54,14 +90,61 @@ const MainLayout = ({ children }) => {
     return 'appbar';
   }, [navigationMenuType, topnavType]);
 
-  if (pathname.includes('/lead-list') ||
-    pathname.includes('/list/Lead') ||
-    pathname.includes('/add-lead') ||
+  if (pathname.includes('/add-lead') ||
     pathname.includes('/view-lead') ||
     pathname.includes('/edit-lead')) {
-    return <>{children}</>;
+    return (
+      <ConfigProvider theme={{ algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm }}>
+        <GlobalWatermark isDark={isDark} />
+        {children}
+      </ConfigProvider>
+    )
   }
 
+  if (pathname.includes('/lead-list') ||
+    pathname.includes('/list/Lead')) {
+    return (
+      <Box className={clsx({ 'nav-vibrant': navColor === 'vibrant' })} sx={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', zIndex: 1, position: 'relative' }}>
+        <ConfigProvider theme={{ algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm }}>
+          <GlobalWatermark isDark={isDark} />
+
+          <NavProvider>
+            {/* Global Header */}
+            {navigationMenuType === 'sidenav' && <AppBar />}
+            {(navigationMenuType === 'topnav' || navigationMenuType === 'combo') && (
+              <>
+                {topnavType === 'default' && <Topnav />}
+                {topnavType === 'slim' && <TopnavSlim />}
+                {topnavType === 'stacked' && <TopNavStacked />}
+              </>
+            )}
+
+            {/* 🚀 FIX: Removed the Toolbar spacer. Children now start at the very top of the screen */}
+            <Box sx={{ flexGrow: 1, display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
+              {children}
+            </Box>
+
+            <Drawer
+              variant="temporary"
+              open={openNavbarDrawer}
+              onClose={toggleNavbarDrawer}
+              ModalProps={{ keepMounted: true }}
+              sx={[
+                { display: { xs: 'block', md: 'none' }, [`& .${drawerClasses.paper}`]: { pt: 3, boxSizing: 'border-box', width: mainDrawerWidth.full } },
+                navColor === 'vibrant' && sidenavVibrantStyle,
+              ]}
+            >
+              {navColor === 'vibrant' && <VibrantBackground position="side" />}
+              <SidenavDrawerContent variant="temporary" />
+            </Drawer>
+
+          </NavProvider>
+        </ConfigProvider>
+      </Box>
+    );
+  }
+
+  // MAIN RETURN FOR ALL OTHER ROUTES
   return (
     <Box>
       <Box
@@ -151,7 +234,11 @@ const MainLayout = ({ children }) => {
                   },
                 ]}
               >
-                {children}
+                <ConfigProvider theme={{ algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm }}>
+                  {/* 🚀 3. ADD WATERMARK HERE TOO */}
+                  <GlobalWatermark isDark={isDark} />
+                  {children}
+                </ConfigProvider>
               </Box>
             </Box>
             <Footer />

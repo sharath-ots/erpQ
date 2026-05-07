@@ -199,9 +199,14 @@ const ProfileMenu = ({ type = 'default' }) => {
           {data?.user ? (
             <ProfileMenuItem
               onClick={async () => {
+                // 1. Get the base URL from the environment file
+                // Fallback to an empty string to allow relative routing if the env is missing
+                const baseUrl = process.env.NEXT_PUBLIC_AUTH_URL || '';
+                const loginUrl = `${baseUrl}/login`;
+
                 const res = await signOut({
                   redirect: false,
-                  callbackUrl: paths.defaultLoggedOut,
+                  callbackUrl: loginUrl, // 2. Pass the custom login URL here
                 });
 
                 if (res.url) {

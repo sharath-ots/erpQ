@@ -21,19 +21,24 @@ import { useSettingsContext } from 'providers/SettingsProvider';
 import { useState } from 'react';
 import { useBreakpoints } from 'providers/BreakpointsProvider';
 import paths, { authPaths } from 'routes/paths';
+import { signOut, useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 // 1. Import our custom session hook
 import { useERPUser } from 'providers/ERPUserProvider';
 // 2. Import ERP config to dynamically get the base URL
-import { ERP_CONFIG } from 'lib/erpApi'; 
+import { ERP_CONFIG } from 'lib/erpApi';
 
 const ProfileMenu = ({ type = 'default' }) => {
+  const router = useRouter();
   const [anchorEl, setAnchorEl] = useState(null);
   const { up } = useBreakpoints();
   const upSm = up('sm');
   const {
     config: { textDirection },
   } = useSettingsContext();
+
+  const { data } = useSession();
 
   // 3. Grab the user data from our session
   const { user, loading } = useERPUser();
@@ -87,7 +92,7 @@ const ProfileMenu = ({ type = 'default' }) => {
           type === 'slim' && { width: 24, height: 24, border: 1, borderColor: 'background.paper' },
         ]}
       >
-        {!userImage && initial} 
+        {!userImage && initial}
       </StatusAvatar>
     </Button>
   );
@@ -155,9 +160,9 @@ const ProfileMenu = ({ type = 'default' }) => {
             </Typography>
           </Box>
         </Stack>
-        
+
         <Divider />
-        
+
         <Box sx={{ py: 1 }}>
           {/* Changed to Roles and Permissions */}
           <ProfileMenuItem icon="material-symbols:shield-person-outline-rounded" onClick={handleClose}>
@@ -165,8 +170,8 @@ const ProfileMenu = ({ type = 'default' }) => {
           </ProfileMenuItem>
 
           {/* Changed to Go to ERPNext and opens in new tab */}
-          <ProfileMenuItem 
-            icon="material-symbols:open-in-new-rounded" 
+          <ProfileMenuItem
+            icon="material-symbols:open-in-new-rounded"
             onClick={handleClose}
             href="https://cityqerp.ortusolis.in/app"
             target="_blank" // Opens in new tab
@@ -174,9 +179,9 @@ const ProfileMenu = ({ type = 'default' }) => {
             Go to ERPNext
           </ProfileMenuItem>
         </Box>
-        
+
         <Divider />
-        
+
         <Box sx={{ py: 1 }}>
           <ProfileMenuItem
             icon="material-symbols:manage-accounts-outline-rounded"
@@ -193,19 +198,26 @@ const ProfileMenu = ({ type = 'default' }) => {
             Help Center
           </ProfileMenuItem>
         </Box>
-        
+
         <Divider />
-        
+
+        <Divider />
+
         <Box sx={{ py: 1 }}>
-          {/* Made Log Out button RED */}
           <ProfileMenuItem
-            onClick={() => {
-              handleClose();
-              // Add real logout logic here later if needed
+            onClick={async () => {
+              const loginUrl = process.env.NEXT_PUBLIC_AUTH_URL || '';
+
+              const res = await signOut({
+                redirect: false,
+                callbackUrl: loginUrl,
+              });
+
+              if (res.url) {
+                router.push(res.url);
+              }
             }}
             icon="material-symbols:logout-rounded"
-            sx={{ color: 'error.main' }} 
-            iconColor="error.main"
           >
             Sign Out
           </ProfileMenuItem>

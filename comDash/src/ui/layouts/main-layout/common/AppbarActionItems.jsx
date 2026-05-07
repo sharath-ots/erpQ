@@ -16,7 +16,7 @@ const AppbarActionItems = ({ type = 'default', sx, searchComponent }) => {
       }}
     >
       {searchComponent}
-      <LanguageMenu type={type} />
+      {/* <LanguageMenu type={type} /> */}
       <ThemeToggler type={type} />
       <NotificationMenu type={type} />
       <ProfileMenu type={type} />

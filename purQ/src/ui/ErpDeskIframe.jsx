@@ -29,7 +29,7 @@ export function ErpDeskIframe({ deskBaseUrl, path, deskIframeQuery }) {
       <iframe
         title="ERPNext desk"
         src={src}
-        className="w-full flex-1 rounded border border-slate-200 bg-white"
+        className="w-full flex-1 rounded border border-slate-200 bg-white dark:bg-gray-900"
         style={{ minHeight: "min(80vh, 900px)" }}
       />
     </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useMemo } from 'react';
 import { Box, ButtonBase, Paper, Stack, Typography } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import useToggleChartLegends from 'hooks/useToggleChartLegends';
@@ -8,18 +8,34 @@ import DashboardMenu from 'components/common/DashboardMenu';
 import SectionHeader from 'components/common/SectionHeader';
 import LeadSourcesChart from './LeadSourcesChart';
 
-const palette = ['chBlue.400', 'chOrange.400', 'chLightBlue.300', 'chGreen.400', 'chRed.400', 'chPurple.400'];
+// Infinite Dynamic Color Generator
+const generateColor = (index) => {
+  const defaultColors = ['#4A90E2', '#F39C12', '#2ECC71', '#E74C3C', '#9B59B6', '#1ABC9C', '#F1C40F', '#34495E', '#E67E22', '#7F8C8D'];
+  if (index < defaultColors.length) return defaultColors[index];
+  return `hsl(${(index * 137.5) % 360}, 70%, 50%)`; // Creates distinct colors infinitely
+};
 
 const LeadSources = ({ data }) => {
   const chartRef = useRef(null);
   const { legendState, handleLegendToggle } = useToggleChartLegends(chartRef);
   const safeData = data || [];
 
-  // Dynamically generate legends based on the ERPNext data
-  const chartLegends = safeData.map((item, index) => ({
-    label: item.name,
-    color: palette[index % palette.length]
-  }));
+  // Generate perfect matching colors for however many sources exist
+  const chartLegends = useMemo(() => {
+    return safeData.map((item, index) => ({
+      label: item.name,
+      color: generateColor(index)
+    }));
+  }, [safeData]);
+
+  // Extract just the color strings to pass to the chart
+  const chartColors = chartLegends.map(l => l.color);
+
+  // Dynamic total calculation
+  const displayTotal = safeData.reduce((acc, item) => {
+    const isHidden = legendState[item.name];
+    return isHidden ? acc : acc + item.value;
+  }, 0);
 
   return (
     <Paper sx={{ height: 1, p: { xs: 3, md: 5 } }}>
@@ -28,11 +44,11 @@ const LeadSources = ({ data }) => {
 
         <Stack direction="column">
           <Box sx={{ position: 'relative' }}>
-            <LeadSourcesChart data={safeData} ref={chartRef} sx={{ height: '215px !important' }} />
+            {/* We pass our dynamic chartColors array directly into the chart! */}
+            <LeadSourcesChart data={safeData} colors={chartColors} ref={chartRef} sx={{ height: '215px !important' }} />
+
             <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
-              <Typography variant="h4">
-                {safeData.reduce((acc, item) => acc + item.value, 0)}
-              </Typography>
+              <Typography variant="h4">{displayTotal}</Typography>
             </Box>
           </Box>
 

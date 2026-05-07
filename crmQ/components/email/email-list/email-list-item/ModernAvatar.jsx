@@ -42,7 +42,7 @@ const ModernAvatar = ({ name, size = 40, sx = {} }) => {
                 width: size,
                 height: size,
                 background: background,
-                color: '#ffffff',
+                color: '#background.paper',
                 fontWeight: 700,
                 fontSize: size * 0.4,
                 letterSpacing: 1,

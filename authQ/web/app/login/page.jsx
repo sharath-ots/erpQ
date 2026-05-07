@@ -129,11 +129,11 @@ function SsoButton({ href, provider }) {
   const label = provider === "google" ? "Sign in with Google" : "Sign in with Zoho";
   const badge =
     provider === "google" ? (
-      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-slate-700 text-xs font-semibold">
+      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white dark:bg-gray-900/90 text-slate-700 text-xs font-semibold">
         G
       </span>
     ) : (
-      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-slate-700 text-xs font-semibold">
+      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white dark:bg-gray-900/90 text-slate-700 text-xs font-semibold">
         Z
       </span>
     );
@@ -268,7 +268,7 @@ function LoginCard() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-gray-900">
       <div className="mx-auto max-w-6xl px-6 py-6">
         <Brand />
       </div>

@@ -31,7 +31,7 @@ export default function ActivityTabSidebar({ leadId }) {
             height: '100%',
             display: 'flex',
             flexDirection: 'column',
-            bgcolor: 'white',
+            bgcolor: 'background.default',
             borderRadius: 2,
             border: '1px solid #e2e8f0',
             overflow: 'hidden'
@@ -115,7 +115,7 @@ export default function ActivityTabSidebar({ leadId }) {
                 </Box>
 
                 {/* RIGHT CONTENT AREA (Dynamically renders based on selection) */}
-                <Box sx={{ flexGrow: 1, p: 3, overflowY: 'auto', bgcolor: 'white' }}>
+                <Box sx={{ flexGrow: 1, p: 3, overflowY: 'auto', bgcolor: 'background.default' }}>
 
                     {/* Header for the specific tab */}
                     <Typography variant="h6" sx={{ fontWeight: 700, mb: 3, color: '#334155' }}>

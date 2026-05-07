@@ -22,8 +22,9 @@ const TaskList = ({ tasksData, onViewTask }) => {
       direction="column"
       sx={{
         borderRadius: 3,
-        border: '1px solid #f1f5f9',
-        bgcolor: '#ffffff',
+        border: 1,
+        borderColor: 'divider',
+        bgcolor: 'background.paper',
         overflow: 'hidden'
       }}
     >
@@ -36,8 +37,8 @@ const TaskList = ({ tasksData, onViewTask }) => {
           cursor: 'pointer',
           justifyContent: 'space-between',
           alignItems: 'center',
-          bgcolor: '#f8fafc',
-          '&:hover': { bgcolor: '#f1f5f9' }
+          bgcolor: 'background.paper',
+          '&:hover': { bgcolor: 'action.hover' }
         }}
       >
         <Stack direction="row" spacing={1.5} alignItems="center">
@@ -45,29 +46,28 @@ const TaskList = ({ tasksData, onViewTask }) => {
             icon="material-symbols:keyboard-arrow-down-rounded"
             sx={{
               fontSize: 24,
-              color: '#64748b',
+              color: 'text.secondary',
               transform: !open ? 'rotate(-90deg)' : 'rotate(0deg)',
               transition: 'all 0.2s',
             }}
           />
-          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#1e293b' }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'text.primary' }}>
             {tasksData?.title}
           </Typography>
-          <Typography variant="caption" sx={{ bgcolor: '#e2e8f0', px: 1, borderRadius: 1, fontWeight: 700, color: '#475569' }}>
+          <Typography variant="caption" sx={{ bgcolor: 'action.selected', px: 1, borderRadius: 1, fontWeight: 700, color: 'text.secondary' }}>
             {totalTasks}
           </Typography>
         </Stack>
 
-        {/* 🚀 Fixed Progress Layout */}
         <Stack direction="row" spacing={2} alignItems="center" sx={{ width: 150 }}>
-          <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, whiteSpace: 'nowrap' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, whiteSpace: 'nowrap' }}>
             {noOfCompletedTasks}/{totalTasks} DONE
           </Typography>
           <Box sx={{ flexGrow: 1 }}>
             <LinearProgress
               variant="determinate"
               value={progressValue}
-              sx={{ borderRadius: 10, height: 6, bgcolor: '#e2e8f0' }}
+              sx={{ borderRadius: 10, height: 6, bgcolor: 'action.hover' }}
             />
           </Box>
         </Stack>
@@ -75,12 +75,12 @@ const TaskList = ({ tasksData, onViewTask }) => {
 
       <Collapse in={open}>
         <Box sx={{ p: 1 }}>
-          {/* 🚀 2. Pass it down to the table here */}
           <TaskTable taskList={taskList} onViewTask={onViewTask} />
         </Box>
       </Collapse>
     </Stack>
   );
+
 };
 
 export default TaskList;

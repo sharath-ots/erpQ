@@ -137,9 +137,9 @@ const LeadSummaryCards = () => {
                         transition: 'all 0.2s ease-in-out',
                         position: 'relative',
                         '&:hover': {
-                            bgcolor: '#f8fafc',
+                            bgcolor: 'action.hover',
                             transform: 'translateY(-2px)',
-                            boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
+                            boxShadow: 4,
                             zIndex: 1
                         }
                     }}

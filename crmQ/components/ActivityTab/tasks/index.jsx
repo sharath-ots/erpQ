@@ -128,9 +128,9 @@ const TaskTabPanel = ({ leadId }) => {
       </SimpleBar>
 
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
-        <DialogTitle sx={{ fontWeight: 800, borderBottom: '1px solid #f1f5f9', pb: 2 }}>Assign New Task</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 800, borderBottom: 1, borderColor: 'divider', pb: 2 }}>Assign New Task</DialogTitle>
 
-        <DialogContent sx={{ p: 3, bgcolor: '#fcfcfd' }}>
+        <DialogContent sx={{ p: 3, bgcolor: 'background.paper' }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 1 }}>
 
             {/* DUE DATE */}
@@ -141,11 +141,11 @@ const TaskTabPanel = ({ leadId }) => {
               InputLabelProps={{ shrink: true }}
               value={newTask.date}
               onChange={(e) => setNewTask({ ...newTask, date: e.target.value })}
-              sx={{ bgcolor: 'white' }}
+              sx={{ bgcolor: 'background.default' }}
             />
 
             {/* ASSIGNMENT SECTION */}
-            <Box sx={{ p: 2.5, bgcolor: '#f1f5f9', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+            <Box sx={{ p: 2.5, bgcolor: 'action.hover', borderRadius: 2, border: 1, borderColor: 'divider' }}>
               <Typography variant="overline" color="text.secondary" fontWeight={700} sx={{ mb: 2, display: 'block' }}>
                 Assignment
               </Typography>
@@ -163,9 +163,8 @@ const TaskTabPanel = ({ leadId }) => {
                   fullWidth
                   label="Assign To"
                   disabled={newTask.assign_to_me}
-                  sx={{ bgcolor: 'white' }}
+                  sx={{ bgcolor: 'background.default' }}
                 >
-                  {/* 🚀 Render fetched users */}
                   {users.map(user => (
                     <MenuItem key={user.name} value={user.name}>
                       <Checkbox checked={newTask.assign_to.indexOf(user.name) > -1} size="small" />
@@ -185,7 +184,7 @@ const TaskTabPanel = ({ leadId }) => {
               rows={4}
               value={newTask.description}
               onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-              sx={{ bgcolor: 'white' }}
+              sx={{ bgcolor: 'background.default' }}
             />
 
             {/* ATTACHMENTS */}
@@ -195,7 +194,7 @@ const TaskTabPanel = ({ leadId }) => {
                 variant="outlined"
                 fullWidth
                 startIcon={<IconifyIcon icon="material-symbols:attach-file" />}
-                sx={{ bgcolor: 'white', justifyContent: 'flex-start', py: 1.5 }}
+                sx={{ bgcolor: 'background.default', justifyContent: 'flex-start', py: 1.5 }}
               >
                 Add Attachment
                 <input type="file" hidden multiple onChange={handleFileChange} />
@@ -209,7 +208,7 @@ const TaskTabPanel = ({ leadId }) => {
                       label={file.name}
                       onDelete={() => removeAttachment(index)}
                       size="small"
-                      sx={{ bgcolor: '#e2e8f0', justifyContent: 'space-between', px: 1 }}
+                      sx={{ bgcolor: 'action.selected', justifyContent: 'space-between', px: 1 }}
                     />
                   ))}
                 </Box>
@@ -218,7 +217,7 @@ const TaskTabPanel = ({ leadId }) => {
 
           </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 3, borderTop: '1px solid #f1f5f9' }}>
+        <DialogActions sx={{ p: 3, borderTop: 1, borderColor: 'divider' }}>
           <Button onClick={() => setOpen(false)} color="inherit" sx={{ fontWeight: 600 }}>Cancel</Button>
           <Button onClick={handleAddTask} variant="contained" sx={{ fontWeight: 700, px: 4 }}>Create Task</Button>
         </DialogActions>
