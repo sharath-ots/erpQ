@@ -76,8 +76,12 @@ const CRMQ = () => {
         </Grid>
       </Grid>
 
+      {/* Change this block */}
       <Grid size={12}>
-        <SaleFunnel />
+        <SaleFunnel
+          data={dashboardData?.funnelData?.chartData}
+          tableData={dashboardData?.funnelData?.tableData}
+        />
       </Grid>
 
       <Grid size={12}>

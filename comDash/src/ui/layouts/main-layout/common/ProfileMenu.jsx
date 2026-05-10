@@ -206,16 +206,9 @@ const ProfileMenu = ({ type = 'default' }) => {
         <Box sx={{ py: 1 }}>
           <ProfileMenuItem
             onClick={async () => {
-              const loginUrl = process.env.NEXT_PUBLIC_AUTH_URL || '';
-
-              const res = await signOut({
-                redirect: false,
-                callbackUrl: loginUrl,
-              });
-
-              if (res.url) {
-                router.push(res.url);
-              }
+              const loginUrl = 'https://erpnext.ortusolis.in/login' || '/';
+              await signOut({ redirect: false });
+              window.location.href = loginUrl;
             }}
             icon="material-symbols:logout-rounded"
           >

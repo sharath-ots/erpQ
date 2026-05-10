@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Card, Divider, Form, Input, Space, Typography, message, Modal } from "antd";
+import { Button, Card, Divider, Form, Input, Space, Typography, Modal } from "antd";
 import { useEffect, useMemo, useState } from "react";
 
 const erpSiteLabel = process.env.NEXT_PUBLIC_ERPNEXT_SITE_LABEL ?? "ERPNext";
@@ -127,13 +127,15 @@ function IllustrationPanel() {
 
 function SsoButton({ href, provider }) {
   const label = provider === "google" ? "Sign in with Google" : "Sign in with Zoho";
+
+  // Updated badge styling: Forced white background and bold dark text so it pops
   const badge =
     provider === "google" ? (
-      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white dark:bg-gray-900/90 text-slate-700 text-xs font-semibold">
+      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full !bg-white !text-slate-900 text-xs font-bold shadow-sm">
         G
       </span>
     ) : (
-      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white dark:bg-gray-900/90 text-slate-700 text-xs font-semibold">
+      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full !bg-white !text-slate-900 text-xs font-bold shadow-sm">
         Z
       </span>
     );
@@ -155,6 +157,9 @@ function LoginCard() {
   const [loading, setLoading] = useState(false);
   const [redirect, setRedirect] = useState("/");
 
+  // 🚀 NEW: State to control the error modal explicitly
+  const [errorPopup, setErrorPopup] = useState(null);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setRedirect(params.get("redirect") ?? "/");
@@ -166,6 +171,7 @@ function LoginCard() {
 
   async function onFinish(values) {
     setLoading(true);
+
     try {
       const params = new URLSearchParams(window.location.search);
       const target = params.get("redirect") ?? getComDashBase();
@@ -187,108 +193,113 @@ function LoginCard() {
         }),
       });
 
-      const data = (await res.json().catch(() => ({}))) ?? {};
+      const data = await res.json().catch(() => ({}));
 
-      // PARANOID CHECK: Catch 4xx/5xx OR if the API returns 200 but includes an error without a token
-      if (!res.ok || data.error || (data.detail && !data.access_token)) {
+      // ERROR CHECK: Bad status code or missing token
+      if (!res.ok || !data.access_token) {
 
-        let errorMsg = data.detail ?? data.error ?? `Login failed (${res.status})`;
+        // 🚀 NEW: User-friendly error message logic
+        let cleanMessage = "Invalid email or password."; // Default fallback
 
-        // Safely extract message if the backend returned an Array (like FastAPI validation errors)
-        if (Array.isArray(errorMsg)) {
-          errorMsg = errorMsg.map(err => err.msg || JSON.stringify(err)).join(", ");
-        } else if (typeof errorMsg === "object" && errorMsg !== null) {
-          errorMsg = JSON.stringify(errorMsg);
+        if (res.status === 401 || res.status === 403) {
+          cleanMessage = "Incorrect email or password. Please try again.";
+        } else if (res.status >= 500) {
+          cleanMessage = "The server encountered an error. Please try again later.";
+        } else if (data.detail && typeof data.detail === "string" && !data.detail.includes("Frappe")) {
+          // Only use the backend message if it's NOT a raw code dump
+          cleanMessage = data.detail;
+        } else if (data.message && typeof data.message === "string" && !data.message.includes("Frappe")) {
+          cleanMessage = data.message;
         }
 
-        Modal.error({
-          title: 'Login Failed',
-          content: errorMsg,
-          centered: true,
-        });
+        // Trigger the modal with the clean text
+        setErrorPopup(cleanMessage);
         return;
       }
 
-      const token = data.access_token;
-      if (!token) {
-        Modal.error({
-          title: 'Authentication Error',
-          content: 'No access token received from the server.',
-          centered: true,
-        });
-        return;
-      }
-
-      dest.hash = `cityq_token=${encodeURIComponent(token)}`;
+      // SUCCESS
+      dest.hash = `cityq_token=${encodeURIComponent(data.access_token)}`;
       window.location.href = dest.toString();
 
     } catch (error) {
-      Modal.error({
-        title: 'Connection Error',
-        content: 'Could not connect to the server. Please check your connection.',
-        centered: true,
-      });
+      console.error("Fetch Exception:", error);
+      setErrorPopup("Could not connect to the server. Please check your internet connection.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <Card className="w-full max-w-md shadow-lg !rounded-3xl">
-      <div className="flex items-center justify-between mb-6">
-        <Typography.Title level={2} className="!mb-0">
-          Log in
-        </Typography.Title>
-        <Typography.Text type="secondary" className="text-xs">
-          Need help? Contact admin
-        </Typography.Text>
-      </div>
-
-      <Space direction="vertical" className="w-full" size="middle">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <SsoButton href={googleHref} provider="google" />
-          <SsoButton href={zohoHref} provider="zoho" />
+    <>
+      <Card className="w-full max-w-md shadow-lg !rounded-3xl">
+        <div className="flex items-center justify-between mb-6">
+          <Typography.Title level={2} className="!mb-0">
+            Log in
+          </Typography.Title>
+          <Typography.Text type="secondary" className="text-xs">
+            Need help? Contact admin
+          </Typography.Text>
         </div>
 
-        <Divider plain className="!my-2">
-          or use email
-        </Divider>
+        <Space direction="vertical" className="w-full" size="middle">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <SsoButton href={googleHref} provider="google" />
+            <SsoButton href={zohoHref} provider="zoho" />
+          </div>
 
-        <Form layout="vertical" onFinish={onFinish}>
-          <Form.Item
-            name="email"
-            label="Email / ERPNext username"
-            rules={[{ required: true, message: "Required" }]}
-          >
-            <Input type="text" autoComplete="username" className="!h-11 !rounded-xl" />
-          </Form.Item>
+          <Divider plain className="!my-2">
+            or use email
+          </Divider>
 
-          <Form.Item
-            name="password"
-            label="Password"
-            rules={[
-              {
-                required: !devBypass,
-                message: devBypass ? "" : "Required for ERPNext login",
-              },
-            ]}
-          >
-            <Input.Password autoComplete="current-password" className="!h-11 !rounded-xl" />
-          </Form.Item>
+          <Form layout="vertical" onFinish={onFinish}>
+            <Form.Item
+              name="email"
+              label="Email / ERPNext username"
+              rules={[{ required: true, message: "Required" }]}
+            >
+              <Input type="text" autoComplete="username" className="!h-11 !rounded-xl" />
+            </Form.Item>
 
-          <Button
-            type="primary"
-            htmlType="submit"
-            loading={loading}
-            block
-            size="large"
-            className="!h-11 !rounded-xl"
-          >
-            Continue
-          </Button>
-        </Form>
-      </Space>
-    </Card>
+            <Form.Item
+              name="password"
+              label="Password"
+              rules={[
+                {
+                  required: !devBypass,
+                  message: devBypass ? "" : "Required for ERPNext login",
+                },
+              ]}
+            >
+              <Input.Password autoComplete="current-password" className="!h-11 !rounded-xl" />
+            </Form.Item>
+
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={loading}
+              block
+              size="large"
+              className="!h-11 !rounded-xl"
+            >
+              Continue
+            </Button>
+          </Form>
+        </Space>
+      </Card>
+
+      {/* 🚀 EXPLICIT REACT MODAL: Guaranteed to render */}
+      <Modal
+        title="Authentication Failed"
+        open={!!errorPopup}
+        onOk={() => setErrorPopup(null)}
+        onCancel={() => setErrorPopup(null)}
+        centered
+        okText="Try Again"
+        cancelButtonProps={{ style: { display: 'none' } }} // Hide cancel button
+      >
+        <p className="text-red-500">{errorPopup}</p>
+      </Modal>
+    </>
   );
 }
 
@@ -310,4 +321,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

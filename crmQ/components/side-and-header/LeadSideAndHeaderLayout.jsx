@@ -215,7 +215,8 @@ const LeadSideBar = ({ isCollapsed, onToggleDesktop }) => {
                         >
                             <IconifyIcon
                                 icon={selectedDetailLeadId ? "material-symbols:arrow-back" : "material-symbols:home-outline"}
-                                fontSize={{ xs: '1.15rem', md: isCollapsed ? '1.7rem' : '1.15rem' }}
+                                width={isCollapsed ? 32 : 22}
+                                height={isCollapsed ? 32 : 22}
                             />
                         </ListItemIcon>
 
@@ -260,7 +261,11 @@ const LeadSideBar = ({ isCollapsed, onToggleDesktop }) => {
                                                 width: { xs: 'auto', md: isCollapsed ? 56 : 'auto' }
                                             }}
                                         >
-                                            <IconifyIcon icon={item.icon} fontSize={{ xs: '1.15rem', md: isCollapsed ? '1.5rem' : '1.15rem' }} />
+                                            <IconifyIcon
+                                                icon={item.icon}
+                                                width={isCollapsed ? 32 : 22}
+                                                height={isCollapsed ? 32 : 22}
+                                            />
                                         </ListItemIcon>
 
                                         <ListItemText
@@ -306,7 +311,8 @@ const LeadSideBar = ({ isCollapsed, onToggleDesktop }) => {
                                         >
                                             <IconifyIcon
                                                 icon={item.icon}
-                                                fontSize={{ xs: '1.15rem', md: isCollapsed ? '1.7rem' : '1.15rem' }}
+                                                width={isCollapsed ? 32 : 22}
+                                                height={isCollapsed ? 32 : 22}
                                             />
                                         </ListItemIcon>
 
