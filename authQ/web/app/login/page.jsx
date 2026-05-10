@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Card, Divider, Form, Input, Space, Typography, message } from "antd";
+import { Button, Card, Divider, Form, Input, Space, Typography, message, Modal } from "antd";
 import { useEffect, useMemo, useState } from "react";
 
 const erpSiteLabel = process.env.NEXT_PUBLIC_ERPNEXT_SITE_LABEL ?? "ERPNext";
@@ -189,19 +189,45 @@ function LoginCard() {
 
       const data = (await res.json().catch(() => ({}))) ?? {};
 
-      if (!res.ok) {
-        message.error(data.detail ?? data.error ?? `Login failed (${res.status})`);
+      // PARANOID CHECK: Catch 4xx/5xx OR if the API returns 200 but includes an error without a token
+      if (!res.ok || data.error || (data.detail && !data.access_token)) {
+
+        let errorMsg = data.detail ?? data.error ?? `Login failed (${res.status})`;
+
+        // Safely extract message if the backend returned an Array (like FastAPI validation errors)
+        if (Array.isArray(errorMsg)) {
+          errorMsg = errorMsg.map(err => err.msg || JSON.stringify(err)).join(", ");
+        } else if (typeof errorMsg === "object" && errorMsg !== null) {
+          errorMsg = JSON.stringify(errorMsg);
+        }
+
+        Modal.error({
+          title: 'Login Failed',
+          content: errorMsg,
+          centered: true,
+        });
         return;
       }
 
       const token = data.access_token;
       if (!token) {
-        message.error("No access token from apiGate");
+        Modal.error({
+          title: 'Authentication Error',
+          content: 'No access token received from the server.',
+          centered: true,
+        });
         return;
       }
 
       dest.hash = `cityq_token=${encodeURIComponent(token)}`;
       window.location.href = dest.toString();
+
+    } catch (error) {
+      Modal.error({
+        title: 'Connection Error',
+        content: 'Could not connect to the server. Please check your connection.',
+        centered: true,
+      });
     } finally {
       setLoading(false);
     }
@@ -268,7 +294,7 @@ function LoginCard() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900">
+    <div className="min-h-screen bg-white">
       <div className="mx-auto max-w-6xl px-6 py-6">
         <Brand />
       </div>

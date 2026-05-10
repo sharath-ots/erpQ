@@ -1,27 +1,23 @@
 'use client';
-
-import { useMemo } from 'react';
-import { Drawer, drawerClasses } from '@mui/material';
+import { useMemo, useEffect } from 'react';
+import { Drawer, drawerClasses, useTheme } from '@mui/material';
 import Box from '@mui/material/Box';
 import Toolbar from '@mui/material/Toolbar';
 import clsx from 'clsx';
 import AppBar from './app-bar/index';
 import Sidenav from '../main-layout/sidenav/index';
-import { mainDrawerWidth } from '../../lib/constants';
-import { useSettingsContext } from '../../providers/SettingsProvider';
-import { sidenavVibrantStyle } from '../../theme/styles/vibrantNav';
-import VibrantBackground from '../../components/common/VibrantBackground';
-import NavProvider from './NavProvider';
-import Footer from './footer';
-import SidenavDrawerContent from './sidenav/SidenavDrawerContent';
-import SlimSidenav from './sidenav/SlimSidenav';
-import StackedSidenav from './sidenav/StackedSidenav';
 import Topnav from './topnav';
 import TopNavStacked from './topnav/TopNavStacked';
-import TopnavSlim from './topnav/TopnavSlim';
-import { usePathname } from "next/navigation";
+import Footer from './footer';
+import NavProvider from './NavProvider';
+import SidenavDrawerContent from './sidenav/SidenavDrawerContent';
+import { mainDrawerWidth } from '../../lib/constants';
+import { useSettingsContext } from '../../providers/SettingsProvider';
 import { useThemeMode } from '../../hooks/useThemeMode';
-import { ConfigProvider, theme } from 'antd';
+import { usePathname } from "next/navigation";
+import { ConfigProvider, theme as antdTheme } from 'antd';
+import { LeadProvider } from '../../../../../crmQ/src/contexts/LeadContext';
+import LeadSideBar from '../../../../../crmQ/components/side-and-header/LeadSideAndHeaderLayout';
 
 const GlobalWatermark = ({ isDark }) => (
   <Box
@@ -35,7 +31,7 @@ const GlobalWatermark = ({ isDark }) => (
       zIndex: 50,
       display: 'flex',
       justifyContent: 'center',
-      alignItems: 'center',
+      alignItems: 'center'
     }}
   >
     <Box
@@ -48,205 +44,230 @@ const GlobalWatermark = ({ isDark }) => (
         filter: isDark
           ? 'grayscale(100%) brightness(0) invert(1) opacity(4%)'
           : 'grayscale(100%) brightness(0) opacity(6%)',
-        transition: 'filter 0.3s ease-in-out', // Smooth fade when switching themes
+        transition: 'filter 0.3s ease-in-out'
       }}
     />
   </Box>
 );
 
 const MainLayout = ({ children }) => {
+
   const pathname = usePathname();
+  const theme = useTheme();
 
   const { isDark } = useThemeMode();
 
+  const { config, setConfig } = useSettingsContext();
+
   const {
-    config: {
-      drawerWidth,
-      sidenavType,
-      navigationMenuType,
-      topnavType,
-      openNavbarDrawer,
-      navColor,
-    },
-    setConfig,
-  } = useSettingsContext();
+    sidenavType,
+    navigationMenuType,
+    topnavType,
+    openNavbarDrawer,
+    navColor
+  } = config;
+
+  const isNoLayoutRoute =
+    pathname.includes('/add-lead') ||
+    pathname.includes('/view-lead') ||
+    pathname.includes('/edit-lead');
+
+  const isLeadRoute =
+    pathname.includes('/lead-list') ||
+    pathname.includes('/list/Lead');
+
+  useEffect(() => {
+
+    if (!isLeadRoute && sidenavType === 'collapsed') {
+      setConfig({
+        ...config,
+        sidenavType: 'default'
+      });
+    }
+
+  }, [isLeadRoute]);
+
+  const isCollapsed = sidenavType === 'collapsed';
+
+  const leadSidebarWidth = isCollapsed
+    ? mainDrawerWidth.collapsed
+    : mainDrawerWidth.full;
+
+  const sidebarWidth = isCollapsed
+    ? mainDrawerWidth.collapsed
+    : mainDrawerWidth.full;
 
   const toggleNavbarDrawer = () => {
     setConfig({
-      openNavbarDrawer: !openNavbarDrawer,
+      openNavbarDrawer: !openNavbarDrawer
+    });
+  };
+
+  const toggleDesktopSidebar = () => {
+    setConfig({
+      ...config,
+      sidenavType: isCollapsed ? 'default' : 'collapsed'
     });
   };
 
   const toolbarVarint = useMemo(() => {
+
     if (navigationMenuType !== 'sidenav') {
-      if (topnavType === 'slim') {
-        return 'appbarSlim';
-      }
+
       if (topnavType === 'stacked') {
         return 'appbarStacked';
       }
     }
 
     return 'appbar';
+
   }, [navigationMenuType, topnavType]);
 
-  if (pathname.includes('/add-lead') ||
-    pathname.includes('/view-lead') ||
-    pathname.includes('/edit-lead')) {
+  if (isNoLayoutRoute) {
     return (
-      <ConfigProvider theme={{ algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm }}>
+      <ConfigProvider
+        theme={{
+          algorithm: isDark
+            ? antdTheme.darkAlgorithm
+            : antdTheme.defaultAlgorithm
+        }}
+      >
         <GlobalWatermark isDark={isDark} />
         {children}
       </ConfigProvider>
-    )
-  }
-
-  if (pathname.includes('/lead-list') ||
-    pathname.includes('/list/Lead')) {
-    return (
-      <Box className={clsx({ 'nav-vibrant': navColor === 'vibrant' })} sx={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', zIndex: 1, position: 'relative' }}>
-        <ConfigProvider theme={{ algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm }}>
-          <GlobalWatermark isDark={isDark} />
-
-          <NavProvider>
-            {/* Global Header */}
-            {navigationMenuType === 'sidenav' && <AppBar />}
-            {(navigationMenuType === 'topnav' || navigationMenuType === 'combo') && (
-              <>
-                {topnavType === 'default' && <Topnav />}
-                {topnavType === 'slim' && <TopnavSlim />}
-                {topnavType === 'stacked' && <TopNavStacked />}
-              </>
-            )}
-
-            {/* 🚀 FIX: Removed the Toolbar spacer. Children now start at the very top of the screen */}
-            <Box sx={{ flexGrow: 1, display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
-              {children}
-            </Box>
-
-            <Drawer
-              variant="temporary"
-              open={openNavbarDrawer}
-              onClose={toggleNavbarDrawer}
-              ModalProps={{ keepMounted: true }}
-              sx={[
-                { display: { xs: 'block', md: 'none' }, [`& .${drawerClasses.paper}`]: { pt: 3, boxSizing: 'border-box', width: mainDrawerWidth.full } },
-                navColor === 'vibrant' && sidenavVibrantStyle,
-              ]}
-            >
-              {navColor === 'vibrant' && <VibrantBackground position="side" />}
-              <SidenavDrawerContent variant="temporary" />
-            </Drawer>
-
-          </NavProvider>
-        </ConfigProvider>
-      </Box>
     );
   }
 
-  // MAIN RETURN FOR ALL OTHER ROUTES
-  return (
-    <Box>
-      <Box
-        className={clsx({
-          'nav-vibrant': navColor === 'vibrant',
-        })}
-        sx={{ display: 'flex', zIndex: 1, position: 'relative' }}
-      >
-        <NavProvider>
-          {navigationMenuType === 'sidenav' && <AppBar />}
+  const layoutContent = (
 
-          {(navigationMenuType === 'sidenav' || navigationMenuType === 'combo') && (
+    <Box
+      className={clsx({
+        'nav-vibrant': navColor === 'vibrant'
+      })}
+      sx={{
+        display: 'flex',
+        zIndex: 1,
+        position: 'relative'
+      }}
+    >
+
+      <NavProvider>
+
+        {navigationMenuType === 'sidenav' && <AppBar customDrawerWidth={isLeadRoute ? leadSidebarWidth : null} />}
+
+        {(navigationMenuType === 'sidenav' ||
+          navigationMenuType === 'combo') && (
             <>
-              {sidenavType === 'default' && <Sidenav />}
-              {sidenavType === 'slim' && <SlimSidenav />}
-              {sidenavType === 'stacked' && <StackedSidenav />}
+              {isLeadRoute ? (
+                <LeadSideBar
+                  isCollapsed={isCollapsed}
+                  onToggleDesktop={toggleDesktopSidebar}
+                />
+              ) : (
+                <Sidenav />
+              )}
             </>
           )}
-
-          {(navigationMenuType === 'topnav' || navigationMenuType === 'combo') && (
+        {(navigationMenuType === 'topnav' ||
+          navigationMenuType === 'combo') && (
             <>
               {topnavType === 'default' && <Topnav />}
-              {topnavType === 'slim' && <TopnavSlim />}
               {topnavType === 'stacked' && <TopNavStacked />}
             </>
           )}
 
-          <Drawer
-            variant="temporary"
-            open={openNavbarDrawer}
-            onClose={toggleNavbarDrawer}
-            ModalProps={{
-              keepMounted: true,
-            }}
-            sx={[
-              {
-                display: { xs: 'block', md: 'none' },
-                [`& .${drawerClasses.paper}`]: {
-                  pt: 3,
-                  boxSizing: 'border-box',
-                  width: mainDrawerWidth.full,
-                },
-              },
-              navigationMenuType === 'topnav' && {
-                display: { md: 'block', lg: 'none' },
-              },
-              navColor === 'vibrant' && sidenavVibrantStyle,
-            ]}
-          >
-            {navColor === 'vibrant' && <VibrantBackground position="side" />}
+        <Drawer
+          variant="temporary"
+          open={openNavbarDrawer}
+          onClose={toggleNavbarDrawer}
+          ModalProps={{ keepMounted: true }}
+          sx={[{
+            display: { xs: 'block', md: 'none' },
+            [`& .${drawerClasses.paper}`]: {
+              pt: 3,
+              boxSizing: 'border-box',
+              width: mainDrawerWidth.full
+            }
+          }]}
+        >
+
+          {isLeadRoute ? (
+            <LeadSideBar
+              isCollapsed={false}
+              onToggleDesktop={toggleNavbarDrawer}
+            />
+          ) : (
             <SidenavDrawerContent variant="temporary" />
-          </Drawer>
+          )}
+
+        </Drawer>
+
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            p: 0,
+            borderLeft: '1px solid',
+            borderColor: 'divider',
+            minHeight: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            width: {
+              xs: '100%',
+              md: `calc(100% - ${sidebarWidth}px)`
+            },
+            transition: theme.transitions.create(
+              ['width', 'margin'],
+              {
+                easing: theme.transitions.easing.sharp,
+                duration: theme.transitions.duration.enteringScreen,
+              }
+            ),
+          }}
+        >
+
+          <Toolbar
+            variant={toolbarVarint}
+            sx={{ flexShrink: 0 }}
+          />
 
           <Box
-            component="main"
-            sx={[
-              {
-                flexGrow: 1,
-                p: 0,
-                minHeight: '100vh',
-                width: { xs: '100%', md: `calc(100% - ${drawerWidth}px)` },
-                display: 'flex',
-                flexDirection: 'column',
-              },
-              sidenavType === 'default' && {
-                ml: { md: `${mainDrawerWidth.collapsed}px`, lg: 0 },
-              },
-              sidenavType === 'stacked' && {
-                ml: { md: `${mainDrawerWidth.stackedNavCollapsed}px`, lg: 0 },
-              },
-              sidenavType === 'slim' && {
-                ml: { xs: 0 },
-              },
-              navigationMenuType === 'topnav' && {
-                ml: { xs: 0 },
-              },
-            ]}
+            sx={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 0
+            }}
           >
-            <Toolbar variant={toolbarVarint} />
 
-            <Box sx={{ flex: 1 }}>
-              <Box
-                sx={[
-                  {
-                    height: 1,
-                    bgcolor: 'background.default',
-                  },
-                ]}
-              >
-                <ConfigProvider theme={{ algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm }}>
-                  {/* 🚀 3. ADD WATERMARK HERE TOO */}
-                  <GlobalWatermark isDark={isDark} />
-                  {children}
-                </ConfigProvider>
-              </Box>
-            </Box>
-            <Footer />
+            <ConfigProvider
+              theme={{
+                algorithm: isDark
+                  ? antdTheme.darkAlgorithm
+                  : antdTheme.defaultAlgorithm
+              }}
+            >
+
+              <GlobalWatermark isDark={isDark} />
+
+              {children}
+
+            </ConfigProvider>
+
           </Box>
-        </NavProvider>
-      </Box>
+
+          {!isLeadRoute && <Footer />}
+
+        </Box>
+
+      </NavProvider>
+
     </Box>
   );
+
+  return isLeadRoute
+    ? <LeadProvider>{layoutContent}</LeadProvider>
+    : layoutContent;
 };
 
 export default MainLayout;

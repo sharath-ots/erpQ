@@ -9,12 +9,12 @@ const CRMKPIs = ({ data }) => {
   return (
     <>
       {data.map((kpi) => (
-        <Grid key={kpi.title} size={{ xs: 6, sm: 4, lg: 6, xl: 4 }}>
+        <Grid key={kpi.title} size={{ xs: 12, sm: 6, md: 3 }} sx={{ display: 'flex' }}>
           <KPI {...kpi} />
         </Grid>
       ))}
 
-      <Grid size={{ xs: 6, sm: 4, lg: 6, xl: 4 }}>
+      {/* <Grid size={{ xs: 6, sm: 4, lg: 6, xl: 4 }}>
         <Paper
           background={1}
           sx={{
@@ -42,7 +42,7 @@ const CRMKPIs = ({ data }) => {
             </Typography>
           </ButtonBase>
         </Paper>
-      </Grid>
+      </Grid> */}
     </>
   );
 };

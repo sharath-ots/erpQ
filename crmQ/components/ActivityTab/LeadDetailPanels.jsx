@@ -14,7 +14,6 @@ import Email from '../email/Email';
 import EmailLayout from '../../src/layouts/email-layout/index';
 import EmailDetails from '../../components/email/EmailDetails';
 
-// 🚀 Constant to match your Sidebar IDs
 const ActivityTab = {
     Activities: 'Activity',
     Email: 'Email',
@@ -25,7 +24,8 @@ const ActivityTab = {
 
 const StandardEmailTabWrapper = ({ emailData }) => {
     return (
-        <Box sx={{ height: { xs: 600, md: 700 }, position: 'relative', border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden', '& > *': { height: '100%' } }}>
+        // 🚀 RESPONSIVE FIX: Allow horizontal scrolling (overflowX: 'auto') so wide emails don't break the screen width
+        <Box sx={{ height: { xs: 'calc(100vh - 250px)', md: 700 }, minHeight: { xs: 500, md: 'auto' }, position: 'relative', border: '1px solid', borderColor: 'divider', borderRadius: 2, overflowY: 'hidden', overflowX: 'auto', '& > *': { height: '100%', minWidth: { xs: 'min-content', md: 'auto' } } }}>
             <EmailLayout>
                 <EmailDetails emailData={emailData} />
             </EmailLayout>
@@ -46,7 +46,6 @@ export default function LeadDetailPanels({ leadId, activeTab }) {
     const [tasks, setTasks] = useState([]);
     const [loadingTasks, setLoadingTasks] = useState(false);
 
-    // 🚀 EXPERT FIX 1: Wipe all cached data when leadId changes
     useEffect(() => {
         setActivities([]);
         setEvents([]);
@@ -63,7 +62,6 @@ export default function LeadDetailPanels({ leadId, activeTab }) {
                 const res = await fetch(`/api/lead-tasks?lead_id=${leadId}`);
                 if (!res.ok) throw new Error("Failed to fetch tasks");
                 const rawData = await res.json();
-                console.log("Tasks Received from ERPNext:", rawData);
 
                 const formatted = [{
                     id: 'all-tasks',
@@ -183,37 +181,20 @@ export default function LeadDetailPanels({ leadId, activeTab }) {
     }, [activeTab, leadId, events.length]);
 
 
-    // 🚀 FINAL RENDER LOGIC 🚀
-
     if (activeTab === ActivityTab.Activities) {
-        return loadingActivities
-            ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>
-            : activities.length > 0
-                ? <AllActivitiesTabPanel allActivities={activities} />
-                : <Box sx={{ p: 5, textAlign: 'center', color: 'text.secondary' }}><Typography variant="body1">No recent activity found.</Typography></Box>;
+        return loadingActivities ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box> : activities.length > 0 ? <AllActivitiesTabPanel allActivities={activities} /> : <Box sx={{ p: 5, textAlign: 'center', color: 'text.secondary' }}><Typography variant="body1">No recent activity found.</Typography></Box>;
     }
 
     if (activeTab === ActivityTab.Email) {
-        return loadingEmails
-            ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>
-            : emails.length > 0
-                ? <StandardEmailTabWrapper emailData={emails} />
-                : <Box sx={{ p: 5, textAlign: 'center', color: 'text.secondary' }}><Typography variant="body1">No emails found for this Lead.</Typography></Box>;
+        return loadingEmails ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box> : emails.length > 0 ? <StandardEmailTabWrapper emailData={emails} /> : <Box sx={{ p: 5, textAlign: 'center', color: 'text.secondary' }}><Typography variant="body1">No emails found for this Lead.</Typography></Box>;
     }
 
     if (activeTab === ActivityTab.Meeting) {
-        return loadingEvents
-            ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>
-            : <Box>
-                {events.length === 0 && <Box sx={{ p: 5, pb: 2, textAlign: 'center', color: 'text.secondary' }}><Typography variant="body1">No events scheduled for this Lead.</Typography></Box>}
-                <MeetingTabPanel meetingData={events} leadId={leadId} onRefresh={() => setEvents([])} />
-            </Box>;
+        return loadingEvents ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box> : <Box>{events.length === 0 && <Box sx={{ p: 5, pb: 2, textAlign: 'center', color: 'text.secondary' }}><Typography variant="body1">No events scheduled for this Lead.</Typography></Box>}<MeetingTabPanel meetingData={events} leadId={leadId} onRefresh={() => setEvents([])} /></Box>;
     }
 
     if (activeTab === ActivityTab.Task) {
-        return loadingTasks
-            ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>
-            : <TaskTabPanel tasksData={tasks} leadId={leadId} />;
+        return loadingTasks ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box> : <TaskTabPanel tasksData={tasks} leadId={leadId} />;
     }
 
     if (activeTab === ActivityTab.Notes) {

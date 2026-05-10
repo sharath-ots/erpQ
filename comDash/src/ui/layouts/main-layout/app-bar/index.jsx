@@ -10,8 +10,9 @@ import Logo from '../../../components/common/Logo';
 import VibrantBackground from '../../../components/common/VibrantBackground';
 import AppbarActionItems from '../common/AppbarActionItems';
 import SearchBox, { SearchBoxButton } from '../common/search-box/SearchBox';
+import { mainDrawerWidth } from '../../../lib/constants';
 
-const AppBar = () => {
+const AppBar = ({ customDrawerWidth }) => {
   const {
     config: { drawerWidth, sidenavType, navColor },
     handleDrawerToggle,
@@ -20,6 +21,14 @@ const AppBar = () => {
   const { up } = useBreakpoints();
   const upSm = up('sm');
   const upMd = up('md');
+
+  const actualDrawerWidth =
+    customDrawerWidth ??
+    (
+      sidenavType === 'collapsed'
+        ? mainDrawerWidth.collapsed
+        : drawerWidth
+    );
 
   const prevSidenavTypeRef = useRef(sidenavType);
 
@@ -34,8 +43,8 @@ const AppBar = () => {
       position="fixed"
       sx={[
         {
-          width: { md: `calc(100% - ${drawerWidth}px)` },
-          ml: { md: `${drawerWidth}px` },
+          width: { md: `calc(100% - ${actualDrawerWidth}px)` },
+          ml: { md: `${actualDrawerWidth}px` },
           borderBottom: `1px solid`,
           borderColor: 'divider',
           [`&.${paperClasses.root}`]: {

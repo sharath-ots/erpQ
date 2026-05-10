@@ -2,7 +2,7 @@ import { AntdRegistry } from "@ant-design/nextjs-registry";
 import "./globals.css";
 
 export const metadata = {
-  title: "CityQ — Sign in",
+  title: "Q-Portal Sign In",
   description: "Authentication",
 };
 
