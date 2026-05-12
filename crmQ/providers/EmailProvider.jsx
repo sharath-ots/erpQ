@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, use, useReducer, useState } from 'react';
-import { emails as allEmails } from '../data/email/email';
+import { emails as allEmails } from '../data/emailq/email';
 import { emailReducer } from '../reducers/EmailReducer';
 
 const initialState = {

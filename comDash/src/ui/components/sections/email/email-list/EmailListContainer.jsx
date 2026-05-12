@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { Stack, Typography } from '@mui/material';
 import illustrationDark from 'assets/images/illustrations/7-dark.webp';
 import illustration from 'assets/images/illustrations/7.webp';
@@ -15,11 +15,17 @@ import EmailListHeader from './email-list-header/EmailListHeader';
 
 const EmailListContainer = ({ toggleDrawer }) => {
   const [isLoading, setIsLoading] = useState(true);
-  const {
-    emailState: { emails, initialEmails },
-    emailDispatch,
-  } = useEmailContext();
-  const { label } = useParams();
+
+  const context = useEmailContext();
+
+  // 2. Extract emails with a safety fallback (empty array)
+  const emails = context?.emailState?.emails || [];
+  const initialEmails = context?.emailState?.initialEmails || [];
+  const emailDispatch = context?.emailDispatch || [];
+
+  const pathname = usePathname();
+  const pathParts = pathname.split('/').filter(Boolean);
+  const label = pathParts.includes('list') ? pathParts[pathParts.length - 1] : 'inbox';
 
   const emailData = useMemo(() => {
     return emails.reduce(

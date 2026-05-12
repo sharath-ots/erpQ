@@ -1,4 +1,4 @@
-import { useParams, useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { ButtonBase, IconButton, Stack, Tooltip } from '@mui/material';
 import { useEmailContext } from 'providers/EmailProvider';
 import {
@@ -15,11 +15,16 @@ import EmailDetailsActionMenu from './EmailDetailsActionMenu';
 
 const EmailDetailsHeader = () => {
   const router = useRouter();
-  const { label } = useParams();
-  const {
-    emailState: { email },
-    emailDispatch,
-  } = useEmailContext();
+  // NEW LOGIC: Extract label from path
+  const pathname = usePathname();
+  const pathParts = pathname.split('/').filter(Boolean);
+  // Looks for 'list'. If found, grabs the word after it. If not, defaults to 'inbox'.
+  const label = pathParts.includes('list') ? pathParts[pathParts.length - 1] : 'inbox';
+
+  const context = useEmailContext();
+  const email = context?.emailState?.emails || [];
+  const emailDispatch = context?.emailDispatch || [];
+
 
   return (
     <CardHeaderAction>

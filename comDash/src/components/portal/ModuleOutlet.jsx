@@ -7,11 +7,15 @@ import { useEffect, useRef } from "react";
 import { findMenuItem } from "@/lib/menuMatch";
 import { apiBase, apiFetch, getAccessToken } from "@/lib/apigate";
 import CRMQ from "../../ui/components/sections/dashboards/crm-q/index"
-import LeadListPage from '../../../../crmQ/pages/crm/lead-list/index'; // Update path if needed
-import AddLeadScreen from "../../../../crmQ/src/ui/AddLeadScreen"; // Update path if needed
-import ViewLeadScreen from "../../../../crmQ/src/ui/ViewLeadScreen"; // Update path if needed
-import EditLeadPage from "../../../../crmQ/pages/crm/lead-list/edit/[id]"; // Update path if needed
+import LeadListPage from '../../../../crmQ/pages/crm/lead-list/index';
+import AddLeadScreen from "../../../../crmQ/src/ui/AddLeadScreen";
+import ViewLeadScreen from "../../../../crmQ/src/ui/ViewLeadScreen";
+import EditLeadPage from "../../../../crmQ/pages/crm/lead-list/edit/[id]";
 import { useThemeMode } from '../../ui/hooks/useThemeMode';
+import EmailLayout from '../../../../crmQ/src/layouts/email-layout/index';
+import EmailDetails from '../../../../crmQ/components/email-app/email/EmailDetails';
+import Email from '../../../../crmQ/components/email-app/email/Email';
+
 //import { usePortalMenu } from "./shared-ui/PortalMenuContext";
 
 // const CrmqShell = dynamic(
@@ -86,6 +90,60 @@ export function ModuleOutlet({ menuItems = [], deskBaseUrl, deskIframeQuery }) {
       </Card>
     );
   }
+
+  if (pathname.startsWith("/m/emailq/email")) {
+
+    // 1. MATCH DETAIL VIEW: /m/emailq/email/details/inbox/12345
+    const detailsMatch = pathname.match(/^\/m\/emailq\/email\/details\/([^/]+)\/([^/]+)$/);
+    if (detailsMatch) {
+      return (
+        <EmailLayout>
+          <EmailDetails />
+        </EmailLayout>
+      );
+    }
+
+    // 2. MATCH LIST VIEW: /m/emailq/email/list/inbox
+    const listMatch = pathname.match(/^\/m\/emailq\/email\/list\/([^/]+)$/);
+    if (listMatch) {
+      return (
+        <EmailLayout>
+          <Email />
+        </EmailLayout>
+      );
+    }
+
+    // 3. FALLBACK/DEFAULT ROUTE (e.g. /m/emailq/email)
+    return (
+      <EmailLayout>
+        <Email />
+      </EmailLayout>
+    );
+  }
+
+  if (pathname.startsWith("/m/hrq")) {
+    return (
+      <HrqShell
+        pathname={pathname}
+        deskBaseUrl={deskBaseUrl ?? undefined}
+        deskIframeQuery={deskIframeQuery ?? undefined}
+        apiBase={apiBase}
+        getAccessToken={getAccessToken}
+      />
+    );
+  }
+
+  if (pathname.startsWith("/m/purq")) {
+    return (
+      <PurqShell
+        pathname={pathname}
+        deskBaseUrl={deskBaseUrl ?? undefined}
+        deskIframeQuery={deskIframeQuery ?? undefined}
+        apiBase={apiBase}
+        getAccessToken={getAccessToken}
+      />
+    );
+  }
   const { isDark } = useThemeMode();
   if (!mod) {
     return (
@@ -152,32 +210,6 @@ export function ModuleOutlet({ menuItems = [], deskBaseUrl, deskIframeQuery }) {
           Your central workspace is ready. Select a module from the sidebar on the left to start managing your workflow.
         </Typography.Paragraph>
       </div>
-    );
-  }
-
-
-
-  if (pathname.startsWith("/m/hrq")) {
-    return (
-      <HrqShell
-        pathname={pathname}
-        deskBaseUrl={deskBaseUrl ?? undefined}
-        deskIframeQuery={deskIframeQuery ?? undefined}
-        apiBase={apiBase}
-        getAccessToken={getAccessToken}
-      />
-    );
-  }
-
-  if (pathname.startsWith("/m/purq")) {
-    return (
-      <PurqShell
-        pathname={pathname}
-        deskBaseUrl={deskBaseUrl ?? undefined}
-        deskIframeQuery={deskIframeQuery ?? undefined}
-        apiBase={apiBase}
-        getAccessToken={getAccessToken}
-      />
     );
   }
 

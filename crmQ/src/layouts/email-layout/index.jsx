@@ -1,7 +1,7 @@
 'use client';
 
 import { Stack } from '@mui/material';
-import EmailProvider from '@/shared-ui/providers/EmailProvider';
+import EmailProvider from '../../providers/EmailProvider';
 
 const EmailLayout = ({ children }) => {
   return (

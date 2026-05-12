@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   Link,
   List,
@@ -17,10 +17,22 @@ import paths from 'routes/paths';
 import IconifyIcon from 'components/base/IconifyIcon';
 
 const EmailSidebarPanel = ({ toggleDrawer }) => {
-  const {
-    emailState: { initialEmails },
-  } = useEmailContext();
-  const params = useParams();
+
+  const context = useEmailContext();
+  // 1. Look inside emailState. 
+  // 2. Add `|| []` so if it's undefined, it defaults to an empty array.
+  const initialEmails = context?.emailState?.initialEmails || [];
+
+  const pathname = usePathname();
+  const pathParts = pathname.split('/').filter(Boolean);
+  const extractedId = pathParts.pop();
+  const extractedLabel = pathParts.pop();
+
+  const params = {
+    id: extractedId,
+    label: extractedLabel
+  };
+
   const unreadMailCount = useMemo(
     () => initialEmails.filter((email) => email.folder === 'inbox' && email.readAt === null),
     [initialEmails],

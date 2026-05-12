@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   Link,
   List,
@@ -17,10 +17,14 @@ import paths from 'routes/paths';
 import IconifyIcon from 'components/base/IconifyIcon';
 
 const EmailSidebarPanel = ({ toggleDrawer }) => {
-  const {
-    emailState: { initialEmails },
-  } = useEmailContext();
-  const params = useParams();
+
+  const context = useEmailContext();
+  const initialEmails = context?.initialEmails;
+
+  const pathname = usePathname();
+  const pathParts = pathname.split('/').filter(Boolean);
+  const label = pathParts.includes('list') ? pathParts[pathParts.length - 1] : 'inbox';
+
   const unreadMailCount = useMemo(
     () => initialEmails.filter((email) => email.folder === 'inbox' && email.readAt === null),
     [initialEmails],
@@ -49,7 +53,7 @@ const EmailSidebarPanel = ({ toggleDrawer }) => {
                   fontSize: 14,
                   color: 'text.primary',
                 },
-                params.id === item.title.toLowerCase() && {
+                label === item.title.toLowerCase() && {
                   color: 'primary.dark',
                 },
               ]}
@@ -62,7 +66,7 @@ const EmailSidebarPanel = ({ toggleDrawer }) => {
                 typography: 'caption',
                 fontWeight: 'medium',
                 whiteSpace: 'nowrap',
-                color: params.id === item.title.toLowerCase() ? 'primary.dark' : 'text.primary',
+                color: label === item.title.toLowerCase() ? 'primary.dark' : 'text.primary',
               },
             }}
           />

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Box, Typography, CircularProgress, Select, MenuItem, FormControl, Stack, Paper, Divider } from '@mui/material';
+import { Box, Typography, CircularProgress, Select, MenuItem, FormControl, Stack, Paper } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import IconifyIcon from 'components/base/IconifyIcon';
 import { fetchLeadListAdmin } from '../../data/crm/lead';
 
@@ -80,50 +81,86 @@ const LeadSummaryCards = ({ timeFilter, setTimeFilter }) => {
     };
 
     return (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, width: '100%' }}>
+        <>
             {/* CARD 1: TOTAL LEADS */}
-            <Paper onClick={() => handleCardClick('total')} sx={{ p: { xs: 3, md: 5 }, cursor: 'pointer', borderRadius: 0, borderRight: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>Total Leads</Typography>
-                <Stack sx={{ gap: 1, flexDirection: { xs: 'column', md: 'row', lg: 'column' }, justifyContent: 'space-between' }}>
-                    <IconifyIcon icon="material-symbols:leaderboard-rounded" sx={{ fontSize: 48, color: '#f59e0b' }} />
-                    <div>
-                        <Typography variant="h4" sx={{ fontWeight: 500, mb: 0.5 }}>
-                            {loading ? <CircularProgress size={20} /> : leadCounts.total}
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.secondary' }}>Overall</Typography>
-                    </div>
-                </Stack>
-            </Paper>
+            <Grid size={{ xs: 12, sm: 6 }} sx={{ display: 'flex' }}>
+                <Paper onClick={() => handleCardClick('total')} sx={{
+                    p: { xs: 3, md: 5 },
+                    cursor: 'pointer',
+                    borderRadius: 0,
+                    borderLeft: '1px solid',
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                    boxShadow: 'none',
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
+                }}>
+                    <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700, mb: 2 }}>Total Leads</Typography>
+                    <Stack sx={{ gap: 1, flexDirection: { xs: 'column', md: 'row', lg: 'column' }, justifyContent: 'space-between' }}>
+                        <IconifyIcon
+                            icon="material-symbols:leaderboard-rounded"
+                            sx={{ flexShrink: 0, order: { md: 1, lg: 0 }, fontSize: 48, color: '#f59e0b' }}
+                        />
+                        <div>
+                            <Typography variant="h4" sx={{ fontWeight: 500, mb: 0.5 }}>
+                                {loading ? <CircularProgress size={20} /> : leadCounts.total}
+                            </Typography>
+                            <Typography variant="body2" noWrap sx={{ fontWeight: 500, color: 'text.secondary' }}>Overall</Typography>
+                        </div>
+                    </Stack>
+                </Paper>
+            </Grid>
 
             {/* CARD 2: NEW LEADS (WITH DROPDOWN) */}
-            <Paper sx={{ p: { xs: 3, md: 5 }, position: 'relative', borderRadius: 0, boxShadow: 'none' }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>New Leads</Typography>
-                    <FormControl size="small" variant="standard">
-                        <Select
-                            value={timeFilter}
-                            onChange={(e) => setTimeFilter(e.target.value)}
-                            sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary', '&:before, &:after': { display: 'none' } }}
-                        >
-                            <MenuItem value="today">Today</MenuItem>
-                            <MenuItem value="week">Week</MenuItem>
-                            <MenuItem value="month">Month</MenuItem>
-                        </Select>
-                    </FormControl>
-                </Stack>
-                <Stack onClick={() => handleCardClick('new')} sx={{ cursor: 'pointer', gap: 1, flexDirection: { xs: 'column', md: 'row', lg: 'column' }, justifyContent: 'space-between' }}>
-                    <IconifyIcon icon="material-symbols:today-rounded" sx={{ fontSize: 48, color: '#3b82f6' }} />
-                    <div>
-                        <Typography variant="h4" sx={{ fontWeight: 500, mb: 0.5 }}>
-                            {loading ? <CircularProgress size={20} /> : getActiveNewCount()}
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.secondary' }}>
-                            {timeFilter.charAt(0).toUpperCase() + timeFilter.slice(1)}
-                        </Typography>
-                    </div>
-                </Stack>
-            </Paper>
-        </Box>
+            <Grid size={{ xs: 12, sm: 6 }} sx={{ display: 'flex' }}>
+                <Paper sx={{
+                    p: { xs: 3, md: 5 },
+                    position: 'relative',
+                    borderRadius: 0,
+                    boxShadow: 'none',
+                    borderLeft: '1px solid',
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
+                }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2, gap: 1 }}>
+                        <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700 }}>New Leads</Typography>
+                        <FormControl size="small" variant="standard" sx={{ flexShrink: 0, minWidth: 65 }}>
+                            <Select
+                                value={timeFilter}
+                                onChange={(e) => setTimeFilter(e.target.value)}
+                                sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary', '&:before, &:after': { display: 'none' } }}
+                            >
+                                <MenuItem value="today">Today</MenuItem>
+                                <MenuItem value="week">Week</MenuItem>
+                                <MenuItem value="month">Month</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Stack>
+                    <Stack onClick={() => handleCardClick('new')} sx={{ cursor: 'pointer', gap: 1, flexDirection: { xs: 'column', md: 'row', lg: 'column' }, justifyContent: 'space-between' }}>
+                        <IconifyIcon
+                            icon="material-symbols:today-rounded"
+                            sx={{ flexShrink: 0, order: { md: 1, lg: 0 }, fontSize: 48, color: '#3b82f6' }}
+                        />
+                        <div>
+                            <Typography variant="h4" sx={{ fontWeight: 500, mb: 0.5 }}>
+                                {loading ? <CircularProgress size={20} /> : getActiveNewCount()}
+                            </Typography>
+                            <Typography variant="body2" noWrap sx={{ fontWeight: 500, color: 'text.secondary' }}>
+                                {timeFilter.charAt(0).toUpperCase() + timeFilter.slice(1)}
+                            </Typography>
+                        </div>
+                    </Stack>
+                </Paper>
+            </Grid>
+        </>
     );
 };
 

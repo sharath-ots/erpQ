@@ -9,9 +9,10 @@ import { emailSidebarWidth, useEmailContext } from 'providers/EmailProvider';
 import EmailListContainer from 'components/sections/email/email-list/EmailListContainer';
 
 const Email = () => {
-  const {
-    emailState: { emails },
-  } = useEmailContext();
+
+  const context = useEmailContext();
+  const emails = context?.emailState?.emails || [];
+
   const { up } = useBreakpoints();
   const upMd = up('md');
   const [isDrawerOpen, setIsDrawerOpen] = useState(upMd);

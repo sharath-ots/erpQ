@@ -1,4 +1,4 @@
-import { useParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import Grid from '@mui/material/Grid';
 import { useEmailContext } from 'providers/EmailProvider';
 import CardHeaderAction from 'components/common/CardHeaderAction';
@@ -7,7 +7,11 @@ import EmailListPagination from './EmailListPagination';
 
 const EmailListHeader = () => {
   const { resizableWidth } = useEmailContext();
-  const { id } = useParams();
+  // NEW LOGIC: Extract label from path
+  const pathname = usePathname();
+  const pathParts = pathname.split('/').filter(Boolean);
+  // Looks for 'list'. If found, grabs the word after it. If not, defaults to 'inbox'.
+  const id = pathParts.includes('list') ? pathParts[pathParts.length - 1] : 'inbox';
 
   const isInvalidOrLargeWidth = !id || resizableWidth > 500;
 

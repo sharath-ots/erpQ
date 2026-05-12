@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { useParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { ButtonBase, Checkbox, Divider, IconButton, Stack, Tooltip } from '@mui/material';
 import { useBulkSelect } from 'providers/BulkSelectProvider';
 import { useEmailContext } from 'providers/EmailProvider';
@@ -15,11 +15,17 @@ import EmailListActionMenu from './EmailListActionMenu';
 
 const EmailListActions = () => {
   const { handleToggleAll, isIndeterminate, isAllSelected, selectedIds } = useBulkSelect();
-  const {
-    emailState: { emails },
-    emailDispatch,
-  } = useEmailContext();
-  const { label } = useParams();
+
+  const context = useEmailContext();
+  const emails = context?.emailState?.emails || [];
+  const emailDispatch = context?.emailDispatch || [];
+
+
+  // NEW LOGIC: Extract label from path
+  const pathname = usePathname();
+  const pathParts = pathname.split('/').filter(Boolean);
+  // Looks for 'list'. If found, grabs the word after it. If not, defaults to 'inbox'.
+  const label = pathParts.includes('list') ? pathParts[pathParts.length - 1] : 'inbox';
 
   const starred = useMemo(() => {
     return (

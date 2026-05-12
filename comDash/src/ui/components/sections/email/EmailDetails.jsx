@@ -11,10 +11,8 @@ import EmailDetailsContainer from 'components/sections/email/email-details/Email
 import EmailListContainer from 'components/sections/email/email-list/EmailListContainer';
 
 const EmailDetails = () => {
-  const {
-    emailState: { emails },
-    handleResize,
-  } = useEmailContext();
+  const context = useEmailContext();
+  const emails = context?.emailState?.emails || [];
   const { up } = useBreakpoints();
   const upXl = up('xl');
   const [isDrawerOpen, setIsDrawerOpen] = useState(upXl);

@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import Grid from '@mui/material/Grid';
+import Divider from '@mui/material/Divider';
+import Box from '@mui/material/Box';
 import PageLoader from 'components/loading/PageLoader';
 
 import CRMGreeting from 'components/sections/dashboards/crm-q/CRMGreeting';
@@ -40,34 +42,57 @@ const CRMQ = () => {
   return (
     <Grid container spacing={0}>
       <Grid size={12}>
-        <CRMGreeting data={dashboardData?.greetingData || []}
-        />
+        <CRMGreeting data={dashboardData?.greetingData || []} />
       </Grid>
-      <Grid container size={12}>
-        <Grid size={{ xs: 12, md: 4 }}>
-          <LeadSummaryCards timeFilter={timeFilter} setTimeFilter={setTimeFilter} />
+
+      <Grid container size={12} sx={{ alignItems: 'stretch' }}>
+
+        {/* Left Half (50% Width): 2x2 Grid Stack with Master Right Border */}
+        <Grid size={{ xs: 12, lg: 6 }} sx={{ display: 'flex', flexDirection: 'column', borderRight: { lg: '1px solid' }, borderColor: 'divider' }}>
+
+          {/* Top Row: 1. Total Leads, 2. New Leads */}
+          <Grid container spacing={0} sx={{ flex: 1, width: '100%' }}>
+            <LeadSummaryCards timeFilter={timeFilter} setTimeFilter={setTimeFilter} />
+          </Grid>
+
+          {/* Bottom Row: 3. Conversion Potential, 4. Total Volume */}
+          <Grid container spacing={0} sx={{ flex: 1, width: '100%' }}>
+            {/* Slice grabs first two KPIs from API */}
+            <CRMKPIs data={dashboardData?.kpiData?.slice(0, 2) || []} />
+          </Grid>
+
         </Grid>
-        <Grid size={{ xs: 12, md: 8 }}>
-          <Grid container spacing={0} sx={{ height: '100%' }}>
-            <CRMKPIs data={dashboardData?.kpiData || []} />
+
+        {/* Right Half (50% Width): Lead Sources Chart */}
+        <Grid size={{ xs: 12, lg: 6 }} sx={{ display: 'flex' }}>
+          <Box sx={{ width: '100%', height: '100%' }}>
+            <LeadSources data={dashboardData?.leadSourcesData} />
+          </Box>
+        </Grid>
+      </Grid>
+
+      <Grid container size={12} sx={{ alignItems: 'stretch' }}>
+        <Grid size={{ xs: 12, lg: 6 }} sx={{ display: 'flex' }}>
+          <Grid container spacing={0} sx={{ width: '100%', height: '100%' }}>
+            {/* Grabs the remaining 4 KPIs (Active, Open Opps, Customers, Win Rate) */}
+            <CRMKPIs data={dashboardData?.kpiData?.slice(2, 6) || []} />
           </Grid>
         </Grid>
-      </Grid>
 
-      <Grid container size={12}>
-        <Grid size={{ xs: 12, lg: 7 }}>
-          <LeadSources data={dashboardData?.leadSourcesData} />
-        </Grid>
-        <Grid size={{ xs: 12, lg: 5 }}>
-          <CRMGeneratedRevenue data={dashboardData?.oppTrackerData} />
+        <Grid size={{ xs: 12, lg: 6 }} sx={{ display: 'flex' }}>
+          <Box sx={{ width: '100%', height: '100%' }}>
+            <CRMGeneratedRevenue data={dashboardData?.oppTrackerData} />
+          </Box>
         </Grid>
       </Grid>
 
-      <Grid size={12}>
-        <AcquisitionCost />
+      <Grid container size={12} sx={{ alignItems: 'stretch' }}>
+        <Grid size={{ xs: 12, md: 6 }} sx={{ display: 'flex' }}>
+          <AcquisitionCost />
+        </Grid>
       </Grid>
 
-      <Grid container size={12}>
+      <Grid container size={12} sx={{ mt: 4 }}>
         <Grid size={{ xs: 12, lg: 6 }}>
           <CustomerFeedback data={dashboardData?.commFlowData} />
         </Grid>
@@ -76,7 +101,6 @@ const CRMQ = () => {
         </Grid>
       </Grid>
 
-      {/* Change this block */}
       <Grid size={12}>
         <SaleFunnel
           data={dashboardData?.funnelData?.chartData}

@@ -1,4 +1,4 @@
-import { useParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { ButtonBase, IconButton, Stack, Tooltip } from '@mui/material';
 import { useEmailContext } from 'providers/EmailProvider';
 import {
@@ -10,7 +10,20 @@ import {
 import IconifyIcon from 'components/base/IconifyIcon';
 
 const ListItemFloatingActions = ({ email }) => {
-  const { label, id } = useParams();
+  // NEW LOGIC: Extract id and label from path
+  const pathname = usePathname();
+  const pathParts = pathname.split('/').filter(Boolean);
+
+  // Since the URL is /m/emailq/email/details/inbox/12345
+  // We can pop() the last two items off the array to get our parameters.
+  const extractedId = pathParts.pop();    // '12345'
+  const extractedLabel = pathParts.pop(); // 'inbox'
+
+  // We recreate the 'params' object so you don't have to rewrite the rest of your file!
+  const params = {
+    id: extractedId,
+    label: extractedLabel
+  };
   const { emailDispatch, resizableWidth } = useEmailContext();
 
   const preventDefaultBehaviour = (e) => {
@@ -34,11 +47,11 @@ const ListItemFloatingActions = ({ email }) => {
           opacity: 0,
           display: { xs: 'none', sm: 'flex' },
         },
-        !!id &&
-          resizableWidth < 500 && {
-            height: 'auto',
-            top: 16,
-          },
+        !!params.id &&
+        resizableWidth < 500 && {
+          height: 'auto',
+          top: 16,
+        },
       ]}
     >
       <Tooltip title="Delete">
@@ -46,10 +59,10 @@ const ListItemFloatingActions = ({ email }) => {
           size="small"
           component={ButtonBase}
           onClick={() => emailDispatch({ type: DELETE_EMAIL, payload: [email.id] })}
-          disabled={label === 'trash'}
+          disabled={params.label === 'trash'}
           sx={{
             fontSize: 20,
-            color: label === 'trash' ? 'text.disabled' : 'text.secondary',
+            color: params.label === 'trash' ? 'text.disabled' : 'text.secondary',
             '&:hover': {
               color: 'text.primary',
             },

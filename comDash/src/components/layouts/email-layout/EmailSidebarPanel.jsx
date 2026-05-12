@@ -17,10 +17,20 @@ import paths from 'routes/paths';
 import IconifyIcon from 'components/base/IconifyIcon';
 
 const EmailSidebarPanel = ({ toggleDrawer }) => {
-  const {
-    emailState: { initialEmails },
-  } = useEmailContext();
-  const params = useParams();
+
+  const context = useEmailContext();
+  const initialEmails = context?.initialEmails;
+
+  const pathname = usePathname();
+  const pathParts = pathname.split('/').filter(Boolean);
+  const extractedId = pathParts.pop();
+  const extractedLabel = pathParts.pop();
+
+  const params = {
+    id: extractedId,
+    label: extractedLabel
+  };
+
   const unreadMailCount = useMemo(
     () => initialEmails.filter((email) => email.folder === 'inbox' && email.readAt === null),
     [initialEmails],

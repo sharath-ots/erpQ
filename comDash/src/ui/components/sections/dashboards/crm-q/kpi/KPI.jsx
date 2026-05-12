@@ -13,12 +13,14 @@ const KPI = ({ title, subtitle, value, icon }) => {
         p: { xs: 3, md: 5 },
         height: '100%',
         width: '100%',
-        height: 1,
         borderRadius: 0,
         boxShadow: 'none',
         borderLeft: '1px solid',
         borderBottom: '1px solid',
         borderColor: 'divider',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between'
       }}
     >
       <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700, mb: 2 }}>

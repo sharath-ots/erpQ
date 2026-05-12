@@ -1,4 +1,4 @@
-import { useParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { Checkbox, IconButton, Stack, Tooltip } from '@mui/material';
 import { useBulkSelect } from 'providers/BulkSelectProvider';
 import { useEmailContext } from 'providers/EmailProvider';
@@ -9,7 +9,20 @@ import CardHeaderAction from 'components/common/CardHeaderAction';
 const EmailListItemActions = ({ email }) => {
   const { selectedIds, handleToggleCheck } = useBulkSelect();
   const { emailDispatch, resizableWidth } = useEmailContext();
-  const { id } = useParams();
+  // NEW LOGIC: Extract id and label from path
+  const pathname = usePathname();
+  const pathParts = pathname.split('/').filter(Boolean);
+
+  // Since the URL is /m/emailq/email/details/inbox/12345
+  // We can pop() the last two items off the array to get our parameters.
+  const extractedId = pathParts.pop();    // '12345'
+  const extractedLabel = pathParts.pop(); // 'inbox'
+
+  // We recreate the 'params' object so you don't have to rewrite the rest of your file!
+  const params = {
+    id: extractedId,
+    label: extractedLabel
+  };
 
   const preventDefaultBehaviour = (e) => {
     e.preventDefault();
@@ -19,7 +32,7 @@ const EmailListItemActions = ({ email }) => {
   return (
     <CardHeaderAction sx={{ mx: '-6px', mr: 0 }}>
       <Stack
-        sx={[{ mr: 2, alignItems: 'center', mb: 1 }, (!id || resizableWidth > 500) && { mb: 0 }]}
+        sx={[{ mr: 2, alignItems: 'center', mb: 1 }, (!params.id || resizableWidth > 500) && { mb: 0 }]}
       >
         <Tooltip title="Select">
           <Checkbox

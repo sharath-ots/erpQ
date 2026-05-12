@@ -9,7 +9,7 @@ const CRMKPIs = ({ data }) => {
   return (
     <>
       {data.map((kpi) => (
-        <Grid key={kpi.title} size={{ xs: 12, sm: 6, md: 3 }} sx={{ display: 'flex' }}>
+        <Grid key={kpi.title} size={{ xs: 12, sm: 6 }} sx={{ display: 'flex' }}>
           <KPI {...kpi} />
         </Grid>
       ))}

@@ -63,6 +63,7 @@
     "next": "^15.0.3",
     "next-auth": "^4.24.14",
     "notistack": "^3.0.2",
+    "re-resizable": "^6.11.2",
     "react": "^19.0.0",
     "react-datepicker": "^9.1.0",
     "react-device-detect": "^2.2.3",

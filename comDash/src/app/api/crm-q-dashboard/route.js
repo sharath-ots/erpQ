@@ -4,7 +4,8 @@ import { fetchERP } from 'lib/erpBackend';
 export async function GET() {
     try {
         const [leadsData, oppsData, customersData, ordersData, eventsData, commsData] = await Promise.all([
-            fetchERP('/api/resource/Lead?limit_page_length=0&fields=["name","creation","status","source"]', 'admin'),
+            // Added conversion_potential and potential_volume to fields
+            fetchERP('/api/resource/Lead?limit_page_length=0&fields=["name","creation","status","source","conversion_potential","potential_volume"]', 'admin'),
             fetchERP('/api/resource/Opportunity?limit_page_length=0&fields=["name","creation","status"]', 'admin'),
             fetchERP('/api/resource/Customer?limit_page_length=0&fields=["name"]', 'admin'),
             fetchERP('/api/resource/Sales Order?limit_page_length=0&fields=["name","creation"]', 'admin'),
@@ -31,33 +32,47 @@ export async function GET() {
             return { count: thisWeekCount, percentage: Math.round((Math.abs(diff) / lastWeekCount) * 100), trend: diff >= 0 ? 'up' : 'down' };
         };
 
-        // 1. GREETING & KPIs
+        // 1. GREETING
         const subtitle = `You have ${events.length} meetings and events scheduled.`;
         const greetingData = [
             { icon: 'material-symbols:handshake-outline-rounded', count: calculateTrend(leads).count, label: 'Leads created', percentage: calculateTrend(leads).percentage, trend: calculateTrend(leads).trend },
             { icon: 'material-symbols:payments-outline-rounded', count: calculateTrend(orders).count, label: 'Orders created', percentage: calculateTrend(orders).percentage, trend: calculateTrend(orders).trend }
         ];
 
+        // 2. NEW KPIs (Conversion Potential & Potential Volume)
+        const totalVolume = leads
+            .filter(l => l.status !== 'Converted' && l.status !== 'Lost')
+            .reduce((sum, l) => sum + (parseFloat(l.potential_volume) || 0), 0);
+
+        const highPotentialCount = leads.filter(l => {
+            const cp = l.conversion_potential;
+            return cp === 'High' || cp === '80%' || cp === '90%' || cp === '100%' || (typeof cp === 'number' && cp >= 80);
+        }).length;
+
+        // General KPIs
         const totalActiveLeads = leads.filter(l => l.status !== 'Converted' && l.status !== 'Lost').length;
         const openOpps = opps.filter(o => o.status === 'Open' || o.status === 'Quotation').length;
         const winRate = leads.length > 0 ? Math.round((opps.filter(o => o.status === 'Converted').length / leads.length) * 100) : 0;
 
         const kpiData = [
-            { id: 1, title: 'Active Leads', value: totalActiveLeads, amount: totalActiveLeads, subtitle: 'Total open leads', icon: { name: 'material-symbols-light:contact-mail-outline-rounded', color: 'primary.main' } },
-            { id: 2, title: 'Open Opportunities', value: openOpps, amount: openOpps, subtitle: 'Currently in pipeline', icon: { name: 'material-symbols-light:assignment-outline-rounded', color: 'warning.main' } },
-            { id: 3, title: 'Total Customers', value: customers.length, amount: customers.length, subtitle: 'Registered clients', icon: { name: 'material-symbols-light:groups-outline-rounded', color: 'success.main' } },
-            { id: 4, title: 'Win Rate', value: `${winRate}%`, amount: `${winRate}%`, subtitle: 'Conversion rate', icon: { name: 'material-symbols-light:military-tech-outline-rounded', color: 'error.main' } }
+            // Target Top 2 items (Rendered alongside LeadSummaryCards)
+            { id: 1, title: 'Conversion Potential', value: highPotentialCount, amount: highPotentialCount, subtitle: 'High probability leads', icon: { name: 'material-symbols:rocket-launch-outline-rounded', color: 'error.main' } },
+            { id: 2, title: 'Potential Volume', value: totalVolume, amount: totalVolume, subtitle: 'Total pipeline value', icon: { name: 'material-symbols:attach-money-rounded', color: 'success.main' } },
+
+            // Rendered in Block 2
+            { id: 3, title: 'Active Leads', value: totalActiveLeads, amount: totalActiveLeads, subtitle: 'Total open leads', icon: { name: 'material-symbols-light:contact-mail-outline-rounded', color: 'primary.main' } },
+            { id: 4, title: 'Open Opportunities', value: openOpps, amount: openOpps, subtitle: 'Currently in pipeline', icon: { name: 'material-symbols-light:assignment-outline-rounded', color: 'warning.main' } },
+            { id: 5, title: 'Total Customers', value: customers.length, amount: customers.length, subtitle: 'Registered clients', icon: { name: 'material-symbols-light:groups-outline-rounded', color: 'success.main' } },
+            { id: 6, title: 'Win Rate', value: `${winRate}%`, amount: `${winRate}%`, subtitle: 'Conversion rate', icon: { name: 'material-symbols-light:military-tech-outline-rounded', color: 'error.main' } }
         ];
 
-        // 2. OPPORTUNITY TRACKER (Grouped Bar Chart - Last 7 Weeks)
+        // 3. OPPORTUNITY TRACKER 
         const open = Array(7).fill(0), converted = Array(7).fill(0), lost = Array(7).fill(0);
         const categories = Array(7).fill('');
-
         for (let i = 0; i < 7; i++) {
             const weekStart = new Date(now.getTime() - (6 - i + 1) * 7 * 24 * 60 * 60 * 1000);
             const weekEnd = new Date(now.getTime() - (6 - i) * 7 * 24 * 60 * 60 * 1000);
-            categories[i] = `W${i + 1}`; // Week labels
-
+            categories[i] = `W${i + 1}`;
             opps.forEach(o => {
                 const d = new Date(o.creation);
                 if (d >= weekStart && d < weekEnd) {
@@ -69,7 +84,7 @@ export async function GET() {
         }
         const oppTrackerData = { categories, open, converted, lost };
 
-        // 3. COMMUNICATION FLOW (Positive/Negative Chart - Last 13 Months)
+        // 4. COMMUNICATION FLOW 
         const received = Array(13).fill(0), sent = Array(13).fill(0), meetings = Array(13).fill(0);
         comms.forEach(c => {
             const d = new Date(c.creation);
@@ -77,7 +92,7 @@ export async function GET() {
             if (diffMonths >= 0 && diffMonths < 13) {
                 const idx = 12 - diffMonths;
                 if (c.sent_or_received === 'Received') received[idx]++;
-                else if (c.sent_or_received === 'Sent') sent[idx] -= 1; // Negative for chart
+                else if (c.sent_or_received === 'Sent') sent[idx] -= 1;
             }
         });
         events.forEach(e => {
@@ -87,9 +102,7 @@ export async function GET() {
         });
         const commFlowData = { received, sent, meetings };
 
-        // ... existing code above ...
-
-        // 4. LEAD SOURCES (Dynamic Pie Chart)
+        // 5. LEAD SOURCES
         const sourceMap = {};
         leads.forEach(l => {
             const src = l.source || 'Direct';
@@ -98,49 +111,24 @@ export async function GET() {
         const leadSourcesData = Object.keys(sourceMap).map(k => ({ value: sourceMap[k], name: k })).sort((a, b) => b.value - a.value);
         if (leadSourcesData.length === 0) leadSourcesData.push({ value: 0, name: 'No Data' });
 
-        // ==========================================
-        // 🚀 NEW: 5. SALE FUNNEL DATA
-        // ==========================================
+        // 6. SALE FUNNEL DATA
         const funnelStages = ["New", "Interested", "Opportunity", "Quotation", "Converted"];
         const stageColors = ['#1976d2', '#42a5f5', '#64b5f6', '#90caf9', '#4caf50'];
 
-        const counts = {
-            New: 0, Interested: 0, Opportunity: 0, Quotation: 0, Converted: 0,
-            "Lost Quotation": 0, "Do Not Contact": 0
-        };
+        const counts = { New: 0, Interested: 0, Opportunity: 0, Quotation: 0, Converted: 0, "Lost Quotation": 0, "Do Not Contact": 0 };
+        leads.forEach(lead => { if (counts[lead.status] !== undefined) counts[lead.status]++; });
 
-        // Count leads by status
-        leads.forEach(lead => {
-            if (counts[lead.status] !== undefined) {
-                counts[lead.status]++;
-            }
-        });
-
-        // Format for the Chart
         const funnelChartData = {};
-        funnelStages.forEach(stage => {
-            funnelChartData[stage] = counts[stage];
-        });
+        funnelStages.forEach(stage => { funnelChartData[stage] = counts[stage]; });
 
-        // Format for the Table
         const totalActive = funnelStages.reduce((sum, s) => sum + counts[s], 0);
         const funnelTableData = funnelStages.map((stage, index) => {
             const thisMonthPercentage = totalActive > 0 ? Math.round((counts[stage] / totalActive) * 100) : 0;
-            const lostPercentage = stage === 'Quotation' && totalActive > 0
-                ? Math.round((counts["Lost Quotation"] / totalActive) * 100)
-                : 0;
-
-            return {
-                stage: stage,
-                lostLead: lostPercentage,
-                thisMonth: thisMonthPercentage,
-                stageIndicator: stageColors[index]
-            };
+            const lostPercentage = stage === 'Quotation' && totalActive > 0 ? Math.round((counts["Lost Quotation"] / totalActive) * 100) : 0;
+            return { stage: stage, lostLead: lostPercentage, thisMonth: thisMonthPercentage, stageIndicator: stageColors[index] };
         });
-
         const funnelData = { chartData: funnelChartData, tableData: funnelTableData };
 
-        // 🚀 Update the return statement to include funnelData
         return NextResponse.json({
             greetingData, kpiData, subtitle, oppTrackerData, commFlowData, leadSourcesData, funnelData
         });

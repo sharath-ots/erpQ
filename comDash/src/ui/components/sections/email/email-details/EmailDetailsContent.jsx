@@ -4,9 +4,9 @@ import { useEmailContext } from 'providers/EmailProvider';
 import Image from 'components/base/Image';
 
 const EmailDetailsContent = () => {
-  const {
-    emailState: { email },
-  } = useEmailContext();
+
+  const context = useEmailContext();
+  const email = context?.emailState?.emails || [];
 
   return (
     <>

@@ -4,8 +4,7 @@ import { Stack, Typography, Dialog, DialogContent, IconButton } from '@mui/mater
 import illustrationDark from '../../../public/assets/images/illustrations/7-dark.webp';
 import illustration from '../../../public/assets/images/illustrations/7.webp';
 import dayjs from 'dayjs';
-import { useEmailContext } from 'providers/EmailProvider';
-import { GET_EMAILS } from 'reducers/EmailReducer';
+
 import Image from 'components/base/Image';
 import SimpleBar from 'components/base/SimpleBar';
 import PageLoader from 'components/loading/PageLoader';
@@ -13,7 +12,6 @@ import EmailHeader from './EmailHeader';
 import EmailList from './EmailList';
 import EmailListHeader from './email-list-header/EmailListHeader';
 import IconifyIcon from 'components/base/IconifyIcon';
-
 import EmailDetailsContainer from '../email-details/EmailDetailsContainer';
 
 const EmailListContainer = ({ toggleDrawer, explicitEmailList }) => {
@@ -23,26 +21,20 @@ const EmailListContainer = ({ toggleDrawer, explicitEmailList }) => {
   const params = useParams();
   const label = params?.label || 'inbox';
 
-  // 🚀 EXPERT FIX: Completely bypass the Context! 
-  // Force the UI to use your live ERPNext API data array.
   const activeEmails = explicitEmailList || [];
 
   const onEmailClick = async (mail) => {
-    // 1. Open the popup immediately for a fast UI feel
     setSelectedEmailPopup(mail);
 
-    // 2. If the email is unread (seen is 0), update ERPNext
     if (mail.seen === 0) {
       try {
         const response = await fetch('/api/lead/mark-email-read', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email_id: mail.name }) // Frappe uses 'name' as the ID
+          body: JSON.stringify({ email_id: mail.name })
         });
 
         if (response.ok) {
-          // 3. Update your local list so the bold styling disappears immediately
-          // We look through 'activeEmails' and change the seen status of this specific mail
           mail.seen = 1;
         }
       } catch (error) {
@@ -68,16 +60,26 @@ const EmailListContainer = ({ toggleDrawer, explicitEmailList }) => {
     );
   }, [activeEmails]);
 
-  useEffect(() => {
-    if (activeEmails.length > 0) {
+
+  useEffect(function () {
+    let isMounted = true;
+
+    if (activeEmails && activeEmails.length > 0) {
       setIsLoading(false);
     }
-    const timer = setTimeout(() => setIsLoading(false), 1500);
-    return () => clearTimeout(timer);
-  }, [activeEmails]);
 
-  // (You can delete the old useEffect that calls `emailDispatch({ type: GET_EMAILS... })` 
-  // because we no longer rely on the reducer to get our list data!)
+    const timer = setTimeout(function () {
+      if (isMounted) {
+        setIsLoading(false);
+      }
+    }, 1500);
+
+    // Explicit return block
+    return function cleanup() {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [activeEmails]);
 
   if (isLoading) {
     return <PageLoader />;
@@ -105,7 +107,6 @@ const EmailListContainer = ({ toggleDrawer, explicitEmailList }) => {
                     key={key}
                     title={key.charAt(0).toUpperCase() + key.slice(1)}
                     emails={emailData[key]}
-                    // 🚀 EXPERT FIX: Pass the state setter down to the list
                     onEmailClick={onEmailClick}
                   />
                 ),
@@ -127,7 +128,6 @@ const EmailListContainer = ({ toggleDrawer, explicitEmailList }) => {
         </Stack>
       </SimpleBar>
 
-      {/* 🚀 EXPERT FIX: The Pop-up Dialog! */}
       <Dialog
         open={Boolean(selectedEmailPopup)}
         onClose={() => setSelectedEmailPopup(null)}
@@ -144,7 +144,6 @@ const EmailListContainer = ({ toggleDrawer, explicitEmailList }) => {
 
         <DialogContent sx={{ p: 0, display: 'flex', flexDirection: 'column' }}>
           {selectedEmailPopup && (
-            // 🚀 FIXED: We now pass the entire `selectedEmailPopup` object!
             <EmailDetailsContainer explicitEmailData={selectedEmailPopup} />
           )}
         </DialogContent>

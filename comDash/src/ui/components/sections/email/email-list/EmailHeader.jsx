@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { Box, Button, Stack } from '@mui/material';
 import { useEmailContext } from 'providers/EmailProvider';
 import { REFRESH_EMAILS, SEARCH_EMAIL } from 'reducers/EmailReducer';
@@ -13,7 +13,17 @@ const EmailHeader = ({ toggleDrawer }) => {
   const [openFilterDialog, setOpenFilterDialog] = useState(false);
   const [openComposeDialog, setOpenComposeDialog] = useState(false);
   const { emailDispatch, resizableWidth } = useEmailContext();
-  const { label, id } = useParams();
+  const pathname = usePathname();
+
+  // 3. Split the string into an array and remove empty items
+  const pathParts = pathname.split('/').filter(Boolean);
+
+  // 4. Grab the last two items off the end of the array
+  const id = pathParts.pop();      // Grabs the last item (e.g., '12345')
+  const label = pathParts.pop();   // Grabs the second-to-last item (e.g., 'inbox')
+
+  // 5. (Optional) Recreate the params object so you don't have to rewrite the rest of your file
+  const params = { label, id };
 
   const toggleFilterDialog = () => {
     setOpenFilterDialog((prev) => !prev);
@@ -27,21 +37,21 @@ const EmailHeader = ({ toggleDrawer }) => {
     setSearchText(e.target.value);
     emailDispatch({
       type: SEARCH_EMAIL,
-      payload: { query: e.target.value, folder: Array.isArray(label) ? label[0] : label },
+      payload: { query: e.target.value, folder: Array.isArray(params.label) ? params.label[0] : params.label },
     });
   };
 
   const handleRefresh = () => {
     setSearchText('');
-    emailDispatch({ type: REFRESH_EMAILS, payload: label });
+    emailDispatch({ type: REFRESH_EMAILS, payload: params.label });
   };
 
   useEffect(() => {
     setSearchText('');
-    emailDispatch({ type: SEARCH_EMAIL, payload: { query: '', folder: label } });
-  }, [label]);
+    emailDispatch({ type: SEARCH_EMAIL, payload: { query: '', folder: params.label } });
+  }, [params.label]);
 
-  const isInvalidOrLargeWidth = !id || resizableWidth > 500;
+  const isInvalidOrLargeWidth = !params.id || resizableWidth > 500;
 
   return (
     <Box sx={{ mb: '2px' }}>

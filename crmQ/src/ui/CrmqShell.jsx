@@ -15,6 +15,7 @@ import LeadDetailsPage from "../../pages/crm/lead-list/[id].jsx";
 import AddLeadScreen from "./AddLeadScreen.jsx";
 import ViewLeadScreen from "./ViewLeadScreen.jsx";
 import EditLeadPage from "../../pages/crm/lead-list/edit/[id].jsx";
+import EmailScreen from "./EmailScreen.jsx";
 /**
  * Routes under /m/crmq/* — comDash sidebar; curated lists + optional ERPNext desk iframe.
  */
@@ -55,6 +56,10 @@ export function CrmqShell({
   // }
   if (normalized === "/m/crmq/add-lead") {
     return <AddLeadScreen />;
+  }
+
+  if (normalized === "/m/emailq/email") {
+    return <EmailScreen />;
   }
 
   // if (normalized === "/m/crmq/view-lead") {

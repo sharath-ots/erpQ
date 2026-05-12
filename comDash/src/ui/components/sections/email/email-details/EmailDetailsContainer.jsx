@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useusePathnameParams, useRouter } from 'next/navigation';
 import { Stack, Typography } from '@mui/material';
 import { useBreakpoints } from 'providers/BreakpointsProvider';
 import { useEmailContext } from 'providers/EmailProvider';
@@ -15,11 +15,25 @@ import EmailReply from './EmailReply';
 
 const EmailDetailsContainer = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const {
-    emailState: { email, initialEmails },
-    emailDispatch,
-  } = useEmailContext();
-  const params = useParams();
+
+  const context = useEmailContext();
+  const email = context?.emailState?.emails || [];
+  const initialEmails = context?.emailState?.initialEmails || [];
+
+  // NEW LOGIC: Extract id and label from path
+  const pathname = usePathname();
+  const pathParts = pathname.split('/').filter(Boolean);
+
+  // Since the URL is /m/emailq/email/details/inbox/12345
+  // We can pop() the last two items off the array to get our parameters.
+  const extractedId = pathParts.pop();    // '12345'
+  const extractedLabel = pathParts.pop(); // 'inbox'
+
+  // We recreate the 'params' object so you don't have to rewrite the rest of your file!
+  const params = {
+    id: extractedId,
+    label: extractedLabel
+  };
   const router = useRouter();
   const { down } = useBreakpoints();
   const downLg = down('lg');
