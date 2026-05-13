@@ -133,7 +133,7 @@ const LeadSideBar = ({ isCollapsed, onToggleDesktop }) => {
                         <IconifyIcon
                             icon="material-symbols:leaderboard"
                             color="white"
-                            fontSize={{ xs: '1.15rem', md: isCollapsed ? '1.7rem' : '1.15rem' }}
+                            fontSize={{ xs: '1.15rem', md: isCollapsed ? '1.35rem' : '1.15rem' }}
                         />
                     </Box>
 
@@ -215,8 +215,8 @@ const LeadSideBar = ({ isCollapsed, onToggleDesktop }) => {
                         >
                             <IconifyIcon
                                 icon={selectedDetailLeadId ? "material-symbols:arrow-back" : "material-symbols:home-outline"}
-                                width={isCollapsed ? 32 : 22}
-                                height={isCollapsed ? 32 : 22}
+                                width={isCollapsed ? 24 : 22}
+                                height={isCollapsed ? 24 : 22}
                             />
                         </ListItemIcon>
 
@@ -263,8 +263,8 @@ const LeadSideBar = ({ isCollapsed, onToggleDesktop }) => {
                                         >
                                             <IconifyIcon
                                                 icon={item.icon}
-                                                width={isCollapsed ? 32 : 22}
-                                                height={isCollapsed ? 32 : 22}
+                                                width={isCollapsed ? 24 : 22}
+                                                height={isCollapsed ? 24 : 22}
                                             />
                                         </ListItemIcon>
 
@@ -311,8 +311,8 @@ const LeadSideBar = ({ isCollapsed, onToggleDesktop }) => {
                                         >
                                             <IconifyIcon
                                                 icon={item.icon}
-                                                width={isCollapsed ? 32 : 22}
-                                                height={isCollapsed ? 32 : 22}
+                                                width={isCollapsed ? 24 : 22}
+                                                height={isCollapsed ? 24 : 22}
                                             />
                                         </ListItemIcon>
 

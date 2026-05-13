@@ -6,23 +6,45 @@ import EmailSidebar from 'layouts/email-layout/EmailSidebar';
 import { useBreakpoints } from 'providers/BreakpointsProvider';
 import BulkSelectProvider from 'providers/BulkSelectProvider';
 import { emailSidebarWidth, useEmailContext } from 'providers/EmailProvider';
-import EmailListContainer from 'components/sections/email/email-list/EmailListContainer';
+import EmailListContainer from './email-list/EmailListContainer';
 
 const Email = () => {
-  const context = useEmailContext();
-  const emails = context?.emailState?.emails || [];
+  const [realEmails, setRealEmails] = useState([]);
+  const { emailDispatch } = useEmailContext();
+
   const { up } = useBreakpoints();
   const upMd = up('md');
   const [isDrawerOpen, setIsDrawerOpen] = useState(upMd);
   const toggleDrawer = () => setIsDrawerOpen((prev) => !prev);
 
   useEffect(() => {
-    if (upMd) {
-      setIsDrawerOpen(true);
-    } else {
-      setIsDrawerOpen(false);
-    }
-  }, [upMd]);
+    const getData = async () => {
+      try {
+        // 🚀 1. INSTANT LOAD: Check browser cache first so the UI doesn't wait
+        const cached = sessionStorage.getItem('erp_emails');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          setRealEmails(parsed);
+          if (emailDispatch) emailDispatch({ type: 'INITIALIZE_EMAILS', payload: parsed });
+        }
+
+        // 🚀 2. BACKGROUND SYNC: Fetch fresh data from ERPNext
+        const res = await fetch('/api/lead-emails?lead_id=CRM-LEAD-2026-00074');
+        const data = await res.json();
+
+        // Save to browser memory for the Details page
+        sessionStorage.setItem('erp_emails', JSON.stringify(data));
+        setRealEmails(data);
+
+        if (emailDispatch) {
+          emailDispatch({ type: 'INITIALIZE_EMAILS', payload: data });
+        }
+      } catch (err) {
+        console.error("🛠️ ERP FETCH ERROR:", err);
+      }
+    };
+    getData();
+  }, [emailDispatch]);
 
   return (
     <>
@@ -45,8 +67,8 @@ const Email = () => {
           }),
         })}
       >
-        <BulkSelectProvider data={emails}>
-          <EmailListContainer toggleDrawer={toggleDrawer} />
+        <BulkSelectProvider data={realEmails}>
+          <EmailListContainer toggleDrawer={toggleDrawer} explicitEmailList={realEmails} />
         </BulkSelectProvider>
       </Paper>
     </>

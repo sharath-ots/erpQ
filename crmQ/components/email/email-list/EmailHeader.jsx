@@ -1,64 +1,75 @@
+'use client';
+
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { usePathname } from 'next/navigation'; // 🚀 Swapped for reliability
 import { Box, Button, Stack } from '@mui/material';
 import { useEmailContext } from 'providers/EmailProvider';
 import { REFRESH_EMAILS, SEARCH_EMAIL } from 'reducers/EmailReducer';
 import IconifyIcon from 'components/base/IconifyIcon';
-import EmailComposeDialog from '../common/EmailComposeDialog';
-import EmailFilterDialog from '../common/EmailFilterDialog';
+import EmailComposeDialog from 'components/sections/email/common/EmailComposeDialog';
+import EmailFilterDialog from 'components/sections/email/common/EmailFilterDialog';
 import StyledTextField from 'components/styled/StyledTextField';
 
 const EmailHeader = ({ toggleDrawer }) => {
   const [searchText, setSearchText] = useState('');
   const [openFilterDialog, setOpenFilterDialog] = useState(false);
   const [openComposeDialog, setOpenComposeDialog] = useState(false);
+
   const { emailDispatch, resizableWidth } = useEmailContext();
-  const { label, id } = useParams();
 
-  const toggleFilterDialog = () => {
-    setOpenFilterDialog((prev) => !prev);
-  };
+  // 🚀 FIXED: Extract label from path (since useParams often fails in custom shells)
+  const pathname = usePathname();
+  const pathParts = pathname.split('/').filter(Boolean);
+  const isDetailsView = pathname.includes('/details/');
+  const currentLabel = isDetailsView
+    ? pathParts[pathParts.length - 2]
+    : pathParts[pathParts.length - 1] || 'inbox';
 
-  const toggleComposeDialog = () => {
-    setOpenComposeDialog(!openComposeDialog);
-  };
+  const toggleFilterDialog = () => setOpenFilterDialog((prev) => !prev);
+  const toggleComposeDialog = () => setOpenComposeDialog(!openComposeDialog);
 
   const handleSearch = (e) => {
-    setSearchText(e.target.value);
-    emailDispatch({
-      type: SEARCH_EMAIL,
-      payload: { query: e.target.value, folder: Array.isArray(label) ? label[0] : label },
-    });
+    const val = e.target.value;
+    setSearchText(val);
+    if (emailDispatch) {
+      emailDispatch({
+        type: SEARCH_EMAIL,
+        payload: { query: val, folder: currentLabel },
+      });
+    }
   };
 
   const handleRefresh = () => {
     setSearchText('');
-    emailDispatch({ type: REFRESH_EMAILS, payload: label });
+    if (emailDispatch) {
+      emailDispatch({ type: REFRESH_EMAILS, payload: currentLabel });
+    }
   };
 
+  // 🚀 CRASH-PROOF EFFECT
   useEffect(() => {
     setSearchText('');
-    emailDispatch({ type: SEARCH_EMAIL, payload: { query: '', folder: label } });
-  }, [label]);
-
-  const isInvalidOrLargeWidth = !id || resizableWidth > 500;
+    if (emailDispatch && currentLabel && currentLabel !== 'email') {
+      emailDispatch({ type: SEARCH_EMAIL, payload: { query: '', folder: currentLabel } });
+    }
+    // 🚀 FIXED: Explicitly return undefined so React doesn't crash
+    return undefined;
+  }, [currentLabel, emailDispatch]);
 
   return (
     <Box sx={{ mb: '2px' }}>
       <Stack
         spacing={1}
-        sx={[
-          { px: 3, flexWrap: 'wrap' },
-          isInvalidOrLargeWidth && { px: { sm: 5 }, flexWrap: { sm: 'nowrap' } },
-        ]}
+        direction="row"
+        sx={{ px: 3, flexWrap: 'nowrap', alignItems: 'center' }}
       >
-        {/* <Button color="neutral" variant="soft" shape="square" onClick={toggleDrawer}>
+        <Button color="neutral" variant="soft" shape="square" onClick={toggleDrawer}>
           <IconifyIcon icon="material-symbols:filter-list-rounded" fontSize={20} />
-        </Button> */}
+        </Button>
         <Button
           variant="contained"
           onClick={toggleComposeDialog}
-          sx={[{ flex: 1 }, (!id || resizableWidth > 500) && { flex: { sm: 'unset' } }]}
+          sx={{ whiteSpace: 'nowrap' }}
           startIcon={<IconifyIcon icon="material-symbols:add-2-rounded" sx={{ fontSize: 20 }} />}
         >
           Compose
@@ -69,27 +80,15 @@ const EmailHeader = ({ toggleDrawer }) => {
           value={searchText}
           onChange={handleSearch}
           placeholder="Search email"
-          sx={[
-            { order: 1, width: 1 },
-            isInvalidOrLargeWidth && {
-              order: { sm: 0 },
-              width: { sm: 'auto' },
-              flex: { sm: 1 },
-            },
-          ]}
+          sx={{ flex: 1 }}
         />
-        <Box
-          sx={[
-            { mr: { xs: '-8px' }, ml: 'auto' },
-            isInvalidOrLargeWidth && { mr: { sm: '-10px' } },
-          ]}
-        >
-          {/* <Button shape="square" color="neutral" onClick={toggleFilterDialog}>
+        <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
+          <Button shape="square" color="neutral" onClick={toggleFilterDialog}>
             <IconifyIcon icon="material-symbols:filter-alt-outline" fontSize={20} />
           </Button>
           <Button color="neutral" shape="square" onClick={handleRefresh}>
             <IconifyIcon icon="material-symbols:refresh-rounded" fontSize={20} />
-          </Button> */}
+          </Button>
         </Box>
       </Stack>
       <EmailFilterDialog open={openFilterDialog} handleClose={toggleFilterDialog} />

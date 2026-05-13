@@ -132,7 +132,7 @@ const MainLayout = ({ children }) => {
             : antdTheme.defaultAlgorithm
         }}
       >
-        <GlobalWatermark isDark={isDark} />
+        {/* <GlobalWatermark isDark={isDark} /> */}
         {children}
       </ConfigProvider>
     );
@@ -248,7 +248,7 @@ const MainLayout = ({ children }) => {
               }}
             >
 
-              <GlobalWatermark isDark={isDark} />
+              {/* <GlobalWatermark isDark={isDark} /> */}
 
               {children}
 

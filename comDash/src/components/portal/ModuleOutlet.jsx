@@ -92,18 +92,7 @@ export function ModuleOutlet({ menuItems = [], deskBaseUrl, deskIframeQuery }) {
   }
 
   if (pathname.startsWith("/m/emailq/email")) {
-
-    // 1. MATCH DETAIL VIEW: /m/emailq/email/details/inbox/12345
-    const detailsMatch = pathname.match(/^\/m\/emailq\/email\/details\/([^/]+)\/([^/]+)$/);
-    if (detailsMatch) {
-      return (
-        <EmailLayout>
-          <EmailDetails />
-        </EmailLayout>
-      );
-    }
-
-    // 2. MATCH LIST VIEW: /m/emailq/email/list/inbox
+    // 1. MATCH LIST VIEW: /m/emailq/email/list/[label]
     const listMatch = pathname.match(/^\/m\/emailq\/email\/list\/([^/]+)$/);
     if (listMatch) {
       return (
@@ -113,7 +102,19 @@ export function ModuleOutlet({ menuItems = [], deskBaseUrl, deskIframeQuery }) {
       );
     }
 
-    // 3. FALLBACK/DEFAULT ROUTE (e.g. /m/emailq/email)
+    // 2. MATCH DETAIL VIEW: /m/emailq/email/details/[label]/[id]
+    // Changed the regex to be more inclusive of different ID types
+    const detailsMatch = pathname.match(/^\/m\/emailq\/email\/details\/([^/]+)\/([^/]+)$/);
+    if (detailsMatch) {
+      return (
+        <EmailLayout>
+          {/* 🚀 Pass the params manually if needed, or let usePathname handle it inside */}
+          <EmailDetails />
+        </EmailLayout>
+      );
+    }
+
+    // 3. DEFAULT (Fallback to inbox)
     return (
       <EmailLayout>
         <Email />

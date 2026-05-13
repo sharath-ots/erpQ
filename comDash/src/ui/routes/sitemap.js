@@ -456,7 +456,7 @@ const sitemap = [
           {
             name: 'Inbox',
             key: 'inbox',
-            path: '/m/emailq/email',
+            path: '/m/emailq/email/list/inbox',
             selectionPrefix: '/m/emailq/email',
             pathName: 'emailq',
             active: true,
@@ -991,7 +991,7 @@ const sitemap = [
       //     },
     ],
   },
-  ...docSitemap,
+  //...docSitemap,
 ];
 
 export default sitemap;

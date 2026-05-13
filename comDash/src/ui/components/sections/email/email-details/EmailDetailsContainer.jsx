@@ -1,86 +1,62 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useusePathnameParams, useRouter } from 'next/navigation';
-import { Stack, Typography } from '@mui/material';
-import { useBreakpoints } from 'providers/BreakpointsProvider';
+import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
+import { Stack, Typography, CircularProgress } from '@mui/material';
 import { useEmailContext } from 'providers/EmailProvider';
-import { GET_EMAIL, UPDATE_MESSAGE_STATUS } from 'reducers/EmailReducer';
-import paths from 'routes/paths';
 import SimpleBar from 'components/base/SimpleBar';
-import PageLoader from 'components/loading/PageLoader';
 import EmailDetailsContent from './EmailDetailsContent';
 import EmailDetailsHeader from './EmailDetailsHeader';
 import EmailReply from './EmailReply';
 
-const EmailDetailsContainer = () => {
-  const [isLoading, setIsLoading] = useState(true);
+const EmailDetailsContainer = ({ explicitEmails = [] }) => {
+  const { emailDispatch } = useEmailContext();
 
-  const context = useEmailContext();
-  const email = context?.emailState?.emails || [];
-  const initialEmails = context?.emailState?.initialEmails || [];
-
-  // NEW LOGIC: Extract id and label from path
   const pathname = usePathname();
   const pathParts = pathname.split('/').filter(Boolean);
+  const extractedId = pathParts.pop();
 
-  // Since the URL is /m/emailq/email/details/inbox/12345
-  // We can pop() the last two items off the array to get our parameters.
-  const extractedId = pathParts.pop();    // '12345'
-  const extractedLabel = pathParts.pop(); // 'inbox'
+  // 🚀 Computed instantly. No Global Context lookup needed.
+  const activeEmail = explicitEmails.find((e) => String(e.id) === String(extractedId));
 
-  // We recreate the 'params' object so you don't have to rewrite the rest of your file!
-  const params = {
-    id: extractedId,
-    label: extractedLabel
-  };
-  const router = useRouter();
-  const { down } = useBreakpoints();
-  const downLg = down('lg');
-
+  // 🚀 Fire "Mark as Read" silently in the background AFTER the new email renders
   useEffect(() => {
-    if (email) {
-      setIsLoading(false);
+    if (extractedId && activeEmail && emailDispatch && activeEmail.readAt === null) {
+      const timer = setTimeout(() => {
+        emailDispatch({
+          type: 'UPDATE_MESSAGE_STATUS',
+          payload: { ids: [extractedId], actionType: 'mark_as_read' },
+        });
+      }, 300); // 300ms delay guarantees it won't block the UI transition
+      return () => clearTimeout(timer);
     }
-  }, [email]);
+  }, [extractedId, activeEmail, emailDispatch]);
 
-  useEffect(() => {
-    emailDispatch({ type: GET_EMAIL, payload: Number(params.id) });
-  }, [params.id, initialEmails]);
-
-  useEffect(() => {
-    emailDispatch({
-      type: UPDATE_MESSAGE_STATUS,
-      payload: { ids: [Number(params.id)], actionType: 'mark_as_read' },
-    });
-  }, [params.id]);
-
-  if (isLoading) {
-    return <PageLoader />;
+  if (explicitEmails.length === 0) {
+    return (
+      <Stack sx={{ alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+        <CircularProgress size={30} sx={{ mb: 2 }} />
+        <Typography variant="body2" color="text.secondary">Loading conversation...</Typography>
+      </Stack>
+    );
   }
-  const label = typeof params?.label === 'string' ? params.label : params?.label?.[0];
 
-  if (!email && downLg && label) {
-    router.replace(paths.emailLabel(label));
+  if (!activeEmail) {
+    return (
+      <Stack sx={{ alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+          No conversations selected
+        </Typography>
+      </Stack>
+    );
   }
 
   return (
-    <SimpleBar
-      sx={{ px: { xs: 3, md: 5 }, py: 5, '.simplebar-content': { height: email ? 'auto' : 1 } }}
-    >
-      {params.id && email ? (
-        <>
-          <EmailDetailsHeader />
-          <EmailDetailsContent />
-          <EmailReply />
-        </>
-      ) : (
-        <Stack sx={{ alignItems: 'center', justifyContent: 'center', height: 1 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 500, mt: 5 }}>
-            No conversations selected
-          </Typography>
-        </Stack>
-      )}
+    <SimpleBar sx={{ px: { xs: 3, md: 5 }, py: 5, height: '100%' }}>
+      {/* 🚀 Pass the direct object to children so they load instantly */}
+      <EmailDetailsHeader email={activeEmail} />
+      <EmailDetailsContent email={activeEmail} />
+      <EmailReply email={activeEmail} />
     </SimpleBar>
   );
 };

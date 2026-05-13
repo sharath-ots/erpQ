@@ -8,17 +8,33 @@ const Resizable = ({ children, handleResize, sx, ...rest }) => {
   const { direction } = useTheme();
   const resizableRef = useRef(null);
 
-  const onResize = (e, direction, ref) => {
-    handleResize(ref.offsetWidth);
+  // 🚀 FIX 1: Add a safety check to ensure it's a function before calling
+  const onResize = (e, dir, ref) => {
+    if (typeof handleResize === 'function') {
+      handleResize(ref.offsetWidth);
+    }
   };
 
   useEffect(() => {
-    const updateWidthOnResize = () => handleResize(resizableRef.current?.size?.width || 0);
+    const updateWidthOnResize = () => {
+      // 🚀 FIX 2: Correct way to access the width from re-resizable ref
+      const currentWidth = resizableRef.current?.resizable?.offsetWidth || 0;
+
+      if (typeof handleResize === 'function') {
+        handleResize(currentWidth);
+      }
+    };
+
     window.addEventListener('resize', updateWidthOnResize);
+
+    // Initial call
     updateWidthOnResize();
 
-    return () => window.removeEventListener('resize', updateWidthOnResize);
-  }, []);
+    // 🚀 FIX 3: Explicitly return the cleanup function
+    return () => {
+      window.removeEventListener('resize', updateWidthOnResize);
+    };
+  }, [handleResize]); // Added handleResize to dependency array for safety
 
   return (
     <Box
@@ -28,9 +44,9 @@ const Resizable = ({ children, handleResize, sx, ...rest }) => {
       sx={{ ...sx }}
       enable={{
         top: false,
-        right: direction === 'rtl' ? false : true,
+        right: direction !== 'rtl',
         bottom: false,
-        left: direction === 'rtl' ? true : false,
+        left: direction === 'rtl',
         topRight: false,
         bottomRight: false,
         bottomLeft: false,

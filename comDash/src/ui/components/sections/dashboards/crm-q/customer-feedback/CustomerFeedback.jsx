@@ -19,8 +19,13 @@ const CustomerFeedback = ({ data }) => {
   const safeData = data || { received: [], sent: [], meetings: [] };
 
   return (
-    <Paper sx={{ p: { xs: 3, md: 5 }, height: 1 }}>
-      <Stack direction="column" sx={{ rowGap: 4, height: 1 }}>
+    <Paper sx={{
+      p: { xs: 3, md: 5 }, height: 1, width: 1,
+      borderRadius: 0,
+      boxShadow: 'none',
+      bgcolor: 'transparent'
+    }}>
+      <Stack direction="column" sx={{ rowGap: 4, height: 1, width: 1 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ rowGap: 3, flexWrap: 'wrap' }}>
           <div>
             <Typography variant="h6" mb={1}>Communication Flow</Typography>
@@ -35,7 +40,7 @@ const CustomerFeedback = ({ data }) => {
           ))}
         </Stack>
 
-        <CustomerFeedbackChart data={safeData} sx={{ minHeight: { xs: 300, xl: 'unset' }, flex: 1 }} ref={chartRef} />
+        <CustomerFeedbackChart data={safeData} sx={{ minHeight: { xs: 300, xl: 'unset' }, flex: 1, width: 1 }} ref={chartRef} />
       </Stack>
     </Paper>
   );

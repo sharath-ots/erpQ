@@ -40,63 +40,83 @@ const CRMQ = () => {
   if (loading) return <PageLoader />;
 
   return (
-    <Grid container spacing={0}>
+    <Grid container spacing={0} sx={{ borderTop: '1px solid', borderLeft: '1px solid', borderColor: 'divider' }}>
       <Grid size={12}>
         <CRMGreeting data={dashboardData?.greetingData || []} />
       </Grid>
 
+      {/* Row 1 */}
       <Grid container size={12} sx={{ alignItems: 'stretch' }}>
-
-        {/* Left Half (50% Width): 2x2 Grid Stack with Master Right Border */}
-        <Grid size={{ xs: 12, lg: 6 }} sx={{ display: 'flex', flexDirection: 'column', borderRight: { lg: '1px solid' }, borderColor: 'divider' }}>
-
-          {/* Top Row: 1. Total Leads, 2. New Leads */}
-          <Grid container spacing={0} sx={{ flex: 1, width: '100%' }}>
+        {/* Removed borderRight from the Grid size container below */}
+        <Grid size={{ xs: 12, lg: 6 }} sx={{ display: 'flex', flexDirection: 'column' }}>
+          <Grid container spacing={0} sx={{ flex: 1 }}>
             <LeadSummaryCards timeFilter={timeFilter} setTimeFilter={setTimeFilter} />
           </Grid>
-
-          {/* Bottom Row: 3. Conversion Potential, 4. Total Volume */}
-          <Grid container spacing={0} sx={{ flex: 1, width: '100%' }}>
-            {/* Slice grabs first two KPIs from API */}
+          <Grid container spacing={0} sx={{ flex: 1 }}>
             <CRMKPIs data={dashboardData?.kpiData?.slice(0, 2) || []} />
           </Grid>
-
         </Grid>
 
-        {/* Right Half (50% Width): Lead Sources Chart */}
         <Grid size={{ xs: 12, lg: 6 }} sx={{ display: 'flex' }}>
-          <Box sx={{ width: '100%', height: '100%' }}>
+          <Box sx={{ width: '100%', borderBottom: '1px solid', borderRight: '1px solid', borderColor: 'divider' }}>
             <LeadSources data={dashboardData?.leadSourcesData} />
           </Box>
         </Grid>
       </Grid>
 
+      {/* Row 2 */}
       <Grid container size={12} sx={{ alignItems: 'stretch' }}>
         <Grid size={{ xs: 12, lg: 6 }} sx={{ display: 'flex' }}>
-          <Grid container spacing={0} sx={{ width: '100%', height: '100%' }}>
-            {/* Grabs the remaining 4 KPIs (Active, Open Opps, Customers, Win Rate) */}
+          <Grid container spacing={0} sx={{ width: '100%' }}>
             <CRMKPIs data={dashboardData?.kpiData?.slice(2, 6) || []} />
           </Grid>
         </Grid>
 
         <Grid size={{ xs: 12, lg: 6 }} sx={{ display: 'flex' }}>
-          <Box sx={{ width: '100%', height: '100%' }}>
+          <Box sx={{ width: '100%', borderBottom: '1px solid', borderRight: '1px solid', borderColor: 'divider' }}>
             <CRMGeneratedRevenue data={dashboardData?.oppTrackerData} />
           </Box>
         </Grid>
       </Grid>
 
+      {/* Row 3: Customer Acquisition Cost - FULL WIDTH FIX */}
       <Grid container size={12} sx={{ alignItems: 'stretch' }}>
-        <Grid size={{ xs: 12, md: 6 }} sx={{ display: 'flex' }}>
+        <Grid
+          size={12} // 🚀 Changed from 6 to 12 to span right to left
+          sx={{
+            display: 'flex',
+            borderRight: '1px solid',
+            borderBottom: '1px solid',
+            borderColor: 'divider'
+          }}
+        >
           <AcquisitionCost />
         </Grid>
       </Grid>
 
-      <Grid container size={12} sx={{ mt: 4 }}>
-        <Grid size={{ xs: 12, lg: 6 }}>
+      {/* Row 4: Communication Flow & Monthly Active Users - PERFECT 50/50 SPLIT */}
+      <Grid container size={12} sx={{ alignItems: 'stretch' }}>
+        <Grid
+          size={{ xs: 12, lg: 6 }} // 🚀 Exactly half (6/12)
+          sx={{
+            display: 'flex',
+            borderRight: '1px solid',
+            borderBottom: '1px solid',
+            borderColor: 'divider'
+          }}
+        >
           <CustomerFeedback data={dashboardData?.commFlowData} />
         </Grid>
-        <Grid size={{ xs: 12, lg: 6 }}>
+
+        <Grid
+          size={{ xs: 12, lg: 6 }} // 🚀 Exactly half (6/12)
+          sx={{
+            display: 'flex',
+            borderBottom: '1px solid',
+            borderRight: '1px solid',
+            borderColor: 'divider'
+          }}
+        >
           <ActiveUsers />
         </Grid>
       </Grid>

@@ -3,26 +3,27 @@ import { Link, ListItem, ListItemButton, listItemButtonClasses } from '@mui/mate
 import { cssVarRgba } from 'lib/utils';
 import { useBulkSelect } from 'providers/BulkSelectProvider';
 import { useEmailContext } from 'providers/EmailProvider';
-import paths from 'routes/paths';
 import EmailListItemActions from './EmailListItemActions';
 import EmailListItemContent from './EmailListItemContent';
 import ListItemFloatingActions from './ListItemFloatingActions';
 
 const EmailListItem = ({ mail }) => {
-  // NEW LOGIC: Extract id and label from path
   const pathname = usePathname();
   const pathParts = pathname.split('/').filter(Boolean);
 
-  // Since the URL is /m/emailq/email/details/inbox/12345
-  // We can pop() the last two items off the array to get our parameters.
-  const extractedId = pathParts.pop();    // '12345'
-  const extractedLabel = pathParts.pop(); // 'inbox'
+  // 🚀 FIXED: Changed 'const currentLabel' to 'let labelFromUrl'
+  let labelFromUrl = pathname.includes('/details/')
+    ? pathParts[pathParts.length - 2]
+    : pathParts[pathParts.length - 1] || 'inbox';
 
-  // We recreate the 'params' object so you don't have to rewrite the rest of your file!
-  const params = {
-    id: extractedId,
-    label: extractedLabel
-  };
+  // Now this if statement will work perfectly
+  if (!labelFromUrl || labelFromUrl === 'undefined' || labelFromUrl === 'email') {
+    labelFromUrl = 'inbox';
+  }
+
+  const folderToUse = mail.folder || labelFromUrl;
+  const activeId = pathname.includes('/details/') ? pathParts[pathParts.length - 1] : null;
+
   const { resizableWidth } = useEmailContext();
   const { selectedIds } = useBulkSelect();
 
@@ -31,7 +32,7 @@ const EmailListItem = ({ mail }) => {
       <ListItemButton
         component={Link}
         underline="none"
-        href={paths.emailDetails(params.label, String(mail.id))}
+        href={`/m/emailq/email/details/${folderToUse}/${mail.id}`}
         sx={[
           {
             bgcolor: (theme) =>
@@ -61,12 +62,12 @@ const EmailListItem = ({ mail }) => {
               },
             },
           },
-          !!params.id &&
-          resizableWidth < 500 && {
+          // Handle mobile/narrow widths
+          activeId && resizableWidth < 500 && {
             display: 'block',
           },
         ]}
-        selected={mail.id === Number(params.id)}
+        selected={String(mail.id) === String(activeId)}
       >
         <EmailListItemActions email={mail} />
         <EmailListItemContent email={mail} />

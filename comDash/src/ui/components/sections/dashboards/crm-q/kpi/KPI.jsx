@@ -4,6 +4,7 @@ import { Paper, Stack, Typography } from '@mui/material';
 import useNumberFormat from 'hooks/useNumberFormat';
 import IconifyIcon from 'components/base/IconifyIcon';
 
+// KPI.jsx
 const KPI = ({ title, subtitle, value, icon }) => {
   const { numberFormat } = useNumberFormat();
 
@@ -15,7 +16,8 @@ const KPI = ({ title, subtitle, value, icon }) => {
         width: '100%',
         borderRadius: 0,
         boxShadow: 'none',
-        borderLeft: '1px solid',
+        // Change borderLeft to borderRight to ensure perfect vertical alignment
+        borderRight: '1px solid',
         borderBottom: '1px solid',
         borderColor: 'divider',
         display: 'flex',
@@ -26,6 +28,7 @@ const KPI = ({ title, subtitle, value, icon }) => {
       <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700, mb: 2 }}>
         {title}
       </Typography>
+      {/* ... rest of the component remains the same */}
       <Stack
         sx={{
           gap: 1,

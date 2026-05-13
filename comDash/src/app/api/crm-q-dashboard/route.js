@@ -57,7 +57,7 @@ export async function GET() {
         const kpiData = [
             // Target Top 2 items (Rendered alongside LeadSummaryCards)
             { id: 1, title: 'Conversion Potential', value: highPotentialCount, amount: highPotentialCount, subtitle: 'High probability leads', icon: { name: 'material-symbols:rocket-launch-outline-rounded', color: 'error.main' } },
-            { id: 2, title: 'Potential Volume', value: totalVolume, amount: totalVolume, subtitle: 'Total pipeline value', icon: { name: 'material-symbols:attach-money-rounded', color: 'success.main' } },
+            { id: 2, title: 'Potential Volume', value: totalVolume, amount: totalVolume, subtitle: 'Total pipeline value', icon: { name: 'material-symbols:euro-rounded', color: 'success.main' } },
 
             // Rendered in Block 2
             { id: 3, title: 'Active Leads', value: totalActiveLeads, amount: totalActiveLeads, subtitle: 'Total open leads', icon: { name: 'material-symbols-light:contact-mail-outline-rounded', color: 'primary.main' } },

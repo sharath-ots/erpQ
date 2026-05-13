@@ -10,32 +10,39 @@ import {
 import IconifyIcon from 'components/base/IconifyIcon';
 
 const ListItemFloatingActions = ({ email }) => {
-  // NEW LOGIC: Extract id and label from path
   const pathname = usePathname();
   const pathParts = pathname.split('/').filter(Boolean);
 
-  // Since the URL is /m/emailq/email/details/inbox/12345
-  // We can pop() the last two items off the array to get our parameters.
-  const extractedId = pathParts.pop();    // '12345'
-  const extractedLabel = pathParts.pop(); // 'inbox'
+  // 🚀 FIXED: Smarter Path Parsing
+  // If URL is /m/emailq/email/list/inbox -> label is "inbox"
+  // If URL is /m/emailq/email/details/inbox/123 -> label is "inbox"
+  const extractedId = pathParts[pathParts.length - 1];
+  const extractedLabel = pathname.includes('/details/')
+    ? pathParts[pathParts.length - 2]
+    : pathParts[pathParts.length - 1];
 
-  // We recreate the 'params' object so you don't have to rewrite the rest of your file!
   const params = {
     id: extractedId,
-    label: extractedLabel
+    label: extractedLabel || 'inbox'
   };
-  const { emailDispatch, resizableWidth } = useEmailContext();
+
+  const context = useEmailContext() || {};
+  const emailDispatch = context.emailDispatch;
+  const resizableWidth = context.resizableWidth || 0;
 
   const preventDefaultBehaviour = (e) => {
     e.preventDefault();
     e.stopPropagation();
   };
 
+  if (!emailDispatch) return null; // Safety check
+
   return (
     <Stack
       className="actions"
       onClick={preventDefaultBehaviour}
       onMouseDown={preventDefaultBehaviour}
+      direction="row"
       sx={[
         {
           alignItems: 'center',
@@ -47,7 +54,7 @@ const ListItemFloatingActions = ({ email }) => {
           opacity: 0,
           display: { xs: 'none', sm: 'flex' },
         },
-        !!params.id &&
+        params.id !== 'email' &&
         resizableWidth < 500 && {
           height: 'auto',
           top: 16,
@@ -63,34 +70,34 @@ const ListItemFloatingActions = ({ email }) => {
           sx={{
             fontSize: 20,
             color: params.label === 'trash' ? 'text.disabled' : 'text.secondary',
-            '&:hover': {
-              color: 'text.primary',
-            },
+            '&:hover': { color: 'text.primary' },
           }}
         >
           <IconifyIcon icon="material-symbols:delete-outline-rounded" />
         </IconButton>
       </Tooltip>
+
       <Tooltip title="Archive">
         <IconButton
           size="small"
           component={ButtonBase}
           onClick={() => emailDispatch({ type: ARCHIVE_EMAIL, payload: [email.id] })}
-          disabled={label === 'trash' || label === 'archived'}
+          // 🚀 FIXED: Changed 'label' to 'params.label'
+          disabled={params.label === 'trash' || params.label === 'archived'}
           sx={[
             {
               fontSize: 20,
               color: 'text.secondary',
-              '&:hover': {
-                color: 'text.primary',
-              },
+              '&:hover': { color: 'text.primary' },
             },
-            (label === 'trash' || label === 'archived') && { color: 'text.disabled' },
+            // 🚀 FIXED: Changed 'label' to 'params.label'
+            (params.label === 'trash' || params.label === 'archived') && { color: 'text.disabled' },
           ]}
         >
           <IconifyIcon icon="material-symbols:archive-outline-rounded" />
         </IconButton>
       </Tooltip>
+
       <Tooltip title={email.snoozedTill === null ? 'Snooze for 1 day' : 'Unsnooze'}>
         <IconButton
           size="small"
@@ -98,14 +105,13 @@ const ListItemFloatingActions = ({ email }) => {
           sx={{
             fontSize: 20,
             color: 'text.secondary',
-            '&:hover': {
-              color: 'text.primary',
-            },
+            '&:hover': { color: 'text.primary' },
           }}
         >
           <IconifyIcon icon="material-symbols:snooze-outline-rounded" />
         </IconButton>
       </Tooltip>
+
       <Tooltip title={email.readAt === null ? 'Mark as read' : 'Mark as unread'}>
         <IconButton
           size="small"
@@ -115,9 +121,7 @@ const ListItemFloatingActions = ({ email }) => {
           sx={{
             fontSize: 20,
             color: 'text.secondary',
-            '&:hover': {
-              color: 'text.primary',
-            },
+            '&:hover': { color: 'text.primary' },
           }}
         >
           <IconifyIcon

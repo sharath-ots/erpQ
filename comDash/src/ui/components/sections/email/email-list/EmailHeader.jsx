@@ -12,57 +12,71 @@ const EmailHeader = ({ toggleDrawer }) => {
   const [searchText, setSearchText] = useState('');
   const [openFilterDialog, setOpenFilterDialog] = useState(false);
   const [openComposeDialog, setOpenComposeDialog] = useState(false);
-  const { emailDispatch, resizableWidth } = useEmailContext();
-  const pathname = usePathname();
 
-  // 3. Split the string into an array and remove empty items
+  // 🚀 SAFE CONTEXT EXTRACTION
+  const context = useEmailContext() || {};
+  const emailDispatch = context.emailDispatch;
+  const resizableWidth = context.resizableWidth || 0;
+
+  const pathname = usePathname();
   const pathParts = pathname.split('/').filter(Boolean);
 
-  // 4. Grab the last two items off the end of the array
-  const id = pathParts.pop();      // Grabs the last item (e.g., '12345')
-  const label = pathParts.pop();   // Grabs the second-to-last item (e.g., 'inbox')
+  // 🚀 FIXED URL LOGIC: Smarter extraction of label and ID
+  let id = null;
+  let label = 'inbox';
 
-  // 5. (Optional) Recreate the params object so you don't have to rewrite the rest of your file
+  if (pathname.includes('/details/')) {
+    id = pathParts[pathParts.length - 1];
+    label = pathParts[pathParts.length - 2];
+  } else if (pathname.includes('/list/')) {
+    label = pathParts[pathParts.length - 1];
+  }
+
   const params = { label, id };
 
-  const toggleFilterDialog = () => {
-    setOpenFilterDialog((prev) => !prev);
-  };
-
-  const toggleComposeDialog = () => {
-    setOpenComposeDialog(!openComposeDialog);
-  };
+  const toggleFilterDialog = () => setOpenFilterDialog((prev) => !prev);
+  const toggleComposeDialog = () => setOpenComposeDialog(!openComposeDialog);
 
   const handleSearch = (e) => {
-    setSearchText(e.target.value);
-    emailDispatch({
-      type: SEARCH_EMAIL,
-      payload: { query: e.target.value, folder: Array.isArray(params.label) ? params.label[0] : params.label },
-    });
+    const val = e.target.value;
+    setSearchText(val);
+    if (emailDispatch) {
+      emailDispatch({
+        type: SEARCH_EMAIL,
+        payload: { query: val, folder: label },
+      });
+    }
   };
 
   const handleRefresh = () => {
     setSearchText('');
-    emailDispatch({ type: REFRESH_EMAILS, payload: params.label });
+    if (emailDispatch) {
+      emailDispatch({ type: REFRESH_EMAILS, payload: label });
+    }
   };
 
+  // 🚀 NUCLEAR useEffect FIX: Explicitly return undefined to stop the "s is not a function" error
   useEffect(() => {
     setSearchText('');
-    emailDispatch({ type: SEARCH_EMAIL, payload: { query: '', folder: params.label } });
-  }, [params.label]);
+    if (emailDispatch) {
+      emailDispatch({ type: SEARCH_EMAIL, payload: { query: '', folder: label } });
+    }
+    return undefined;
+  }, [label, emailDispatch]);
 
-  const isInvalidOrLargeWidth = !params.id || resizableWidth > 500;
+  const isInvalidOrLargeWidth = !id || resizableWidth > 500;
 
   return (
     <Box sx={{ mb: '2px' }}>
       <Stack
         spacing={1}
+        direction="row"
         sx={[
           { px: 3, flexWrap: 'wrap' },
           isInvalidOrLargeWidth && { px: { sm: 5 }, flexWrap: { sm: 'nowrap' } },
         ]}
       >
-        <Button color="neutral" variant="soft" shape="square" onClick={toggleDrawer}>
+        <Button color="neutral" variant="soft" sx={{ minWidth: 40, p: 0 }} onClick={toggleDrawer}>
           <IconifyIcon icon="material-symbols:filter-list-rounded" fontSize={20} />
         </Button>
         <Button
@@ -90,14 +104,14 @@ const EmailHeader = ({ toggleDrawer }) => {
         />
         <Box
           sx={[
-            { mr: { xs: '-8px' }, ml: 'auto' },
+            { mr: { xs: '-8px' }, ml: 'auto', display: 'flex', gap: 1 },
             isInvalidOrLargeWidth && { mr: { sm: '-10px' } },
           ]}
         >
-          <Button shape="square" color="neutral" onClick={toggleFilterDialog}>
+          <Button sx={{ minWidth: 40, p: 0 }} color="neutral" onClick={toggleFilterDialog}>
             <IconifyIcon icon="material-symbols:filter-alt-outline" fontSize={20} />
           </Button>
-          <Button color="neutral" shape="square" onClick={handleRefresh}>
+          <Button color="neutral" sx={{ minWidth: 40, p: 0 }} onClick={handleRefresh}>
             <IconifyIcon icon="material-symbols:refresh-rounded" fontSize={20} />
           </Button>
         </Box>

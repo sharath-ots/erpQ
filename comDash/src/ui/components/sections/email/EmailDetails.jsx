@@ -12,19 +12,47 @@ import EmailListContainer from 'components/sections/email/email-list/EmailListCo
 
 const EmailDetails = () => {
   const context = useEmailContext();
-  const emails = context?.emailState?.emails || [];
+  const initialEmails = context?.emailState?.initialEmails || [];
+  const [fallbackData, setFallbackData] = useState([]);
+  const handleResize = context?.handleResize || [];
+
   const { up } = useBreakpoints();
   const upXl = up('xl');
   const [isDrawerOpen, setIsDrawerOpen] = useState(upXl);
   const toggleDrawer = () => setIsDrawerOpen((prev) => !prev);
 
   useEffect(() => {
-    if (upXl) {
-      setIsDrawerOpen(true);
-    } else {
-      setIsDrawerOpen(false);
-    }
+    setIsDrawerOpen(upXl);
   }, [upXl]);
+
+  useEffect(() => {
+    // 🚀 THE MAGIC: Grab data from browser memory in 1 millisecond
+    const cached = sessionStorage.getItem('erp_emails');
+    if (cached) {
+      const parsedData = JSON.parse(cached);
+      setFallbackData(parsedData);
+      if (context?.emailDispatch && initialEmails.length === 0) {
+        context.emailDispatch({ type: 'INITIALIZE_EMAILS', payload: parsedData });
+      }
+      return; // EXIT EARLY! Do not wait for the network!
+    }
+
+    // Failsafe: Only hit the API if the user did a hard-refresh and the cache is gone
+    if (initialEmails.length === 0) {
+      fetch('/api/lead-emails?lead_id=CRM-LEAD-2026-00074')
+        .then((res) => res.json())
+        .then((data) => {
+          sessionStorage.setItem('erp_emails', JSON.stringify(data));
+          setFallbackData(data);
+          if (context?.emailDispatch) {
+            context.emailDispatch({ type: 'INITIALIZE_EMAILS', payload: data });
+          }
+        })
+        .catch(err => console.error("🛠️ ERP FETCH ERROR:", err));
+    }
+  }, [initialEmails.length, context?.emailDispatch]);
+
+  const dataToUse = initialEmails.length > 0 ? initialEmails : fallbackData;
 
   return (
     <>
@@ -62,13 +90,13 @@ const EmailDetails = () => {
           maxWidth="calc(100% - 375px)"
         >
           <Paper sx={{ height: 1 }}>
-            <BulkSelectProvider data={emails}>
-              <EmailListContainer toggleDrawer={toggleDrawer} />
+            <BulkSelectProvider data={dataToUse}>
+              <EmailListContainer toggleDrawer={toggleDrawer} explicitEmailList={dataToUse} />
             </BulkSelectProvider>
           </Paper>
         </Resizable>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <EmailDetailsContainer />
+          <EmailDetailsContainer explicitEmails={dataToUse} />
         </Box>
       </Box>
     </>

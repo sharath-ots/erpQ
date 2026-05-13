@@ -1,15 +1,29 @@
-import { useParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { Link, ListItem, ListItemButton, listItemButtonClasses } from '@mui/material';
 import { cssVarRgba } from 'lib/utils';
 import { useBulkSelect } from 'providers/BulkSelectProvider';
 import { useEmailContext } from 'providers/EmailProvider';
-import paths from 'routes/paths';
 import EmailListItemActions from './EmailListItemActions';
 import EmailListItemContent from './EmailListItemContent';
 import ListItemFloatingActions from './ListItemFloatingActions';
 
 const EmailListItem = ({ mail }) => {
-  const { label, id } = useParams();
+  const pathname = usePathname();
+  const pathParts = pathname.split('/').filter(Boolean);
+
+  // 🚀 FIXED: Changed 'const currentLabel' to 'let labelFromUrl'
+  let labelFromUrl = pathname.includes('/details/')
+    ? pathParts[pathParts.length - 2]
+    : pathParts[pathParts.length - 1] || 'inbox';
+
+  // Now this if statement will work perfectly
+  if (!labelFromUrl || labelFromUrl === 'undefined' || labelFromUrl === 'email') {
+    labelFromUrl = 'inbox';
+  }
+
+  const folderToUse = mail.folder || labelFromUrl;
+  const activeId = pathname.includes('/details/') ? pathParts[pathParts.length - 1] : null;
+
   const { resizableWidth } = useEmailContext();
   const { selectedIds } = useBulkSelect();
 
@@ -18,7 +32,7 @@ const EmailListItem = ({ mail }) => {
       <ListItemButton
         component={Link}
         underline="none"
-        href={paths.emailDetails(label, String(mail.id))}
+        href={`/m/emailq/email/details/${folderToUse}/${mail.id}`}
         sx={[
           {
             bgcolor: (theme) =>
@@ -48,12 +62,12 @@ const EmailListItem = ({ mail }) => {
               },
             },
           },
-          !!id &&
-            resizableWidth < 500 && {
-              display: 'block',
-            },
+          // Handle mobile/narrow widths
+          activeId && resizableWidth < 500 && {
+            display: 'block',
+          },
         ]}
-        selected={mail.id === Number(id)}
+        selected={String(mail.id) === String(activeId)}
       >
         <EmailListItemActions email={mail} />
         <EmailListItemContent email={mail} />

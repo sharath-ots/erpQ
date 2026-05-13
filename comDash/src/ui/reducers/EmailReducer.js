@@ -10,14 +10,15 @@ export const SEARCH_EMAIL = 'SEARCH_EMAIL';
 export const REFRESH_EMAILS = 'REFRESH_EMAILS';
 export const GET_EMAILS = 'GET_EMAILS';
 export const GET_EMAIL = 'GET_EMAIL';
+export const INITIALIZE_EMAILS = 'INITIALIZE_EMAILS'; // 🚀 Added this
 
 const updateFolder = (emails, ids, folder) => {
   return emails.map((email) =>
     ids.includes(email.id)
       ? {
-          ...email,
-          folder: folder,
-        }
+        ...email,
+        folder: folder,
+      }
       : email,
   );
 };
@@ -37,38 +38,49 @@ const toggleEmailProperty = (emails, ids, property, isAllToggled) => {
 
 export const emailReducer = (state, action) => {
   const getFilteredEmails = (folder) => {
+    // 🚀 FIX: Use state.initialEmails (the master list) for filtering
     return state.initialEmails.filter((email) => {
       switch (folder) {
-        case 'starred':
-          return email.starred && email.folder !== 'trash';
-        case 'important':
-          return email.important && email.folder !== 'trash';
-        case 'inbox':
-          return email.folder === 'inbox' && email.snoozedTill === null;
-        case 'snoozed':
-          return (
-            email.snoozedTill !== null && email.folder !== 'trash' && email.folder !== 'archived'
-          );
-        default:
-          return email.folder === folder;
+        case 'starred': return email.starred && email.folder !== 'trash';
+        case 'important': return email.important && email.folder !== 'trash';
+        case 'inbox': return email.folder === 'inbox' && email.snoozedTill === null;
+        case 'snoozed': return email.snoozedTill !== null && email.folder !== 'trash';
+        default: return email.folder === folder;
       }
     });
   };
   switch (action.type) {
+    case INITIALIZE_EMAILS: {
+      const sanitizedData = action.payload.map((email) => ({
+        ...email,
+        folder: email.folder || 'inbox',
+        id: String(email.id), // 🚀 Force ID to String for alphanumeric ERPNext IDs
+      }));
+      return {
+        ...state,
+        initialEmails: sanitizedData,
+        emails: sanitizedData.filter((e) => e.folder === 'inbox'),
+      };
+    }
+
     case GET_EMAILS: {
+      // 🚀 FIX: This plural action updates the 'emails' list for the center pane
       return {
         ...state,
         emails: getFilteredEmails(action.payload),
       };
     }
-    case GET_EMAIL: {
-      const email = state.emails.find((email) => email.id === action.payload);
 
+    case GET_EMAIL: {
+      // 🚀 FIX: This singular action finds the active object for the right pane
+      const targetId = action.payload ? String(action.payload) : null;
+      const found = state.initialEmails.find((e) => String(e.id) === targetId);
       return {
         ...state,
-        email: email,
+        email: found || null,
       };
     }
+
     case DELETE_EMAIL: {
       return {
         ...state,
@@ -133,15 +145,15 @@ export const emailReducer = (state, action) => {
         emails.map((email) =>
           ids.includes(email.id)
             ? {
-                ...email,
-                readAt: actionType
-                  ? actionType === 'mark_as_read'
-                    ? dayjs().toISOString()
-                    : null
-                  : email.readAt === null
-                    ? dayjs().toISOString()
-                    : null,
-              }
+              ...email,
+              readAt: actionType
+                ? actionType === 'mark_as_read'
+                  ? dayjs().toISOString()
+                  : null
+                : email.readAt === null
+                  ? dayjs().toISOString()
+                  : null,
+            }
             : email,
         );
 

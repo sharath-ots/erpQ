@@ -1,26 +1,25 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Stack, Typography, Dialog, DialogContent, IconButton } from '@mui/material';
-import illustrationDark from '../../../public/assets/images/illustrations/7-dark.webp';
-import illustration from '../../../public/assets/images/illustrations/7.webp';
 import dayjs from 'dayjs';
 
 import Image from 'components/base/Image';
 import SimpleBar from 'components/base/SimpleBar';
-import PageLoader from 'components/loading/PageLoader';
 import EmailHeader from './EmailHeader';
 import EmailList from './EmailList';
 import EmailListHeader from './email-list-header/EmailListHeader';
 import IconifyIcon from 'components/base/IconifyIcon';
 import EmailDetailsContainer from '../email-details/EmailDetailsContainer';
 
+import illustrationDark from '../../../public/assets/images/illustrations/7-dark.webp';
+import illustration from '../../../public/assets/images/illustrations/7.webp';
+
 const EmailListContainer = ({ toggleDrawer, explicitEmailList }) => {
-  const [isLoading, setIsLoading] = useState(true);
+  // 1. ALL useEffects and isLoading states have been DELETED.
   const [selectedEmailPopup, setSelectedEmailPopup] = useState(null);
 
   const params = useParams();
   const label = params?.label || 'inbox';
-
   const activeEmails = explicitEmailList || [];
 
   const onEmailClick = async (mail) => {
@@ -60,31 +59,7 @@ const EmailListContainer = ({ toggleDrawer, explicitEmailList }) => {
     );
   }, [activeEmails]);
 
-
-  useEffect(function () {
-    let isMounted = true;
-
-    if (activeEmails && activeEmails.length > 0) {
-      setIsLoading(false);
-    }
-
-    const timer = setTimeout(function () {
-      if (isMounted) {
-        setIsLoading(false);
-      }
-    }, 1500);
-
-    // Explicit return block
-    return function cleanup() {
-      isMounted = false;
-      clearTimeout(timer);
-    };
-  }, [activeEmails]);
-
-  if (isLoading) {
-    return <PageLoader />;
-  }
-
+  // 2. Component renders IMMEDIATELY. No artificial waiting.
   return (
     <>
       <SimpleBar

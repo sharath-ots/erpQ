@@ -18,7 +18,8 @@ import StyledTextField from 'components/styled/StyledTextField';
 import { VisuallyHiddenInput } from 'components/styled/VisuallyHiddenInput';
 import SendOptionInput from './SendOptionInput';
 
-const EmailReply = () => {
+// 🚀 Accept 'email' as a prop
+const EmailReply = ({ email }) => {
   const [sendType, setSendType] = useState('');
   const [attachments, setAttachment] = useState([]);
   const pathname = usePathname();
@@ -62,7 +63,8 @@ const EmailReply = () => {
         </Box>
       ) : (
         <Box sx={{ bgcolor: 'background.elevation2', p: 2, borderRadius: 6, mt: 8 }}>
-          <SendOptionInput sendType={sendType} setSendType={setSendType} />
+          {/* 🚀 Pass 'email' down into the nested Send input */}
+          <SendOptionInput sendType={sendType} setSendType={setSendType} email={email} />
           <StyledTextField
             fullWidth
             multiline

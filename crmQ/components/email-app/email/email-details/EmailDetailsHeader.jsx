@@ -13,19 +13,19 @@ import IconifyIcon from 'components/base/IconifyIcon';
 import CardHeaderAction from 'components/common/CardHeaderAction';
 import EmailDetailsActionMenu from './EmailDetailsActionMenu';
 
-const EmailDetailsHeader = () => {
+// 🚀 Accept 'email' as a prop
+const EmailDetailsHeader = ({ email }) => {
+  const { emailDispatch } = useEmailContext();
   const router = useRouter();
   const { label } = useParams();
 
-  const context = useEmailContext();
-  const email = context?.emailState?.emails || [];
-  const emailDispatch = context?.emailDispatch || [];
+  if (!email) return null;
 
   return (
     <CardHeaderAction>
       <Stack>
         <IconButton
-          onClick={() => router.replace(paths.emailLabel(label))}
+          onClick={() => router.replace(paths.emailLabel(label || 'inbox'))}
           sx={{ ml: { lg: 'auto' }, order: { lg: 1 } }}
         >
           <IconifyIcon

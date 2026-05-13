@@ -10,21 +10,21 @@ import {
   Typography,
 } from '@mui/material';
 import { defaultEmails } from 'data/email';
-import { useEmailContext } from 'providers/EmailProvider';
 import IconifyIcon from 'components/base/IconifyIcon';
 import StyledFormControl from 'components/styled/StyledFormControl';
 import StyledSelect from 'components/styled/StyledSelect';
 import StyledTextField from 'components/styled/StyledTextField';
 
-const SendOptionInput = ({ setSendType, sendType }) => {
+// 🚀 Extract 'email' from props
+const SendOptionInput = ({ setSendType, sendType, email }) => {
 
-  const context = useEmailContext();
-  const email = context?.emailState?.emails || [];
-
-  const [values, setValues] = useState([email.user.email, ...defaultEmails]);
+  // 🚀 Start safely, gracefully falling back if user email is missing
+  const [values, setValues] = useState(
+    email?.user?.email ? [email.user.email, ...defaultEmails] : [...defaultEmails]
+  );
 
   useEffect(() => {
-    if (sendType === 'Reply') {
+    if (sendType === 'Reply' && email?.user?.email) {
       setValues([email.user.email]);
     } else {
       setValues([]);
@@ -86,8 +86,9 @@ const SendOptionInput = ({ setSendType, sendType }) => {
                 size="medium"
                 sx={{ [`&.${buttonBaseClasses.root}`]: { mt: 0 } }}
                 avatar={
-                  option === email?.user.email ? (
-                    <Avatar alt="Natacha" src={email?.user.avatar} />
+                  // 🚀 Safely check for user object before grabbing avatar
+                  option === email?.user?.email ? (
+                    <Avatar alt="User" src={email?.user?.avatar} />
                   ) : undefined
                 }
                 color="neutral"
