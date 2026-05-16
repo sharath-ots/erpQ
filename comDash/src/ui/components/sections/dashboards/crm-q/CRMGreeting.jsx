@@ -128,7 +128,7 @@ const CRMGreeting = ({ data, subtitle }) => {
             ))}
           </List>
 
-          <DateRangePicker
+          {/* <DateRangePicker
             dateFormat="d MMM, yy"
             isClearable
             placeholderText="Select Date Range"
@@ -156,7 +156,7 @@ const CRMGreeting = ({ data, subtitle }) => {
               width: 1,
               maxWidth: { sm: 352 },
             }}
-          />
+          /> */}
         </Stack>
       </Stack>
     </Paper>

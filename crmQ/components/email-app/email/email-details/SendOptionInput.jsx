@@ -18,20 +18,35 @@ import StyledSelect from 'components/styled/StyledSelect';
 import StyledTextField from 'components/styled/StyledTextField';
 
 const SendOptionInput = ({ setSendType, sendType, emailData, recipients, setRecipients }) => {
-  const email = emailData;
-  const targetEmail = email?.sender_email || email?.user?.email || '';
 
   useEffect(() => {
-    if (sendType === 'Reply' && targetEmail) {
-      setRecipients([targetEmail]);
+    const extractEmail = (str) => {
+      if (!str) return '';
+      const match = str.match(/<(.+)>/);
+      return match ? match[1].trim() : str.trim();
+    };
+
+    if (sendType === 'Reply') {
+      let targetEmail = extractEmail(emailData?.sender_email || emailData?.user?.email || '');
+      const cleanTo = extractEmail(emailData?.to || '');
+
+      // 🚀 THE SMART FIX: If the email was sent BY us (@cityq.biz), reply TO the customer!
+      if (targetEmail.includes('@cityq.biz') && cleanTo) {
+        targetEmail = cleanTo;
+      }
+
+      if (targetEmail) {
+        setRecipients([targetEmail]);
+      }
     } else if (sendType === 'Forward') {
-      // Ensure it stays blank when switching to Forward
       setRecipients([]);
     }
-  }, [sendType, targetEmail, setRecipients]);
+  }, [sendType, emailData, setRecipients]);
 
   return (
-    <Stack sx={{ flexWrap: 'wrap', flexDirection: { xs: 'column', sm: 'row' } }}>
+    // 🚀 Reverted back to the side-by-side layout you had earlier
+    <Stack sx={{ flexWrap: 'wrap', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
+
       <StyledFormControl>
         <StyledSelect
           variant="filled"
@@ -54,7 +69,7 @@ const SendOptionInput = ({ setSendType, sendType, emailData, recipients, setReci
               {sendType}
             </Typography>
           )}
-          sx={{ alignSelf: 'flex-start' }}
+          sx={{ alignSelf: 'flex-start', minWidth: 140 }}
         >
           <MenuItem value="Reply">
             <IconifyIcon icon="material-symbols:reply-rounded" sx={{ fontSize: 20, mr: 1 }} />
@@ -74,30 +89,22 @@ const SendOptionInput = ({ setSendType, sendType, emailData, recipients, setReci
         options={[]}
         value={recipients || []}
         disableClearable
-        // 🚀 THE MULTI-EMAIL FIX: Automatically splits pasted lists by commas or spaces into separate chips!
         onChange={(event, newValue) => {
           const expandedValues = newValue.reduce((acc, curr) => {
             const splitEmails = curr.split(/[,\s]+/).filter(Boolean);
             return [...acc, ...splitEmails];
           }, []);
-          // Removes duplicates automatically
           setRecipients([...new Set(expandedValues)]);
         }}
         renderTags={(value, getTagProps) =>
           value.map((option, index) => {
             const { key, ...rest } = getTagProps({ index });
-
             return (
               <Chip
                 key={key}
                 variant="outlined"
                 size="medium"
                 sx={{ [`&.${buttonBaseClasses.root}`]: { mt: 0 } }}
-                avatar={
-                  option === targetEmail ? (
-                    <Avatar alt={email?.sender || 'User'} src={email?.user?.avatar} />
-                  ) : undefined
-                }
                 color="neutral"
                 label={option}
                 {...rest}
@@ -113,6 +120,8 @@ const SendOptionInput = ({ setSendType, sendType, emailData, recipients, setReci
               [`& .${inputBaseClasses.root}`]: {
                 bgcolor: 'unset',
                 gap: 0.5,
+                height: 'auto', // Keeps the multi-email expansion working!
+                flexWrap: 'wrap',
                 ['&:hover']: { bgcolor: 'unset' },
                 [`&.${inputBaseClasses.focused}`]: {
                   bgcolor: 'unset !important',
