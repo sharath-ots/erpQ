@@ -9,6 +9,7 @@ import EmailDetailsContent from './EmailDetailsContent';
 import EmailDetailsHeader from './EmailDetailsHeader';
 import EmailReply from './EmailReply';
 
+// 🚀 Accept explicitEmails as a prop so it doesn't wait for Context
 const EmailDetailsContainer = ({ explicitEmails = [] }) => {
   const { emailDispatch } = useEmailContext();
 
@@ -16,22 +17,25 @@ const EmailDetailsContainer = ({ explicitEmails = [] }) => {
   const pathParts = pathname.split('/').filter(Boolean);
   const extractedId = pathParts.pop();
 
-  // 🚀 Computed instantly. No Global Context lookup needed.
   const activeEmail = explicitEmails.find((e) => String(e.id) === String(extractedId));
 
-  // 🚀 Fire "Mark as Read" silently in the background AFTER the new email renders
+  // Background task: Mark as read without blocking the UI rendering
   useEffect(() => {
-    if (extractedId && activeEmail && emailDispatch && activeEmail.readAt === null) {
+    if (extractedId && activeEmail && emailDispatch) {
+      emailDispatch({ type: 'GET_EMAIL', payload: extractedId });
+
       const timer = setTimeout(() => {
         emailDispatch({
           type: 'UPDATE_MESSAGE_STATUS',
           payload: { ids: [extractedId], actionType: 'mark_as_read' },
         });
-      }, 300); // 300ms delay guarantees it won't block the UI transition
+      }, 50);
+
       return () => clearTimeout(timer);
     }
   }, [extractedId, activeEmail, emailDispatch]);
 
+  // If there's literally 0 emails in the system
   if (explicitEmails.length === 0) {
     return (
       <Stack sx={{ alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
@@ -41,6 +45,7 @@ const EmailDetailsContainer = ({ explicitEmails = [] }) => {
     );
   }
 
+  // If data exists but the ID is invalid
   if (!activeEmail) {
     return (
       <Stack sx={{ alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
@@ -51,9 +56,9 @@ const EmailDetailsContainer = ({ explicitEmails = [] }) => {
     );
   }
 
+  // 🚀 Instant Render - No loaders!
   return (
     <SimpleBar sx={{ px: { xs: 3, md: 5 }, py: 5, height: '100%' }}>
-      {/* 🚀 Pass the direct object to children so they load instantly */}
       <EmailDetailsHeader email={activeEmail} />
       <EmailDetailsContent email={activeEmail} />
       <EmailReply email={activeEmail} />

@@ -35,13 +35,13 @@ const ListItemFloatingActions = ({ email }) => {
           display: { xs: 'none', sm: 'flex' },
         },
         !!id &&
-          resizableWidth < 500 && {
-            height: 'auto',
-            top: 16,
-          },
+        resizableWidth < 500 && {
+          height: 'auto',
+          top: 16,
+        },
       ]}
     >
-      <Tooltip title="Delete">
+      {/* <Tooltip title="Delete">
         <IconButton
           size="small"
           component={ButtonBase}
@@ -57,8 +57,8 @@ const ListItemFloatingActions = ({ email }) => {
         >
           <IconifyIcon icon="material-symbols:delete-outline-rounded" />
         </IconButton>
-      </Tooltip>
-      <Tooltip title="Archive">
+      </Tooltip> */}
+      {/* <Tooltip title="Archive">
         <IconButton
           size="small"
           component={ButtonBase}
@@ -77,8 +77,8 @@ const ListItemFloatingActions = ({ email }) => {
         >
           <IconifyIcon icon="material-symbols:archive-outline-rounded" />
         </IconButton>
-      </Tooltip>
-      <Tooltip title={email.snoozedTill === null ? 'Snooze for 1 day' : 'Unsnooze'}>
+      </Tooltip> */}
+      {/* <Tooltip title={email.snoozedTill === null ? 'Snooze for 1 day' : 'Unsnooze'}>
         <IconButton
           size="small"
           onClick={() => emailDispatch({ type: SNOOZE_EMAIL, payload: { ids: [email.id] } })}
@@ -92,7 +92,7 @@ const ListItemFloatingActions = ({ email }) => {
         >
           <IconifyIcon icon="material-symbols:snooze-outline-rounded" />
         </IconButton>
-      </Tooltip>
+      </Tooltip> */}
       <Tooltip title={email.readAt === null ? 'Mark as read' : 'Mark as unread'}>
         <IconButton
           size="small"

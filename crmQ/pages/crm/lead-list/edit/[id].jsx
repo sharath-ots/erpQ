@@ -8,7 +8,6 @@ import SettingsProvider from '@/shared-ui/providers/SettingsProvider';
 
 export default function EditLeadPage({ id }) {
     const router = useRouter();
-    //const { id } = router.query;
 
     const [leadData, setLeadData] = useState({
         salutation: '', first_name: '', middle_name: '', last_name: '', gender: '', job_title: '',
@@ -66,7 +65,6 @@ export default function EditLeadPage({ id }) {
         { value: 'others', label: 'Others' }
     ];
 
-    // 🚀 EXPERT FIX: Added the new Lead Source options array
     const sourceOptions = [
         { value: 'startup Stuttgart', label: 'Startup Stuttgart' },
         { value: 'intergastra-Stuttgart-02-2026', label: 'Intergastra-Stuttgart-02-2026' },
@@ -305,7 +303,8 @@ export default function EditLeadPage({ id }) {
                                 Personal Information
                             </Typography>
                             <Grid container spacing={3}>
-                                <Grid item xs={12} sm={6} md={4}>
+                                {/* 🚀 FIX: Replaced old "item xs" syntax with the new Grid "size" syntax! */}
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <TextField select label="Salutation" name="salutation" value={leadData.salutation || ''} onChange={handleChange} fullWidth>
                                         <MenuItem value=""><em>None</em></MenuItem>
                                         <MenuItem value="Mr">Mr</MenuItem>
@@ -319,10 +318,10 @@ export default function EditLeadPage({ id }) {
                                         <MenuItem value="Madam">Madam</MenuItem>
                                     </TextField>
                                 </Grid>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="First Name" name="first_name" value={leadData.first_name || ''} onChange={handleChange} fullWidth required /></Grid>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="Middle Name" name="middle_name" value={leadData.middle_name || ''} onChange={handleChange} fullWidth /></Grid>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="Last Name" name="last_name" value={leadData.last_name || ''} onChange={handleChange} fullWidth /></Grid>
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="First Name" name="first_name" value={leadData.first_name || ''} onChange={handleChange} fullWidth required /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="Middle Name" name="middle_name" value={leadData.middle_name || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="Last Name" name="last_name" value={leadData.last_name || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <TextField select label="Gender" name="gender" value={leadData.gender || ''} onChange={handleChange} fullWidth>
                                         <MenuItem value=""><em>None</em></MenuItem>
                                         <MenuItem value="Male">Male</MenuItem>
@@ -331,7 +330,7 @@ export default function EditLeadPage({ id }) {
                                         <MenuItem value="Other">Other</MenuItem>
                                     </TextField>
                                 </Grid>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="Job Title" name="job_title" value={leadData.job_title || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="Job Title" name="job_title" value={leadData.job_title || ''} onChange={handleChange} fullWidth /></Grid>
                             </Grid>
                         </Box>
 
@@ -341,14 +340,14 @@ export default function EditLeadPage({ id }) {
                                 Contact Details
                             </Typography>
                             <Grid container spacing={3}>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="Primary Email" type="email" name="email_id" value={leadData.email_id || ''} onChange={handleChange} fullWidth /></Grid>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="Alternate Email 1" type="email" name="alternate_email_1" value={leadData.alternate_email_1 || ''} onChange={handleChange} fullWidth /></Grid>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="Alternate Email 2" type="email" name="alternate_email_2" value={leadData.alternate_email_2 || ''} onChange={handleChange} fullWidth /></Grid>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="Mobile No." name="mobile_no" value={leadData.mobile_no || ''} onChange={handleChange} fullWidth /></Grid>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="WhatsApp" name="whatsapp_no" value={leadData.whatsapp_no || ''} onChange={handleChange} fullWidth /></Grid>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="Phone" name="phone" value={leadData.phone || ''} onChange={handleChange} fullWidth /></Grid>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="Phone Ext." name="phone_ext" value={leadData.phone_ext || ''} onChange={handleChange} fullWidth /></Grid>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="Website URL" type="url" name="website" value={leadData.website || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="Primary Email" type="email" name="email_id" value={leadData.email_id || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="Alternate Email 1" type="email" name="alternate_email_1" value={leadData.alternate_email_1 || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="Alternate Email 2" type="email" name="alternate_email_2" value={leadData.alternate_email_2 || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="Mobile No." name="mobile_no" value={leadData.mobile_no || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="WhatsApp" name="whatsapp_no" value={leadData.whatsapp_no || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="Phone" name="phone" value={leadData.phone || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="Phone Ext." name="phone_ext" value={leadData.phone_ext || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="Website URL" type="url" name="website" value={leadData.website || ''} onChange={handleChange} fullWidth /></Grid>
                             </Grid>
                         </Box>
 
@@ -358,8 +357,8 @@ export default function EditLeadPage({ id }) {
                                 Organization Details
                             </Typography>
                             <Grid container spacing={3}>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="Organization Name" name="company_name" value={leadData.company_name || ''} onChange={handleChange} fullWidth /></Grid>
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="Organization Name" name="company_name" value={leadData.company_name || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <TextField select label="Employees" name="no_of_employees" value={leadData.no_of_employees || ''} onChange={handleChange} fullWidth>
                                         <MenuItem value=""><em>None</em></MenuItem>
                                         <MenuItem value="1-10">1-10</MenuItem>
@@ -370,8 +369,8 @@ export default function EditLeadPage({ id }) {
                                         <MenuItem value="1000+">1000+</MenuItem>
                                     </TextField>
                                 </Grid>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="Annual Revenue" type="number" name="annual_revenue" value={leadData.annual_revenue || ''} onChange={handleChange} fullWidth /></Grid>
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="Annual Revenue" type="number" name="annual_revenue" value={leadData.annual_revenue || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <TextField select label="Industry" name="industry" value={leadData.industry || ''} onChange={handleChange} fullWidth>
                                         <MenuItem value=""><em>None</em></MenuItem>
                                         {industryOptions.map((option) => (
@@ -379,8 +378,8 @@ export default function EditLeadPage({ id }) {
                                         ))}
                                     </TextField>
                                 </Grid>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="Territory" name="territory" value={leadData.territory || ''} onChange={handleChange} fullWidth /></Grid>
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="Territory" name="territory" value={leadData.territory || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <TextField select label="Market Segment" name="market_segment" value={leadData.market_segment || ''} onChange={handleChange} fullWidth>
                                         <MenuItem value=""><em>None</em></MenuItem>
                                         {marketSegmentOptions.map((option) => (
@@ -397,9 +396,9 @@ export default function EditLeadPage({ id }) {
                                 Address Details
                             </Typography>
                             <Grid container spacing={3}>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="City" name="city" value={leadData.city || ''} onChange={handleChange} fullWidth /></Grid>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="State/Province" name="state" value={leadData.state || ''} onChange={handleChange} fullWidth /></Grid>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="Country" name="country" value={leadData.country || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="City" name="city" value={leadData.city || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="State/Province" name="state" value={leadData.state || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="Country" name="country" value={leadData.country || ''} onChange={handleChange} fullWidth /></Grid>
                             </Grid>
                         </Box>
 
@@ -409,7 +408,7 @@ export default function EditLeadPage({ id }) {
                                 Classification
                             </Typography>
                             <Grid container spacing={3}>
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <TextField select label="Source" name="source" value={leadData.source || ''} onChange={handleChange} fullWidth>
                                         <MenuItem value=""><em>None</em></MenuItem>
                                         {sourceOptions.map((option) => (
@@ -417,7 +416,7 @@ export default function EditLeadPage({ id }) {
                                         ))}
                                     </TextField>
                                 </Grid>
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <TextField select label="Request Type" name="request_type" value={leadData.request_type || ''} onChange={handleChange} fullWidth>
                                         <MenuItem value=""><em>None</em></MenuItem>
                                         {requestOptions.map((option) => (
@@ -425,7 +424,7 @@ export default function EditLeadPage({ id }) {
                                         ))}
                                     </TextField>
                                 </Grid>
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <TextField select label="Lead Type" name="type" value={leadData.type || ''} onChange={handleChange} fullWidth>
                                         <MenuItem value=""><em>None</em></MenuItem>
                                         {typeOptions.map((option) => (
@@ -433,7 +432,7 @@ export default function EditLeadPage({ id }) {
                                         ))}
                                     </TextField>
                                 </Grid>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="Campaign Name" name="campaign_name" value={leadData.campaign_name || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="Campaign Name" name="campaign_name" value={leadData.campaign_name || ''} onChange={handleChange} fullWidth /></Grid>
                             </Grid>
                         </Box>
 
@@ -443,7 +442,7 @@ export default function EditLeadPage({ id }) {
                                 Qualification & Status
                             </Typography>
                             <Grid container spacing={3}>
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <TextField select label="Status" name="status" value={leadData.status || ''} onChange={handleChange} fullWidth>
                                         <MenuItem value=""><em>None</em></MenuItem>
                                         {statusOptions.map((option) => (
@@ -451,7 +450,7 @@ export default function EditLeadPage({ id }) {
                                         ))}
                                     </TextField>
                                 </Grid>
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <TextField select label="Lead Stage" name="lead_stage" value={leadData.lead_stage || ''} onChange={handleChange} fullWidth>
                                         <MenuItem value=""><em>None</em></MenuItem>
                                         {stageOptions.map((option) => (
@@ -459,7 +458,7 @@ export default function EditLeadPage({ id }) {
                                         ))}
                                     </TextField>
                                 </Grid>
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <TextField select label="Urgency" name="urgency" value={leadData.urgency || ''} onChange={handleChange} fullWidth>
                                         <MenuItem value=""><em>None</em></MenuItem>
                                         {urgencyOptions.map((option) => (
@@ -467,7 +466,7 @@ export default function EditLeadPage({ id }) {
                                         ))}
                                     </TextField>
                                 </Grid>
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <TextField select label="Potential Volume" name="potential_volume" value={leadData.potential_volume || ''} onChange={handleChange} fullWidth>
                                         <MenuItem value=""><em>None</em></MenuItem>
                                         {volumeOptions.map((option) => (
@@ -475,7 +474,7 @@ export default function EditLeadPage({ id }) {
                                         ))}
                                     </TextField>
                                 </Grid>
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <TextField select label="Conversion Potential" name="conversion_potential" value={leadData.conversion_potential || ''} onChange={handleChange} fullWidth>
                                         <MenuItem value=""><em>None</em></MenuItem>
                                         {conversionOptions.map((option) => (
@@ -483,10 +482,10 @@ export default function EditLeadPage({ id }) {
                                         ))}
                                     </TextField>
                                 </Grid>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="Service Location" name="service_location" value={leadData.service_location || ''} onChange={handleChange} fullWidth /></Grid>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="Qualified By" name="qualified_by" value={leadData.qualified_by || ''} onChange={handleChange} fullWidth /></Grid>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="Qualified On" type="date" name="qualified_on" value={leadData.qualified_on || ''} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} /></Grid>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="Lead Owner" name="lead_owner" value={leadData.lead_owner || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="Service Location" name="service_location" value={leadData.service_location || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="Qualified By" name="qualified_by" value={leadData.qualified_by || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="Qualified On" type="date" name="qualified_on" value={leadData.qualified_on || ''} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="Lead Owner" name="lead_owner" value={leadData.lead_owner || ''} onChange={handleChange} fullWidth /></Grid>
                             </Grid>
                         </Box>
 
@@ -496,23 +495,22 @@ export default function EditLeadPage({ id }) {
                                 Additional Information
                             </Typography>
                             <Grid container spacing={3}>
-                                <Grid item xs={12} sm={6} md={4}><TextField label="Print Language" name="language" value={leadData.language || ''} onChange={handleChange} fullWidth /></Grid>
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}><TextField label="Print Language" name="language" value={leadData.language || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <TextField select label="Email Consent" name="email_consent" value={leadData.email_consent !== undefined ? leadData.email_consent : ''} onChange={handleChange} fullWidth>
                                         <MenuItem value=""><em>None</em></MenuItem>
                                         <MenuItem value={1}>Yes</MenuItem>
                                         <MenuItem value={0}>No</MenuItem>
                                     </TextField>
                                 </Grid>
-                                <Grid item xs={12} sm={6} md={4}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                                     <TextField select label="Blog Subscriber" name="blog_subscriber" value={leadData.blog_subscriber !== undefined ? leadData.blog_subscriber : ''} onChange={handleChange} fullWidth>
                                         <MenuItem value=""><em>None</em></MenuItem>
                                         <MenuItem value={1}>Yes</MenuItem>
                                         <MenuItem value={0}>No</MenuItem>
                                     </TextField>
                                 </Grid>
-                                {/* The Message field is the only one set to md=12 so it spans the whole bottom row */}
-                                <Grid item xs={12}><TextField label="Message" name="message" value={leadData.message || ''} onChange={handleChange} fullWidth multiline rows={3} /></Grid>
+                                <Grid size={{ xs: 12 }}><TextField label="Message" name="message" value={leadData.message || ''} onChange={handleChange} fullWidth multiline rows={3} /></Grid>
                             </Grid>
                         </Box>
 

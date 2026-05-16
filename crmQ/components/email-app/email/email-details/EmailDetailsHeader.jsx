@@ -41,7 +41,7 @@ const EmailDetailsHeader = ({ email }) => {
             sx={{ fontSize: 20, color: 'text.primary', display: { lg: 'none' } }}
           />
         </IconButton>
-        <Tooltip
+        {/* <Tooltip
           title={email?.starred ? 'Remove star' : 'Add star'}
           sx={{ ml: { xs: 'auto', lg: 0 } }}
         >
@@ -117,8 +117,8 @@ const EmailDetailsHeader = ({ email }) => {
               sx={{ fontSize: 20, color: 'text.primary' }}
             />
           </IconButton>
-        </Tooltip>
-        <EmailDetailsActionMenu />
+        </Tooltip> */}
+        {/* <EmailDetailsActionMenu /> */}
       </Stack>
     </CardHeaderAction>
   );

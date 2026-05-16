@@ -1,12 +1,11 @@
 'use client';
 
 import { Box, Paper } from '@mui/material';
-import { activeUsersData } from 'data/crm/dashboard';
 import DashboardSelectMenu from 'components/common/DashboardSelectMenu';
 import SectionHeader from 'components/common/SectionHeader';
 import ActiveUsersChart from './ActiveUsersChart';
 
-const ActiveUsers = () => {
+const ActiveUsers = ({ data }) => { // 🚀 Accept the data prop
   return (
     <Paper
       sx={{
@@ -18,37 +17,21 @@ const ActiveUsers = () => {
       }}
     >
       <SectionHeader
-        title="Monthly Active Users"
-        subTitle="Product categories occupying warehouse space"
+        title="New Leads Generated" // 🚀 Updated Title
+        subTitle="Daily lead acquisition over the selected period" // 🚀 Updated Subtitle
         sx={{ mb: { xs: 2, md: 4 } }}
         actionComponent={
           <DashboardSelectMenu
-            options={[
-              {
-                value: 15,
-                label: 'Last 15 days',
-              },
-              {
-                value: 7,
-                label: 'Last 7 days',
-              },
-              {
-                value: 30,
-                label: 'Last 30 days',
-              },
-            ]}
+            options={[{ value: 15, label: 'Last 15 days' }]}
             defaultValue={15}
             sx={{ minWidth: 0 }}
           />
         }
       />
 
-      <Box
-        sx={{
-          overflowX: 'auto',
-        }}
-      >
-        <ActiveUsersChart data={activeUsersData} sx={{ minHeight: 380, minWidth: 800, width: 1 }} />
+      <Box sx={{ overflowX: 'auto' }}>
+        {/* 🚀 Pass the data into the chart */}
+        <ActiveUsersChart data={data} sx={{ minHeight: 380, minWidth: 800, width: 1 }} />
       </Box>
     </Paper>
   );

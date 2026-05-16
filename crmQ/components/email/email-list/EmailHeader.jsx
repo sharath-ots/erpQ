@@ -6,8 +6,8 @@ import { Box, Button, Stack } from '@mui/material';
 import { useEmailContext } from 'providers/EmailProvider';
 import { REFRESH_EMAILS, SEARCH_EMAIL } from 'reducers/EmailReducer';
 import IconifyIcon from 'components/base/IconifyIcon';
-import EmailComposeDialog from 'components/sections/email/common/EmailComposeDialog';
-import EmailFilterDialog from 'components/sections/email/common/EmailFilterDialog';
+import EmailComposeDialog from '../common/EmailComposeDialog';
+import EmailFilterDialog from '../common/EmailFilterDialog';
 import StyledTextField from 'components/styled/StyledTextField';
 
 const EmailHeader = ({ toggleDrawer }) => {
@@ -63,9 +63,9 @@ const EmailHeader = ({ toggleDrawer }) => {
         direction="row"
         sx={{ px: 3, flexWrap: 'nowrap', alignItems: 'center' }}
       >
-        <Button color="neutral" variant="soft" shape="square" onClick={toggleDrawer}>
+        {/* <Button color="neutral" variant="soft" shape="square" onClick={toggleDrawer}>
           <IconifyIcon icon="material-symbols:filter-list-rounded" fontSize={20} />
-        </Button>
+        </Button> */}
         <Button
           variant="contained"
           onClick={toggleComposeDialog}
@@ -82,16 +82,16 @@ const EmailHeader = ({ toggleDrawer }) => {
           placeholder="Search email"
           sx={{ flex: 1 }}
         />
-        <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
+        {/* <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
           <Button shape="square" color="neutral" onClick={toggleFilterDialog}>
             <IconifyIcon icon="material-symbols:filter-alt-outline" fontSize={20} />
           </Button>
           <Button color="neutral" shape="square" onClick={handleRefresh}>
             <IconifyIcon icon="material-symbols:refresh-rounded" fontSize={20} />
           </Button>
-        </Box>
+        </Box> */}
       </Stack>
-      <EmailFilterDialog open={openFilterDialog} handleClose={toggleFilterDialog} />
+      {/* <EmailFilterDialog open={openFilterDialog} handleClose={toggleFilterDialog} /> */}
       <EmailComposeDialog open={openComposeDialog} handleClose={toggleComposeDialog} />
     </Box>
   );

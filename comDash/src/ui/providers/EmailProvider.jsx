@@ -1,11 +1,15 @@
 'use client';
-import { createContext, use, useReducer, useState, useCallback } from 'react';
+
+// 🚀 1. Import useContext instead of use
+import { createContext, useContext, useReducer, useState, useCallback } from 'react';
 import { emailReducer } from 'reducers/EmailReducer';
 
 const EmailContext = createContext({});
-export const emailSidebarWidth = 375;
 
-export const EmailProvider = ({ children }) => {
+export const emailSidebarWidth = 200;
+
+// 🚀 2. Removed "export const" here to restore the default export below
+const EmailProvider = ({ children }) => {
   const [emailState, emailDispatch] = useReducer(emailReducer, {
     emails: [],
     email: null,
@@ -16,9 +20,16 @@ export const EmailProvider = ({ children }) => {
 
   const fetchEmails = useCallback(async (leadId) => {
     console.log("🔍 [1/3] Calling API for Lead:", leadId);
+    const timestamp = new Date().getTime();
+
     try {
-      // 🚀 The exact path from your src/app/api/lead/lead-emails/route.js
-      const response = await fetch(`/api/lead-emails?lead_id=${leadId}`);
+      const response = await fetch(`/api/email-app?bypass=${timestamp}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
 
       if (!response.ok) {
         console.error("❌ [2/3] API ROUTE FAILED. Status:", response.status);
@@ -27,10 +38,13 @@ export const EmailProvider = ({ children }) => {
 
       const data = await response.json();
       console.log("✅ [3/3] API SUCCESS. Items received:", data.length);
-      console.log("📦 Data Sample:", data[0]);
 
-      // Use a unique type to ensure it doesn't get overwritten
-      emailDispatch({ type: 'LOAD_REAL_DATA', payload: data });
+      if (Array.isArray(data)) {
+        emailDispatch({ type: 'INITIALIZE_EMAILS', payload: data });
+      } else {
+        console.error("❌ Data is not an array:", data);
+      }
+
     } catch (error) {
       console.error("❌ FATAL ERROR:", error);
     }
@@ -43,4 +57,8 @@ export const EmailProvider = ({ children }) => {
   );
 };
 
-export const useEmailContext = () => use(EmailContext);
+// 🚀 3. Restored default export so your layout.jsx wrapper actually works!
+export default EmailProvider;
+
+// 🚀 4. Safely use standard useContext
+export const useEmailContext = () => useContext(EmailContext);

@@ -1,7 +1,7 @@
 /**
  * API base URL strategy:
  *
- * Browser calls always go to the SAME origin as comDash (e.g. http://192.168.1.100:13001).
+ * Browser calls always go to the SAME origin as comDash (e.g. http://192.168.1.100:13000).
  * The Next.js App Router proxy at /api/v1/[...path]/route.js forwards those calls to
  * APIGATE_INTERNAL_URL (http://apigate:8080) at runtime inside Docker.
  * This avoids CORS, avoids baking server IPs into the client bundle, and works on any network.
@@ -14,6 +14,36 @@ export const apiBase = process.env.NEXT_PUBLIC_APIGATE_URL ?? "";
 export function getAccessToken() {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem("cityq_access_token");
+}
+
+/** Decode CityQ JWT payload (client-side; for display only — apiGate still verifies server-side). */
+export function parseCityQJwtPayload(token) {
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(
+      atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")),
+    );
+    const email =
+      typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";
+    if (!email) return null;
+    return {
+      sub: typeof payload.sub === "string" ? payload.sub : email,
+      email,
+      zohoId: typeof payload.zohoId === "string" ? payload.zohoId : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Friendly label from email local-part (e.g. sharath.doe@corp.com → Sharath Doe). */
+export function displayNameFromEmail(email) {
+  const local = String(email || "").split("@")[0] || "";
+  if (!local) return "";
+  return local
+    .replace(/[._-]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
 }
 
 /** Returns true if the JWT payload's `exp` is in the past (or payload is unreadable). */

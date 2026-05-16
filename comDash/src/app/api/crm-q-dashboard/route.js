@@ -3,14 +3,15 @@ import { fetchERP } from 'lib/erpBackend';
 
 export async function GET() {
     try {
-        const [leadsData, oppsData, customersData, ordersData, eventsData, commsData] = await Promise.all([
-            // Added conversion_potential and potential_volume to fields
-            fetchERP('/api/resource/Lead?limit_page_length=0&fields=["name","creation","status","source","conversion_potential","potential_volume"]', 'admin'),
+        const [leadsData, oppsData, customersData, ordersData, eventsData, commsData, quotesData] = await Promise.all([
+            // 🚀 CLEANUP: Merged duplicate lead fetches into one comprehensive fetch
+            fetchERP('/api/resource/Lead?limit_page_length=0&fields=["name","creation","modified","status","source","conversion_potential","potential_volume","lead_owner"]', 'admin'),
             fetchERP('/api/resource/Opportunity?limit_page_length=0&fields=["name","creation","status"]', 'admin'),
             fetchERP('/api/resource/Customer?limit_page_length=0&fields=["name"]', 'admin'),
             fetchERP('/api/resource/Sales Order?limit_page_length=0&fields=["name","creation"]', 'admin'),
             fetchERP('/api/resource/Event?limit_page_length=0&fields=["name","creation"]', 'admin'),
-            fetchERP('/api/resource/Communication?limit_page_length=0&filters=[["communication_type","=","Communication"]]&fields=["name","creation","sent_or_received"]', 'admin')
+            fetchERP('/api/resource/Communication?limit_page_length=0&filters=[["communication_type","=","Communication"]]&fields=["name","creation","sent_or_received"]', 'admin'),
+            fetchERP('/api/resource/Quotation?limit_page_length=0&fields=["name"]', 'admin')
         ]);
 
         const leads = leadsData.data || [];
@@ -19,6 +20,7 @@ export async function GET() {
         const orders = ordersData.data || [];
         const events = eventsData.data || [];
         const comms = commsData.data || [];
+        const quotes = quotesData.data || [];
 
         const now = new Date();
         const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -39,34 +41,42 @@ export async function GET() {
             { icon: 'material-symbols:payments-outline-rounded', count: calculateTrend(orders).count, label: 'Orders created', percentage: calculateTrend(orders).percentage, trend: calculateTrend(orders).trend }
         ];
 
-        // 2. NEW KPIs (Conversion Potential & Potential Volume)
-        const totalVolume = leads
-            .filter(l => l.status !== 'Converted' && l.status !== 'Lost')
-            .reduce((sum, l) => sum + (parseFloat(l.potential_volume) || 0), 0);
+        // 2. NEW KPIs 
+        const highPotentialCount = leads.filter(l =>
+            l.status !== 'Converted' &&
+            l.status !== 'Lost' &&
+            l.conversion_potential === '51 - 75%' ||
+            l.potential_volume === '76 - 100%'
+        ).length;
 
-        const highPotentialCount = leads.filter(l => {
-            const cp = l.conversion_potential;
-            return cp === 'High' || cp === '80%' || cp === '90%' || cp === '100%' || (typeof cp === 'number' && cp >= 80);
-        }).length;
+        // 🚀 NEW: Calculate High Volume Leads (> 10 vehicles)
+        const highVolumeLeadsCount = leads.filter(l =>
+            l.status !== 'Converted' &&
+            l.status !== 'Lost' &&
+            (l.potential_volume === '11-25 vehicle' || l.potential_volume === '25+ vehicle')
+        ).length;
 
-        // General KPIs
-        const totalActiveLeads = leads.filter(l => l.status !== 'Converted' && l.status !== 'Lost').length;
+        const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+        const staleLeadsCount = leads.filter(
+            l => l.status === 'Open' && new Date(l.modified) < fourteenDaysAgo
+        ).length;
+
         const openOpps = opps.filter(o => o.status === 'Open' || o.status === 'Quotation').length;
         const winRate = leads.length > 0 ? Math.round((opps.filter(o => o.status === 'Converted').length / leads.length) * 100) : 0;
 
         const kpiData = [
-            // Target Top 2 items (Rendered alongside LeadSummaryCards)
             { id: 1, title: 'Conversion Potential', value: highPotentialCount, amount: highPotentialCount, subtitle: 'High probability leads', icon: { name: 'material-symbols:rocket-launch-outline-rounded', color: 'error.main' } },
-            { id: 2, title: 'Potential Volume', value: totalVolume, amount: totalVolume, subtitle: 'Total pipeline value', icon: { name: 'material-symbols:euro-rounded', color: 'success.main' } },
 
-            // Rendered in Block 2
-            { id: 3, title: 'Active Leads', value: totalActiveLeads, amount: totalActiveLeads, subtitle: 'Total open leads', icon: { name: 'material-symbols-light:contact-mail-outline-rounded', color: 'primary.main' } },
+            // 🚀 NEW: Replaced Potential Volume with High Volume Leads Card
+            { id: 2, title: 'High Volume Leads', value: highVolumeLeadsCount, amount: highVolumeLeadsCount, subtitle: '> 10 vehicles requested', icon: { name: 'material-symbols-light:local-shipping-outline-rounded', color: 'success.main' } },
+
+            { id: 3, title: 'Stale Leads', value: staleLeadsCount, amount: staleLeadsCount, subtitle: 'No activity in 14+ days', icon: { name: 'material-symbols-light:hourglass-empty-rounded', color: 'error.main' } },
             { id: 4, title: 'Open Opportunities', value: openOpps, amount: openOpps, subtitle: 'Currently in pipeline', icon: { name: 'material-symbols-light:assignment-outline-rounded', color: 'warning.main' } },
             { id: 5, title: 'Total Customers', value: customers.length, amount: customers.length, subtitle: 'Registered clients', icon: { name: 'material-symbols-light:groups-outline-rounded', color: 'success.main' } },
             { id: 6, title: 'Win Rate', value: `${winRate}%`, amount: `${winRate}%`, subtitle: 'Conversion rate', icon: { name: 'material-symbols-light:military-tech-outline-rounded', color: 'error.main' } }
         ];
 
-        // 3. OPPORTUNITY TRACKER 
+        // ... (Keep Opportunity Tracker, Comm Flow, Lead Sources, and Sale Funnel exact same as before) ...
         const open = Array(7).fill(0), converted = Array(7).fill(0), lost = Array(7).fill(0);
         const categories = Array(7).fill('');
         for (let i = 0; i < 7; i++) {
@@ -84,7 +94,6 @@ export async function GET() {
         }
         const oppTrackerData = { categories, open, converted, lost };
 
-        // 4. COMMUNICATION FLOW 
         const received = Array(13).fill(0), sent = Array(13).fill(0), meetings = Array(13).fill(0);
         comms.forEach(c => {
             const d = new Date(c.creation);
@@ -102,16 +111,30 @@ export async function GET() {
         });
         const commFlowData = { received, sent, meetings };
 
-        // 5. LEAD SOURCES
         const sourceMap = {};
         leads.forEach(l => {
             const src = l.source || 'Direct';
             sourceMap[src] = (sourceMap[src] || 0) + 1;
         });
+
         const leadSourcesData = Object.keys(sourceMap).map(k => ({ value: sourceMap[k], name: k })).sort((a, b) => b.value - a.value);
         if (leadSourcesData.length === 0) leadSourcesData.push({ value: 0, name: 'No Data' });
 
-        // 6. SALE FUNNEL DATA
+        const saleFunnelData = [
+            { value: leads.length, name: 'Total Leads' },
+            { value: opps.length, name: 'Opportunity' },
+            { value: quotes.length, name: 'Quotation' },
+            { value: orders.length, name: 'Converted' }
+        ];
+
+        const funnelColors = ['chBlue.200', 'chBlue.300', 'chBlue.400', 'chGreen.500'];
+        const saleFunnelTableData = saleFunnelData.map((item, i) => ({
+            stageIndicator: funnelColors[i],
+            stage: item.name,
+            lostLead: 0,
+            thisMonth: item.value
+        }));
+
         const funnelStages = ["New", "Interested", "Opportunity", "Quotation", "Converted"];
         const stageColors = ['#1976d2', '#42a5f5', '#64b5f6', '#90caf9', '#4caf50'];
 
@@ -129,8 +152,26 @@ export async function GET() {
         });
         const funnelData = { chartData: funnelChartData, tableData: funnelTableData };
 
+        const dates15 = [];
+        const last15DaysLeads = Array(15).fill(0);
+
+        for (let i = 0; i < 15; i++) {
+            const d = new Date(now.getTime() - (14 - i) * 24 * 60 * 60 * 1000);
+            const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }); // e.g., "May 02"
+            dates15.push(dateStr);
+        }
+
+        leads.forEach(l => {
+            const d = new Date(l.creation);
+            const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+            const idx = dates15.indexOf(dateStr);
+            if (idx !== -1) last15DaysLeads[idx]++;
+        });
+
+        const leadTrendsData = { dates: dates15, counts: last15DaysLeads };
+
         return NextResponse.json({
-            greetingData, kpiData, subtitle, oppTrackerData, commFlowData, leadSourcesData, funnelData
+            greetingData, kpiData, subtitle, oppTrackerData, commFlowData, leadSourcesData, funnelData, saleFunnelData, saleFunnelTableData, leadTrendsData
         });
 
     } catch (error) {

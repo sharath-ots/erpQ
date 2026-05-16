@@ -1,10 +1,8 @@
-'use client';
-
 import { useEffect, useState } from 'react';
-import { usePathname } from 'next/navigation'; // 🚀 Swapped for reliability
-import { Box, Button, Stack } from '@mui/material';
+import { usePathname } from 'next/navigation';
+import { Box, Button, Stack, CircularProgress } from '@mui/material';
 import { useEmailContext } from 'providers/EmailProvider';
-import { REFRESH_EMAILS, SEARCH_EMAIL } from 'reducers/EmailReducer';
+import { SEARCH_EMAIL, INITIALIZE_EMAILS } from 'reducers/EmailReducer';
 import IconifyIcon from 'components/base/IconifyIcon';
 import EmailComposeDialog from 'components/sections/email/common/EmailComposeDialog';
 import EmailFilterDialog from 'components/sections/email/common/EmailFilterDialog';
@@ -14,21 +12,24 @@ const EmailHeader = ({ toggleDrawer }) => {
   const [searchText, setSearchText] = useState('');
   const [openFilterDialog, setOpenFilterDialog] = useState(false);
   const [openComposeDialog, setOpenComposeDialog] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // 1. Get Context
   const context = useEmailContext() || {};
   const emailDispatch = context.emailDispatch;
-  const resizableWidth = context.resizableWidth;
+  const resizableWidth = context.resizableWidth || 0;
 
-  // 2. 🚀 FIXED: Robust Folder Detection
-  // useParams often returns 'undefined' in custom dashboard shells. 
-  // We use usePathname to ensure we always know if we are in 'inbox', 'sent', etc.
   const pathname = usePathname();
   const pathParts = pathname.split('/').filter(Boolean);
-  const isDetailsView = pathname.includes('/details/');
-  const currentLabel = isDetailsView
-    ? pathParts[pathParts.length - 2] // Grab 'inbox' from .../details/inbox/id
-    : pathParts[pathParts.length - 1] || 'inbox';
+
+  let id = null;
+  let label = 'inbox';
+
+  if (pathname.includes('/details/')) {
+    id = pathParts[pathParts.length - 1];
+    label = pathParts[pathParts.length - 2];
+  } else if (pathname.includes('/list/')) {
+    label = pathParts[pathParts.length - 1];
+  }
 
   const toggleFilterDialog = () => setOpenFilterDialog((prev) => !prev);
   const toggleComposeDialog = () => setOpenComposeDialog(!openComposeDialog);
@@ -39,47 +40,70 @@ const EmailHeader = ({ toggleDrawer }) => {
     if (emailDispatch) {
       emailDispatch({
         type: SEARCH_EMAIL,
-        payload: { query: val, folder: currentLabel },
+        payload: { query: val, folder: label },
       });
     }
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setSearchText('');
-    if (emailDispatch) {
-      emailDispatch({ type: REFRESH_EMAILS, payload: currentLabel });
+    setIsRefreshing(true);
+    sessionStorage.removeItem('erp_global_emails');
+
+    try {
+      const timestamp = new Date().getTime();
+      const res = await fetch(`/api/email-app?bypass=${timestamp}`, { cache: 'no-store' });
+      const data = await res.json();
+
+      if (!data.error) {
+        try {
+          sessionStorage.setItem('erp_global_emails', JSON.stringify(data));
+        } catch (e) {
+          sessionStorage.setItem('erp_global_emails', JSON.stringify(data.slice(0, 40)));
+        }
+
+        // 🚀 Triggers the newly-fixed Reducer case
+        if (emailDispatch) {
+          emailDispatch({ type: INITIALIZE_EMAILS, payload: data });
+          emailDispatch({ type: SEARCH_EMAIL, payload: { query: '', folder: label } });
+        }
+      } else {
+        alert("Failed to refresh: " + data.error);
+      }
+    } catch (err) {
+      console.error("Refresh failed:", err);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
-  // 3. 🚀 CRASH-PROOF EFFECT
   useEffect(() => {
     setSearchText('');
-    if (emailDispatch && currentLabel && currentLabel !== 'email') {
-      emailDispatch({
-        type: SEARCH_EMAIL,
-        payload: { query: '', folder: currentLabel }
-      });
+    if (emailDispatch) {
+      emailDispatch({ type: SEARCH_EMAIL, payload: { query: '', folder: label } });
     }
-
-    // 🚀 FIXED: Explicitly return undefined. 
-    // This stops React from trying to run a "cleanup function" that doesn't exist.
     return undefined;
-  }, [currentLabel, emailDispatch]);
+  }, [label, emailDispatch]);
+
+  const isInvalidOrLargeWidth = !id || resizableWidth > 500;
 
   return (
     <Box sx={{ mb: '2px' }}>
       <Stack
         spacing={1}
         direction="row"
-        sx={{ px: 3, flexWrap: 'nowrap', alignItems: 'center' }}
+        sx={[
+          { px: 3, flexWrap: 'wrap' },
+          isInvalidOrLargeWidth && { px: { sm: 5 }, flexWrap: { sm: 'nowrap' } },
+        ]}
       >
-        <Button color="neutral" variant="soft" shape="square" onClick={toggleDrawer}>
+        <Button color="neutral" variant="soft" sx={{ minWidth: 40, p: 0 }} onClick={toggleDrawer}>
           <IconifyIcon icon="material-symbols:filter-list-rounded" fontSize={20} />
         </Button>
         <Button
           variant="contained"
           onClick={toggleComposeDialog}
-          sx={{ whiteSpace: 'nowrap' }}
+          sx={[{ flex: 1 }, (!id || resizableWidth > 500) && { flex: { sm: 'unset' } }]}
           startIcon={<IconifyIcon icon="material-symbols:add-2-rounded" sx={{ fontSize: 20 }} />}
         >
           Compose
@@ -90,14 +114,36 @@ const EmailHeader = ({ toggleDrawer }) => {
           value={searchText}
           onChange={handleSearch}
           placeholder="Search email"
-          sx={{ flex: 1 }}
+          sx={[
+            { order: 1, width: 1 },
+            isInvalidOrLargeWidth && {
+              order: { sm: 0 },
+              width: { sm: 'auto' },
+              flex: { sm: 1 },
+            },
+          ]}
         />
-        <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
-          <Button shape="square" color="neutral" onClick={toggleFilterDialog}>
+        <Box
+          sx={[
+            { mr: { xs: '-8px' }, ml: 'auto', display: 'flex', gap: 1 },
+            isInvalidOrLargeWidth && { mr: { sm: '-10px' } },
+          ]}
+        >
+          {/* <Button sx={{ minWidth: 40, p: 0 }} color="neutral" onClick={toggleFilterDialog}>
             <IconifyIcon icon="material-symbols:filter-alt-outline" fontSize={20} />
-          </Button>
-          <Button color="neutral" shape="square" onClick={handleRefresh}>
-            <IconifyIcon icon="material-symbols:refresh-rounded" fontSize={20} />
+          </Button> */}
+
+          <Button
+            color="neutral"
+            sx={{ minWidth: 40, p: 0 }}
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            {isRefreshing ? (
+              <CircularProgress size={16} color="inherit" />
+            ) : (
+              <IconifyIcon icon="material-symbols:refresh-rounded" fontSize={20} />
+            )}
           </Button>
         </Box>
       </Stack>

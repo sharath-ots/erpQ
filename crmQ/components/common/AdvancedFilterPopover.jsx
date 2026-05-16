@@ -8,9 +8,17 @@ export default function AdvancedFilterPopover({ anchorEl, onClose, filters, setF
 
     const availableOptions = useMemo(() => {
         if (!newFilter.field || !rows || newFilter.operator === 'between') return [];
+
+        // 🚀 FIX: First check if we defined custom options for this field (like Conversion Potential)
+        const currentFieldDef = fields.find(f => f.value === newFilter.field);
+        if (currentFieldDef && currentFieldDef.options && currentFieldDef.options.length > 0) {
+            return currentFieldDef.options; // Use our hardcoded dropdown list
+        }
+
+        // Fallback: If no custom options, dynamically pull unique values from the current rows
         const uniqueValues = new Set(rows.map(r => r[newFilter.field]).filter(val => val !== null && val !== undefined && val !== ''));
         return Array.from(uniqueValues).map(String).sort();
-    }, [newFilter.field, rows, newFilter.operator]);
+    }, [newFilter.field, rows, newFilter.operator, fields]);
 
     // 🚀 Smart Validation: Checks if the input is valid based on operator
     const isFilterValid = () => {
@@ -189,7 +197,7 @@ export default function AdvancedFilterPopover({ anchorEl, onClose, filters, setF
                     <Button size="small" color="inherit" onClick={handleClearAll} disabled={filters.length === 0}>
                         Clear Filters
                     </Button>
-                    <Button size="small" variant="contained" color="primary" sx={{ bgcolor: 'background.default' }} onClick={handleApplyFilters}>
+                    <Button size="small" variant="contained" color="primary" onClick={handleApplyFilters}>
                         Apply Filters
                     </Button>
                 </Stack>

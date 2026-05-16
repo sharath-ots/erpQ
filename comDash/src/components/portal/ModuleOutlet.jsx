@@ -15,6 +15,7 @@ import { useThemeMode } from '../../ui/hooks/useThemeMode';
 import EmailLayout from '../../../../crmQ/src/layouts/email-layout/index';
 import EmailDetails from '../../../../crmQ/components/email-app/email/EmailDetails';
 import Email from '../../../../crmQ/components/email-app/email/Email';
+import CommingSoonPage from '../../../../crmQ/pages/landing/comming_soon/index';
 
 //import { usePortalMenu } from "./shared-ui/PortalMenuContext";
 
@@ -80,6 +81,10 @@ export function ModuleOutlet({ menuItems = [], deskBaseUrl, deskIframeQuery }) {
     const editLeadMatch = normalized.match(/^\/m\/crmq\/edit-lead\/([^/]+)$/);
     if (editLeadMatch) {
       return <EditLeadPage id={editLeadMatch[1]} />;
+    }
+
+    if (normalized === "/m/crmq/landing") {
+      return <CommingSoonPage />;
     }
 
     // FALLBACK: If the route is missing

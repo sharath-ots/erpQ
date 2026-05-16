@@ -1,41 +1,64 @@
 'use client';
 
-import { createContext, use, useReducer, useState } from 'react';
-import { emails as allEmails } from '../data/email';
+// 🚀 1. Import useContext instead of use
+import { createContext, useContext, useReducer, useState, useCallback } from 'react';
 import { emailReducer } from 'reducers/EmailReducer';
-
-const initialState = {
-  emails: [],
-  email: null,
-  initialEmails: allEmails,
-};
-
-export const emailSidebarWidth = 270;
 
 const EmailContext = createContext({});
 
-const EmailProvider = ({ children }) => {
-  const [emailState, emailDispatch] = useReducer(emailReducer, initialState);
-  const [resizableWidth, setResizableWidth] = useState(0);
+export const emailSidebarWidth = 200;
 
-  const handleResize = (width) => {
-    setResizableWidth(width);
-  };
+// 🚀 2. Removed "export const" here to restore the default export below
+const EmailProvider = ({ children }) => {
+  const [emailState, emailDispatch] = useReducer(emailReducer, {
+    emails: [],
+    email: null,
+    initialEmails: [],
+  });
+
+  const [resizableWidth, setResizableWidth] = useState(emailSidebarWidth);
+
+  const fetchEmails = useCallback(async (leadId) => {
+    console.log("🔍 [1/3] Calling API for Lead:", leadId);
+    const timestamp = new Date().getTime();
+
+    try {
+      const response = await fetch(`/api/email-app?bypass=${timestamp}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+
+      if (!response.ok) {
+        console.error("❌ [2/3] API ROUTE FAILED. Status:", response.status);
+        return;
+      }
+
+      const data = await response.json();
+      console.log("✅ [3/3] API SUCCESS. Items received:", data.length);
+
+      if (Array.isArray(data)) {
+        emailDispatch({ type: 'INITIALIZE_EMAILS', payload: data });
+      } else {
+        console.error("❌ Data is not an array:", data);
+      }
+
+    } catch (error) {
+      console.error("❌ FATAL ERROR:", error);
+    }
+  }, []);
 
   return (
-    <EmailContext
-      value={{
-        emailState,
-        emailDispatch,
-        resizableWidth,
-        handleResize,
-      }}
-    >
+    <EmailContext.Provider value={{ emailState, emailDispatch, fetchEmails, resizableWidth }}>
       {children}
-    </EmailContext>
+    </EmailContext.Provider>
   );
 };
 
+// 🚀 3. Restored default export so your layout.jsx wrapper actually works!
 export default EmailProvider;
 
-export const useEmailContext = () => use(EmailContext);
+// 🚀 4. Safely use standard useContext
+export const useEmailContext = () => useContext(EmailContext);

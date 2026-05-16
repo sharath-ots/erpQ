@@ -117,20 +117,20 @@ const CRMQ = () => {
             borderColor: 'divider'
           }}
         >
-          <ActiveUsers />
+          <ActiveUsers data={dashboardData?.leadTrendsData} />
         </Grid>
       </Grid>
 
       <Grid size={12}>
         <SaleFunnel
-          data={dashboardData?.funnelData?.chartData}
-          tableData={dashboardData?.funnelData?.tableData}
+          data={dashboardData?.saleFunnelData}
+          tableData={dashboardData?.saleFunnelTableData}
         />
       </Grid>
 
-      <Grid size={12}>
+      {/* <Grid size={12}>
         <AvgLifetimeValue />
-      </Grid>
+      </Grid> */}
     </Grid>
   );
 };

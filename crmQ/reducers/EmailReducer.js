@@ -10,180 +10,64 @@ export const SEARCH_EMAIL = 'SEARCH_EMAIL';
 export const REFRESH_EMAILS = 'REFRESH_EMAILS';
 export const GET_EMAILS = 'GET_EMAILS';
 export const GET_EMAIL = 'GET_EMAIL';
-export const INITIALIZE_EMAILS = 'INITIALIZE_EMAILS'; // 🚀 Added this
-
-const updateFolder = (emails, ids, folder) => {
-  return emails.map((email) =>
-    ids.includes(email.id)
-      ? {
-        ...email,
-        folder: folder,
-      }
-      : email,
-  );
-};
-
-const toggleEmailProperty = (emails, ids, property, isAllToggled) => {
-  return emails.map((email) => {
-    if (ids.includes(email.id)) {
-      return {
-        ...email,
-        [property]: isAllToggled ? isAllToggled : !email[property],
-      };
-    }
-
-    return email;
-  });
-};
+export const INITIALIZE_EMAILS = 'INITIALIZE_EMAILS';
 
 export const emailReducer = (state, action) => {
-  const getFilteredEmails = (folder) => {
-    // 🚀 FIX: Use state.initialEmails (the master list) for filtering
-    return state.initialEmails.filter((email) => {
-      switch (folder) {
-        case 'starred': return email.starred && email.folder !== 'trash';
-        case 'important': return email.important && email.folder !== 'trash';
-        case 'inbox': return email.folder === 'inbox' && email.snoozedTill === null;
-        case 'snoozed': return email.snoozedTill !== null && email.folder !== 'trash';
-        default: return email.folder === folder;
-      }
-    });
-  };
   switch (action.type) {
-    case INITIALIZE_EMAILS: {
-      const sanitizedData = action.payload.map((email) => ({
-        ...email,
-        folder: email.folder || 'inbox',
-        id: String(email.id), // 🚀 Force ID to String for alphanumeric ERPNext IDs
-      }));
+    case INITIALIZE_EMAILS:
+    case 'INITIALIZE_EMAILS': {
+      const safeData = Array.isArray(action.payload) ? action.payload : [];
       return {
         ...state,
-        initialEmails: sanitizedData,
-        emails: sanitizedData.filter((e) => e.folder === 'inbox'),
+        initialEmails: safeData,
+        emails: safeData, // Force all data to show immediately
       };
     }
 
-    case GET_EMAILS: {
-      // 🚀 FIX: This plural action updates the 'emails' list for the center pane
-      return {
-        ...state,
-        emails: getFilteredEmails(action.payload),
-      };
+    case GET_EMAILS:
+    case 'GET_EMAILS': {
+      const folder = (action.payload || 'inbox').toLowerCase();
+      const sourceData = state.initialEmails || [];
+
+      // 🚀 CRITICAL FIX: If folder is missing from API, assume it's INBOX
+      const filteredEmails = sourceData.filter((email) => {
+        const emailFolder = (email.folder || 'inbox').toLowerCase();
+
+        if (folder === 'inbox') return emailFolder === 'inbox' && email.folder !== 'trash';
+        if (folder === 'starred') return email.starred === true;
+        if (folder === 'important') return email.important === true;
+        if (folder === 'snoozed') return email.snoozedTill !== null;
+
+        return emailFolder === folder;
+      });
+
+      return { ...state, emails: filteredEmails };
     }
 
-    case GET_EMAIL: {
-      // 🚀 FIX: This singular action finds the active object for the right pane
+    case SEARCH_EMAIL:
+    case 'SEARCH_EMAIL': {
+      const { query } = action.payload;
+      const queryText = (query || '').toLowerCase();
+      const sourceData = state.initialEmails || [];
+
+      const searchedEmails = sourceData.filter((email) => {
+        if (email.folder === 'trash') return false;
+        const userEmail = (email?.user?.email || '').toLowerCase();
+        const userName = (email?.user?.name || '').toLowerCase();
+        const subject = (email?.subject || '').toLowerCase();
+        return userEmail.includes(queryText) || userName.includes(queryText) || subject.includes(queryText);
+      });
+
+      return { ...state, emails: searchedEmails };
+    }
+
+    case GET_EMAIL:
+    case 'GET_EMAIL': {
       const targetId = action.payload ? String(action.payload) : null;
       const found = state.initialEmails.find((e) => String(e.id) === targetId);
-      return {
-        ...state,
-        email: found || null,
-      };
+      return { ...state, email: found || null };
     }
 
-    case DELETE_EMAIL: {
-      return {
-        ...state,
-        emails: updateFolder(state.emails, action.payload, 'trash'),
-        initialEmails: updateFolder(state.initialEmails, action.payload, 'trash'),
-      };
-    }
-    case ARCHIVE_EMAIL: {
-      return {
-        ...state,
-        emails: updateFolder(state.emails, action.payload, 'archived'),
-        initialEmails: updateFolder(state.initialEmails, action.payload, 'archived'),
-      };
-    }
-    case SNOOZE_EMAIL: {
-      const { ids, snoozed } = action.payload;
-      const updatedEmails = (emails) => {
-        return emails.map((email) => {
-          if (ids.includes(email.id)) {
-            return {
-              ...email,
-              snoozedTill: snoozed
-                ? dayjs().add(1, 'd').toDate()
-                : email.snoozedTill === null
-                  ? dayjs().add(1, 'd').toDate()
-                  : null,
-            };
-          }
-
-          return email;
-        });
-      };
-
-      return {
-        ...state,
-        emails: updatedEmails(state.emails),
-        initialEmails: updatedEmails(state.initialEmails),
-      };
-    }
-    case STARRED_EMAIL: {
-      const { starred, ids } = action.payload;
-
-      return {
-        ...state,
-        emails: toggleEmailProperty(state.emails, ids, 'starred', starred),
-        initialEmails: toggleEmailProperty(state.initialEmails, ids, 'starred', starred),
-      };
-    }
-    case IMPORTANT_EMAIL: {
-      const { ids, important } = action.payload;
-
-      return {
-        ...state,
-        emails: toggleEmailProperty(state.emails, ids, 'important', important),
-        initialEmails: toggleEmailProperty(state.initialEmails, ids, 'important', important),
-      };
-    }
-    case UPDATE_MESSAGE_STATUS: {
-      const { actionType, ids } = action.payload;
-
-      const updatedEmails = (emails) =>
-        emails.map((email) =>
-          ids.includes(email.id)
-            ? {
-              ...email,
-              readAt: actionType
-                ? actionType === 'mark_as_read'
-                  ? dayjs().toISOString()
-                  : null
-                : email.readAt === null
-                  ? dayjs().toISOString()
-                  : null,
-            }
-            : email,
-        );
-
-      return {
-        ...state,
-        emails: updatedEmails(state.emails),
-        initialEmails: updatedEmails(state.initialEmails),
-      };
-    }
-    case SEARCH_EMAIL: {
-      const { query, folder } = action.payload;
-      const queryText = query.toLowerCase();
-      const currentFilteredEmails = getFilteredEmails(folder);
-      const searchedEmails = currentFilteredEmails.filter(
-        (email) =>
-          email.user.email.toLowerCase().includes(queryText) ||
-          email.user.name.toLowerCase().includes(queryText) ||
-          email.subject.toLowerCase().includes(queryText),
-      );
-
-      return {
-        ...state,
-        emails: searchedEmails,
-      };
-    }
-    case REFRESH_EMAILS:
-      return {
-        ...state,
-        emails: getFilteredEmails(action.payload),
-      };
     default:
       return state;
   }

@@ -2,7 +2,13 @@ import { Avatar, Box, Stack, Typography } from '@mui/material';
 import dayjs from 'dayjs';
 
 const EmailListItemContent = ({ email }) => {
-  const diffInDays = dayjs().diff(dayjs(email.time), 'days');
+  const emailDateStr = typeof email.time === 'string' ? email.time.split('T')[0] : dayjs(email.time).format('YYYY-MM-DD');
+
+  const todayStr = dayjs().format('YYYY-MM-DD');
+  const yesterdayStr = dayjs().subtract(1, 'day').format('YYYY-MM-DD');
+
+  const isToday = emailDateStr === todayStr;
+  const isYesterday = emailDateStr === yesterdayStr;
 
   return (
     <Box sx={{ overflow: 'hidden', width: 1 }}>
@@ -39,14 +45,14 @@ const EmailListItemContent = ({ email }) => {
             fontWeight: email.readAt === null ? 600 : 400,
           }}
         >
-          {diffInDays === 0 ? (
+          {isToday ? (
             dayjs(email.time).fromNow()
           ) : (
             <>
               <Typography component="span" variant="body2" sx={{ color: 'text.disabled', mr: 0.5 }}>
                 {dayjs(email.time).format('hh:mm a')}
               </Typography>
-              {diffInDays === 1 ? 'Yesterday' : dayjs(email.time).format('DD MMM')}
+              {isYesterday ? 'Yesterday' : dayjs(email.time).format('DD MMM')}
             </>
           )}
         </Typography>

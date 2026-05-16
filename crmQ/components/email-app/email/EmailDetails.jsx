@@ -9,10 +9,12 @@ import { emailSidebarWidth, useEmailContext } from 'providers/EmailProvider';
 import Resizable from 'components/base/Resizable';
 import EmailDetailsContainer from 'components/sections/email/email-details/EmailDetailsContainer';
 import EmailListContainer from 'components/sections/email/email-list/EmailListContainer';
+import { INITIALIZE_EMAILS } from 'reducers/EmailReducer';
 
 const EmailDetails = () => {
   const context = useEmailContext();
-  const initialEmails = context?.emailState?.initialEmails || [];
+  const emailState = context?.emailState;
+  const initialEmails = emailState?.initialEmails || [];
   const [fallbackData, setFallbackData] = useState([]);
   const handleResize = context?.handleResize || [];
 
@@ -21,38 +23,46 @@ const EmailDetails = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(upXl);
   const toggleDrawer = () => setIsDrawerOpen((prev) => !prev);
 
+  const displayData = initialEmails.length > 0 ? emailState.emails : fallbackData;
+
   useEffect(() => {
     setIsDrawerOpen(upXl);
   }, [upXl]);
 
   useEffect(() => {
-    // 🚀 THE MAGIC: Grab data from browser memory in 1 millisecond
-    const cached = sessionStorage.getItem('erp_emails');
-    if (cached) {
-      const parsedData = JSON.parse(cached);
-      setFallbackData(parsedData);
-      if (context?.emailDispatch && initialEmails.length === 0) {
-        context.emailDispatch({ type: 'INITIALIZE_EMAILS', payload: parsedData });
+    // 🚀 SAFE CACHE LOAD
+    try {
+      const cached = sessionStorage.getItem('erp_global_emails');
+      if (cached) {
+        const parsedData = JSON.parse(cached);
+        setFallbackData(parsedData);
+        if (context?.emailDispatch && initialEmails.length === 0) {
+          context.emailDispatch({ type: INITIALIZE_EMAILS, payload: parsedData });
+        }
       }
-      return; // EXIT EARLY! Do not wait for the network!
+    } catch (e) {
+      sessionStorage.removeItem('erp_global_emails');
     }
 
-    // Failsafe: Only hit the API if the user did a hard-refresh and the cache is gone
     if (initialEmails.length === 0) {
-      fetch('/api/lead-emails?lead_id=CRM-LEAD-2026-00074')
-        .then((res) => res.json())
-        .then((data) => {
-          sessionStorage.setItem('erp_emails', JSON.stringify(data));
-          setFallbackData(data);
-          if (context?.emailDispatch) {
-            context.emailDispatch({ type: 'INITIALIZE_EMAILS', payload: data });
+      const timestamp = new Date().getTime();
+      fetch(`/api/email-app?bypass=${timestamp}`, { cache: 'no-store' })
+        .then(res => res.json())
+        .then(data => {
+          if (!data.error && Array.isArray(data)) {
+            setFallbackData(data);
+            if (context?.emailDispatch) {
+              context.emailDispatch({ type: INITIALIZE_EMAILS, payload: data });
+            }
+            try {
+              sessionStorage.setItem('erp_global_emails', JSON.stringify(data));
+            } catch (e) {
+              sessionStorage.setItem('erp_global_emails', JSON.stringify(data.slice(0, 40)));
+            }
           }
-        })
-        .catch(err => console.error("🛠️ ERP FETCH ERROR:", err));
+        }).catch(err => console.error("Background sync error:", err));
     }
   }, [initialEmails.length, context?.emailDispatch]);
-
-  const dataToUse = initialEmails.length > 0 ? initialEmails : fallbackData;
 
   return (
     <>
@@ -90,13 +100,13 @@ const EmailDetails = () => {
           maxWidth="calc(100% - 375px)"
         >
           <Paper sx={{ height: 1 }}>
-            <BulkSelectProvider data={dataToUse}>
-              <EmailListContainer toggleDrawer={toggleDrawer} explicitEmailList={dataToUse} />
+            <BulkSelectProvider data={displayData}>
+              <EmailListContainer toggleDrawer={toggleDrawer} explicitEmailList={displayData} />
             </BulkSelectProvider>
           </Paper>
         </Resizable>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <EmailDetailsContainer explicitEmails={dataToUse} />
+          <EmailDetailsContainer explicitEmails={displayData} />
         </Box>
       </Box>
     </>

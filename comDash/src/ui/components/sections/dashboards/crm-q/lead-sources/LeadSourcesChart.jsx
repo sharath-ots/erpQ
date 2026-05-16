@@ -11,8 +11,8 @@ import ReactEchart from 'components/base/ReactEchart';
 
 echarts.use([TooltipComponent, GridComponent, PieChart, CanvasRenderer, LegendComponent]);
 
-// Accept the new "colors" prop
-const LeadSourcesChart = ({ sx, data, colors, ref }) => {
+// 🚀 Accept onEvents prop
+const LeadSourcesChart = ({ sx, data, colors, onEvents, ref }) => {
   const getOptions = useMemo(
     () => ({
       tooltip: {
@@ -20,13 +20,13 @@ const LeadSourcesChart = ({ sx, data, colors, ref }) => {
         formatter: (params) => tooltipFormatterList(params),
       },
       legend: { show: false },
-      // Use the dynamic colors passed from the parent!
       color: colors || ['#4A90E2'],
       series: [
         {
           type: 'pie',
           radius: ['45%', '70%'],
-          itemStyle: { borderRadius: 3 },
+          // 🚀 Add cursor: 'pointer' to itemStyle
+          itemStyle: { borderRadius: 3, cursor: 'pointer' },
           padAngle: 2,
           label: { show: false, position: 'center' },
           emphasis: { label: { show: false } },
@@ -39,7 +39,8 @@ const LeadSourcesChart = ({ sx, data, colors, ref }) => {
     [data, colors]
   );
 
-  return <ReactEchart ref={ref} echarts={echarts} option={getOptions} sx={sx} />;
+  // 🚀 Pass onEvents into your ReactEchart wrapper
+  return <ReactEchart ref={ref} echarts={echarts} option={getOptions} sx={sx} onEvents={onEvents} />;
 };
 
 export default LeadSourcesChart;

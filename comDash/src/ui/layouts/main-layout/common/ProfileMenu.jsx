@@ -21,16 +21,12 @@ import { useSettingsContext } from 'providers/SettingsProvider';
 import { useState } from 'react';
 import { useBreakpoints } from 'providers/BreakpointsProvider';
 import paths, { authPaths } from 'routes/paths';
-import { signOut, useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 
-// 1. Import our custom session hook
 import { useERPUser } from 'providers/ERPUserProvider';
-// 2. Import ERP config to dynamically get the base URL
 import { ERP_CONFIG } from 'lib/erpApi';
+import { redirectToLogin } from '@/lib/apigate';
 
 const ProfileMenu = ({ type = 'default' }) => {
-  const router = useRouter();
   const [anchorEl, setAnchorEl] = useState(null);
   const { up } = useBreakpoints();
   const upSm = up('sm');
@@ -38,10 +34,7 @@ const ProfileMenu = ({ type = 'default' }) => {
     config: { textDirection },
   } = useSettingsContext();
 
-  const { data } = useSession();
-
-  // 3. Grab the user data from our session
-  const { user, loading } = useERPUser();
+  const { user, displayName, displayEmail, loading } = useERPUser();
 
   const open = Boolean(anchorEl);
   const handleClick = (event) => {
@@ -51,12 +44,11 @@ const ProfileMenu = ({ type = 'default' }) => {
     setAnchorEl(null);
   };
 
-  // 4. Calculate dynamic display values based on session
-  const displayName = loading ? 'Loading...' : (user?.first_name || user?.full_name || 'Guest');
-  const displayEmail = loading ? 'Loading...' : (user?.email || 'user@example.com');
+  const nameLabel = loading ? 'Loading...' : (displayName || 'Guest');
+  const emailLabel = loading ? '' : (displayEmail || '');
   // Use image if available, otherwise just use initials
   const userImage = user?.user_image ? `${ERP_CONFIG.baseUrl}${user.user_image}` : undefined;
-  const initial = displayName.charAt(0).toUpperCase();
+  const initial = (nameLabel.charAt(0) || '?').toUpperCase();
 
   const menuButton = (
     <Button
@@ -77,7 +69,7 @@ const ProfileMenu = ({ type = 'default' }) => {
       ]}
     >
       <StatusAvatar
-        alt={displayName}
+        alt={nameLabel}
         status="online" // Kept green dot as requested
         src={userImage} // Will use image if exists, otherwise uses the child (initial)
         sx={[
@@ -101,7 +93,7 @@ const ProfileMenu = ({ type = 'default' }) => {
     <>
       {type === 'slim' && upSm ? (
         <Button color="neutral" variant="text" size="small" onClick={handleClick}>
-          {displayName}
+          {nameLabel}
         </Button>
       ) : (
         menuButton
@@ -134,7 +126,7 @@ const ProfileMenu = ({ type = 'default' }) => {
         >
           <StatusAvatar
             status="online"
-            alt={displayName}
+            alt={nameLabel}
             src={userImage}
             sx={{ width: 48, height: 48, bgcolor: 'primary.main', color: 'primary.contrastText' }}
           >
@@ -148,7 +140,7 @@ const ProfileMenu = ({ type = 'default' }) => {
                 mb: 0.5,
               }}
             >
-              {user?.full_name} {/* Changed from Guest to User Name */}
+              {nameLabel}
             </Typography>
             <Typography
               variant="subtitle2"
@@ -156,7 +148,7 @@ const ProfileMenu = ({ type = 'default' }) => {
                 color: 'warning.main',
               }}
             >
-              {displayEmail} {/* Changed from Merchant Captain to Email */}
+              {emailLabel}
             </Typography>
           </Box>
         </Stack>
@@ -201,16 +193,16 @@ const ProfileMenu = ({ type = 'default' }) => {
 
         <Divider />
 
-        <Divider />
-
         <Box sx={{ py: 1 }}>
+          {/* Made Log Out button RED */}
           <ProfileMenuItem
-            onClick={async () => {
-              const loginUrl = 'https://erpnext.ortusolis.in/login' || '/';
-              await signOut({ redirect: false });
-              window.location.href = loginUrl;
+            onClick={() => {
+              handleClose();
+              redirectToLogin();
             }}
             icon="material-symbols:logout-rounded"
+            sx={{ color: 'error.main' }}
+            iconColor="error.main"
           >
             Sign Out
           </ProfileMenuItem>

@@ -28,7 +28,7 @@ const EmailDetailsContent = ({ email: propEmail }) => {
           <Typography variant="caption" sx={{ mr: 0.5, color: 'text.disabled' }}>
             To:{' '}
           </Typography>
-          <Typography variant="caption">Me, anotherperson@email.com</Typography>
+          <Typography variant="caption">{email?.to || 'Unknown'}</Typography>
         </div>
         <Typography variant="body2" sx={{ ml: 'auto' }}>
           {email?.time ? dayjs(email.time).fromNow() : ''}

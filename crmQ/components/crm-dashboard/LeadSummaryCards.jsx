@@ -96,7 +96,9 @@ const LeadSummaryCards = ({ timeFilter, setTimeFilter }) => {
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
-                    justifyContent: 'space-between'
+                    justifyContent: 'space-between',
+                    transition: 'background-color 0.2s',
+                    '&:hover': { bgcolor: 'action.hover' },
                 }}>
                     <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700, mb: 2 }}>Total Leads</Typography>
                     <Stack sx={{ gap: 1, flexDirection: { xs: 'column', md: 'row', lg: 'column' }, justifyContent: 'space-between' }}>
@@ -128,7 +130,9 @@ const LeadSummaryCards = ({ timeFilter, setTimeFilter }) => {
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
-                    justifyContent: 'space-between'
+                    justifyContent: 'space-between',
+                    transition: 'background-color 0.2s',
+                    '&:hover': { bgcolor: 'action.hover' },
                 }}>
                     <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2, gap: 1 }}>
                         <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700 }}>New Leads</Typography>

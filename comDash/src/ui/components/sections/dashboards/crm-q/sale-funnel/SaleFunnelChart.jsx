@@ -2,94 +2,69 @@
 
 import { useMemo } from 'react';
 import { useTheme } from '@mui/material';
-import { BarChart } from 'echarts/charts';
+import { FunnelChart } from 'echarts/charts';
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
-import { tooltipFormatterList } from 'helpers/echart-utils';
 import { useSettingsContext } from 'providers/SettingsProvider';
 import ReactEchart from 'components/base/ReactEchart';
 
-echarts.use([TooltipComponent, GridComponent, BarChart, CanvasRenderer, LegendComponent]);
+echarts.use([TooltipComponent, GridComponent, FunnelChart, CanvasRenderer, LegendComponent]);
 
 const SaleFunnelChart = ({ sx, data, ref }) => {
   const { vars, typography } = useTheme();
   const { getThemeColor } = useSettingsContext();
 
-  const getOptions = useMemo(
-    () => ({
+  const getOptions = useMemo(() => {
+    const safeData = data || [];
+
+    // THE FIX: Decouple the shape from the numbers!
+    // This forces a perfectly shaped funnel visually, while keeping the real numbers for labels.
+    const formattedData = safeData.map((item, index) => ({
+      name: item.name,
+      value: 100 - (index * 20), // Visual width: 100, 80, 60, 40 (perfect triangle shape)
+      realValue: item.value // The actual ERPNext number
+    }));
+
+    return {
       tooltip: {
-        trigger: 'axis',
-        formatter: (params) => tooltipFormatterList(params),
+        trigger: 'item',
+        // Show the real ERPNext number in the hover tooltip!
+        formatter: (params) => `${params.name} : <span style="font-weight:bold">${params.data.realValue}</span>`
       },
-      legend: {
-        data: Object.keys(data).flat(),
-        show: false,
-      },
-      xAxis: {
-        type: 'value',
-        show: false,
-        inverse: true,
-      },
-      yAxis: {
-        type: 'category',
-        data: Object.keys(data)
-          .flat()
-          .map((item) => item[0].toUpperCase() + item.slice(1)),
-        axisLabel: {
-          show: true,
-          align: 'left',
-          margin: 100,
-          color: getThemeColor(vars.palette.text.secondary),
-          fontFamily: typography.fontFamily,
-          fontSize: typography.subtitle2.fontSize,
-          fontWeight: 500,
-        },
-        axisTick: false,
-        axisLine: false,
-        inverse: true,
-        boundaryGap: true,
-      },
+      color: [
+        getThemeColor(vars.palette.chBlue[200]),
+        getThemeColor(vars.palette.chBlue[300]),
+        getThemeColor(vars.palette.chBlue[400]),
+        getThemeColor(vars.palette.chGreen[500]),
+      ],
       series: [
         {
-          type: 'bar',
-          showBackground: true,
-          backgroundStyle: {
-            borderRadius: 4,
-            color: getThemeColor(vars.palette.background.elevation2),
-          },
-          data: Object.values(data).flat(),
+          type: 'funnel',
+          left: '10%',
+          width: '80%',
+          sort: 'descending',
+          gap: 2, // Adds a nice clean space between the slices
           label: {
             show: true,
-            fontSize: typography.subtitle2.fontSize,
-            fontWeight: 500,
-            formatter: (params) => `${Number(params.value)}%`,
-          },
-          emphasis: {
-            disabled: true,
+            position: 'inside',
+            // Show the real ERPNext number inside the actual funnel!
+            formatter: (params) => `${params.data.realValue}`,
+            color: '#fff',
+            fontFamily: typography.fontFamily,
+            fontWeight: 600,
+            fontSize: 16
           },
           itemStyle: {
-            borderRadius: 4,
-            color: (params) => {
-              const colors = [
-                getThemeColor(vars.palette.chBlue[100]),
-                getThemeColor(vars.palette.chBlue[200]),
-                getThemeColor(vars.palette.chBlue[300]),
-                getThemeColor(vars.palette.chBlue[400]),
-                getThemeColor(vars.palette.chBlue[500]),
-              ];
-
-              return colors[params.dataIndex] || getThemeColor(vars.palette.chGreen[500]);
-            },
+            borderColor: getThemeColor(vars.palette.background.paper),
+            borderWidth: 2,
+            borderRadius: 4
           },
-          barWidth: 28,
-          barGap: 16,
-        },
-      ],
-      grid: { left: 100, right: 0, top: 0, bottom: 0, outerBoundsMode: 'none' },
-    }),
-    [vars.palette, getThemeColor, data],
-  );
+          data: formattedData
+        }
+      ]
+    };
+  }, [vars.palette, getThemeColor, data, typography.fontFamily]);
 
   return <ReactEchart ref={ref} echarts={echarts} option={getOptions} sx={sx} />;
 };

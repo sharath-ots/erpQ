@@ -1,13 +1,16 @@
-import { useParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import Grid from '@mui/material/Grid';
 import { useEmailContext } from 'providers/EmailProvider';
 import CardHeaderAction from 'components/common/CardHeaderAction';
 import EmailListActions from './EmailListActions';
 import EmailListPagination from './EmailListPagination';
 
-const EmailListHeader = () => {
+// 🚀 ACCEPT THE PROPS
+const EmailListHeader = ({ page, setPage, total, rowsPerPage }) => {
   const { resizableWidth } = useEmailContext();
-  const { id } = useParams();
+  const pathname = usePathname();
+  const pathParts = pathname.split('/').filter(Boolean);
+  const id = pathParts.includes('list') ? pathParts[pathParts.length - 1] : 'inbox';
 
   const isInvalidOrLargeWidth = !id || resizableWidth > 500;
 
@@ -36,7 +39,8 @@ const EmailListHeader = () => {
         </CardHeaderAction>
       </Grid>
       <Grid sx={{ ml: 'auto' }}>
-        <EmailListPagination />
+        {/* 🚀 PASS THEM DOWN */}
+        <EmailListPagination page={page} setPage={setPage} total={total} rowsPerPage={rowsPerPage} />
       </Grid>
     </Grid>
   );

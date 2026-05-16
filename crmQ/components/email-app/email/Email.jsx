@@ -1,50 +1,51 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Paper } from '@mui/material';
+import { Paper, Stack, CircularProgress, Typography } from '@mui/material';
 import EmailSidebar from 'layouts/email-layout/EmailSidebar';
 import { useBreakpoints } from 'providers/BreakpointsProvider';
 import BulkSelectProvider from 'providers/BulkSelectProvider';
-import { emailSidebarWidth, useEmailContext } from 'providers/EmailProvider';
-import EmailListContainer from './email-list/EmailListContainer';
+import EmailListContainer from 'components/sections/email/email-list/EmailListContainer';
 
-const Email = () => {
-  const [realEmails, setRealEmails] = useState([]);
-  const { emailDispatch } = useEmailContext();
+// 🚀 1. Import BOTH the Provider and the Hook from your file
+import EmailProvider, { useEmailContext, emailSidebarWidth } from 'providers/EmailProvider';
+
+const EmailContent = () => {
+  // This will NO LONGER be undefined because it is wrapped by the component below
+  const { emailState, emailDispatch } = useEmailContext();
 
   const { up } = useBreakpoints();
   const upMd = up('md');
   const [isDrawerOpen, setIsDrawerOpen] = useState(upMd);
   const toggleDrawer = () => setIsDrawerOpen((prev) => !prev);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const getData = async () => {
+    const loadData = async () => {
+      setIsLoading(true);
       try {
-        // 🚀 1. INSTANT LOAD: Check browser cache first so the UI doesn't wait
-        const cached = sessionStorage.getItem('erp_emails');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          setRealEmails(parsed);
-          if (emailDispatch) emailDispatch({ type: 'INITIALIZE_EMAILS', payload: parsed });
-        }
-
-        // 🚀 2. BACKGROUND SYNC: Fetch fresh data from ERPNext
-        const res = await fetch('/api/lead-emails?lead_id=CRM-LEAD-2026-00074');
+        const timestamp = new Date().getTime();
+        const res = await fetch(`/api/email-app?bypass=${timestamp}`, { cache: 'no-store' });
         const data = await res.json();
 
-        // Save to browser memory for the Details page
-        sessionStorage.setItem('erp_emails', JSON.stringify(data));
-        setRealEmails(data);
-
-        if (emailDispatch) {
+        // If the API returns the array of 500 items, save them!
+        if (Array.isArray(data) && emailDispatch) {
           emailDispatch({ type: 'INITIALIZE_EMAILS', payload: data });
+          emailDispatch({ type: 'GET_EMAILS', payload: 'inbox' });
         }
       } catch (err) {
-        console.error("🛠️ ERP FETCH ERROR:", err);
+        console.error("Fetch Error:", err);
+      } finally {
+        setIsLoading(false);
       }
     };
-    getData();
-  }, [emailDispatch]);
+
+    if (!emailState?.initialEmails || emailState.initialEmails.length === 0) {
+      loadData();
+    } else {
+      setIsLoading(false);
+    }
+  }, [emailDispatch, emailState?.initialEmails?.length]);
 
   return (
     <>
@@ -53,7 +54,7 @@ const Email = () => {
         sx={(theme) => ({
           flex: 1,
           minWidth: 0,
-          marginLeft: { md: `-${emailSidebarWidth}px` },
+          marginLeft: { md: `-${emailSidebarWidth || 270}px` },
           transition: theme.transitions.create('margin', {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,
@@ -67,12 +68,25 @@ const Email = () => {
           }),
         })}
       >
-        <BulkSelectProvider data={realEmails}>
-          <EmailListContainer toggleDrawer={toggleDrawer} explicitEmailList={realEmails} />
-        </BulkSelectProvider>
+        {isLoading ? (
+          <Stack sx={{ alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+            <CircularProgress size={30} sx={{ mb: 2 }} />
+            <Typography variant="body2" color="text.secondary">Loading your emails...</Typography>
+          </Stack>
+        ) : (
+          <BulkSelectProvider data={emailState?.emails || []}>
+            <EmailListContainer toggleDrawer={toggleDrawer} explicitEmailList={emailState?.emails || []} />
+          </BulkSelectProvider>
+        )}
       </Paper>
     </>
   );
 };
 
-export default Email;
+export default function Email() {
+  return (
+    <EmailProvider>
+      <EmailContent />
+    </EmailProvider>
+  );
+}

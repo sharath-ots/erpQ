@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+'use client';
+
+import { useEffect } from 'react';
 import {
   Autocomplete,
   Avatar,
@@ -9,27 +11,24 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { defaultEmails } from 'data/email';
+
 import IconifyIcon from 'components/base/IconifyIcon';
 import StyledFormControl from 'components/styled/StyledFormControl';
 import StyledSelect from 'components/styled/StyledSelect';
 import StyledTextField from 'components/styled/StyledTextField';
 
-// 🚀 Extract 'email' from props
-const SendOptionInput = ({ setSendType, sendType, email }) => {
-
-  // 🚀 Start safely, gracefully falling back if user email is missing
-  const [values, setValues] = useState(
-    email?.user?.email ? [email.user.email, ...defaultEmails] : [...defaultEmails]
-  );
+const SendOptionInput = ({ setSendType, sendType, emailData, recipients, setRecipients }) => {
+  const email = emailData;
+  const targetEmail = email?.sender_email || email?.user?.email || '';
 
   useEffect(() => {
-    if (sendType === 'Reply' && email?.user?.email) {
-      setValues([email.user.email]);
-    } else {
-      setValues([]);
+    if (sendType === 'Reply' && targetEmail) {
+      setRecipients([targetEmail]);
+    } else if (sendType === 'Forward') {
+      // Ensure it stays blank when switching to Forward
+      setRecipients([]);
     }
-  }, [sendType, email]);
+  }, [sendType, targetEmail, setRecipients]);
 
   return (
     <Stack sx={{ flexWrap: 'wrap', flexDirection: { xs: 'column', sm: 'row' } }}>
@@ -67,17 +66,26 @@ const SendOptionInput = ({ setSendType, sendType, email }) => {
           </MenuItem>
         </StyledSelect>
       </StyledFormControl>
+
       <Autocomplete
         sx={{ flex: 1 }}
         multiple
         freeSolo
-        options={defaultEmails}
-        value={values}
+        options={[]}
+        value={recipients || []}
         disableClearable
-        onChange={(event, newValue) => setValues(newValue)}
-        renderValue={(value, getItemProps) =>
+        // 🚀 THE MULTI-EMAIL FIX: Automatically splits pasted lists by commas or spaces into separate chips!
+        onChange={(event, newValue) => {
+          const expandedValues = newValue.reduce((acc, curr) => {
+            const splitEmails = curr.split(/[,\s]+/).filter(Boolean);
+            return [...acc, ...splitEmails];
+          }, []);
+          // Removes duplicates automatically
+          setRecipients([...new Set(expandedValues)]);
+        }}
+        renderTags={(value, getTagProps) =>
           value.map((option, index) => {
-            const { key, ...rest } = getItemProps({ index });
+            const { key, ...rest } = getTagProps({ index });
 
             return (
               <Chip
@@ -86,9 +94,8 @@ const SendOptionInput = ({ setSendType, sendType, email }) => {
                 size="medium"
                 sx={{ [`&.${buttonBaseClasses.root}`]: { mt: 0 } }}
                 avatar={
-                  // 🚀 Safely check for user object before grabbing avatar
-                  option === email?.user?.email ? (
-                    <Avatar alt="User" src={email?.user?.avatar} />
+                  option === targetEmail ? (
+                    <Avatar alt={email?.sender || 'User'} src={email?.user?.avatar} />
                   ) : undefined
                 }
                 color="neutral"
@@ -106,9 +113,7 @@ const SendOptionInput = ({ setSendType, sendType, email }) => {
               [`& .${inputBaseClasses.root}`]: {
                 bgcolor: 'unset',
                 gap: 0.5,
-                ['&:hover']: {
-                  bgcolor: 'unset',
-                },
+                ['&:hover']: { bgcolor: 'unset' },
                 [`&.${inputBaseClasses.focused}`]: {
                   bgcolor: 'unset !important',
                   boxShadow: 'none',
@@ -116,7 +121,7 @@ const SendOptionInput = ({ setSendType, sendType, email }) => {
               },
             }}
             variant="filled"
-            placeholder="Type..."
+            placeholder="Type email and press Enter..."
           />
         )}
       />

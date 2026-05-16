@@ -1,18 +1,18 @@
 'use client';
 
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useEffect, useCallback } from 'react';
 import { Box, ButtonBase, Paper, Stack, Typography } from '@mui/material';
 import Grid from '@mui/material/Grid';
+import { useRouter, usePathname } from 'next/navigation'; // 🚀 Added Navigation
 import useToggleChartLegends from 'hooks/useToggleChartLegends';
 import DashboardMenu from 'components/common/DashboardMenu';
 import SectionHeader from 'components/common/SectionHeader';
 import LeadSourcesChart from './LeadSourcesChart';
 
-// Infinite Dynamic Color Generator
 const generateColor = (index) => {
   const defaultColors = ['#4A90E2', '#F39C12', '#2ECC71', '#E74C3C', '#9B59B6', '#1ABC9C', '#F1C40F', '#34495E', '#E67E22', '#7F8C8D'];
   if (index < defaultColors.length) return defaultColors[index];
-  return `hsl(${(index * 137.5) % 360}, 70%, 50%)`; // Creates distinct colors infinitely
+  return `hsl(${(index * 137.5) % 360}, 70%, 50%)`;
 };
 
 const LeadSources = ({ data }) => {
@@ -20,7 +20,46 @@ const LeadSources = ({ data }) => {
   const { legendState, handleLegendToggle } = useToggleChartLegends(chartRef);
   const safeData = data || [];
 
-  // Generate perfect matching colors for however many sources exist
+  // 🚀 Hooks Setup
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // 🚀 Navigation Handler for Chart Slices
+  const handleNavigate = useCallback((sourceName) => {
+    const filters = [{ field: 'source', operator: '=', value: sourceName }];
+    const basePath = pathname.startsWith('/m/crmq') ? '/m/crmq/lead-list' : '/crmq/lead-list';
+    router.push(`${basePath}?filters=${encodeURIComponent(JSON.stringify(filters))}`);
+  }, [pathname, router]);
+
+  // 🚀 Bulletproof Click Binding directly to the ECharts instance
+  useEffect(() => {
+    let instance = null;
+    if (chartRef.current) {
+      instance = typeof chartRef.current.getEchartsInstance === 'function'
+        ? chartRef.current.getEchartsInstance()
+        : chartRef.current;
+    }
+
+    if (instance && typeof instance.on === 'function') {
+      const clickHandler = (params) => {
+        // Only route if they clicked an actual slice with a name
+        if (params.name) {
+          handleNavigate(params.name);
+        }
+      };
+
+      // Attach the event (clearing old ones to prevent duplicate firing)
+      instance.off('click', clickHandler);
+      instance.on('click', clickHandler);
+
+      return () => {
+        if (instance && typeof instance.off === 'function') {
+          instance.off('click', clickHandler);
+        }
+      };
+    }
+  }, [handleNavigate, safeData]);
+
   const chartLegends = useMemo(() => {
     return safeData.map((item, index) => ({
       label: item.name,
@@ -28,10 +67,8 @@ const LeadSources = ({ data }) => {
     }));
   }, [safeData]);
 
-  // Extract just the color strings to pass to the chart
   const chartColors = chartLegends.map(l => l.color);
 
-  // Dynamic total calculation
   const displayTotal = safeData.reduce((acc, item) => {
     const isHidden = legendState[item.name];
     return isHidden ? acc : acc + item.value;
@@ -44,10 +81,18 @@ const LeadSources = ({ data }) => {
 
         <Stack direction="column">
           <Box sx={{ position: 'relative' }}>
-            {/* We pass our dynamic chartColors array directly into the chart! */}
-            <LeadSourcesChart data={safeData} colors={chartColors} ref={chartRef} sx={{ height: '215px !important' }} />
 
-            <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
+            {/* 🚀 Pass onEvents down just in case the wrapper supports it natively */}
+            <LeadSourcesChart
+              data={safeData}
+              colors={chartColors}
+              ref={chartRef}
+              onEvents={{ click: (params) => handleNavigate(params.name) }}
+              sx={{ height: '215px !important' }}
+            />
+
+            {/* 🚀 Added pointerEvents: 'none' so clicking the text in the middle doesn't block the chart click */}
+            <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', pointerEvents: 'none' }}>
               <Typography variant="h4">{displayTotal}</Typography>
             </Box>
           </Box>

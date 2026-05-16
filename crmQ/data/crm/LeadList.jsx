@@ -75,14 +75,22 @@ const LeadsTable = ({ onLeadClick }) => {
             const data = await fetchLeadListAdmin();
             const safeData = Array.isArray(data) ? data : [];
 
-            const formattedData = safeData.map((item, index) => ({
-                ...item,
-                id: String(item.id || item.name || `fallback-id-${index}`),
-                realId: item.name || item.id,
-                displayName: item.lead_name || item.name || 'Unknown',
-                company: item.company || item.company_name || 'N/A',
-                creation: item.creation
-            }));
+            const formattedData = safeData.map((item, index) => {
+                // 🚀 FIX: Strip out the time, leaving only YYYY-MM-DD
+                const cleanCreation = item.creation ? String(item.creation).split(' ')[0].split('T')[0] : null;
+                const cleanModified = item.modified ? String(item.modified).split(' ')[0].split('T')[0] : null;
+
+                return {
+                    ...item,
+                    id: String(item.id || item.name || `fallback-id-${index}`),
+                    realId: item.name || item.id,
+                    displayName: item.lead_name || item.name || 'Unknown',
+                    company: item.company || item.company_name || 'N/A',
+                    creation: cleanCreation,
+                    modified: cleanModified, // 🚀 Added clean modified date
+                    source: item.source || ''
+                };
+            });
             setRows(formattedData);
 
             setLeadCounts({
@@ -162,7 +170,9 @@ const LeadsTable = ({ onLeadClick }) => {
         if (!rows || rows.length === 0) return [];
         const fakeReactFields = ['id', 'realId', 'displayName', 'company', 'avatar'];
         const keys = Object.keys(rows[0]).filter(key => !fakeReactFields.includes(key));
+
         let fields = keys.map(key => {
+            // Clean up names
             let label = key.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
             if (key === 'creation') label = 'Created On';
             if (key === 'modified') label = 'Last Updated On';
@@ -171,10 +181,37 @@ const LeadsTable = ({ onLeadClick }) => {
             if (key === 'lead_name') label = 'Lead Name';
             if (key === 'company_name') label = 'Organization';
             if (key === 'email_id') label = 'Email';
-            return { label, value: key };
+            // 🚀 Ensure beautiful label for Source
+            if (key === 'source') label = 'Lead Source';
+
+            let fieldDef = { label, value: key };
+
+            // Apply specific dropdown options
+            if (key === 'conversion_potential') {
+                fieldDef.options = ['0 - 25 %', '26 - 50%', '51 - 75%', '76 - 100%'];
+            }
+            if (key === 'potential_volume') {
+                fieldDef.options = ['1 vehicle', '2-5 vehicle', '6-10 vehicle', '11-25 vehicle', '25+ vehicle'];
+            }
+            // 🚀 Extract actual sources dynamically from all your leads
+            if (key === 'source') {
+                const uniqueSources = Array.from(new Set(rows.map(r => r.source).filter(Boolean)));
+                fieldDef.options = uniqueSources.length > 0 ? uniqueSources.sort() : ['Direct'];
+            }
+
+            return fieldDef;
         });
-        const ensureFieldExists = (val, lab) => { if (!fields.find(f => f.value === val)) fields.push({ label: lab, value: val }); };
-        ensureFieldExists('creation', 'Created On'); ensureFieldExists('modified', 'Last Updated On'); ensureFieldExists('name', 'Lead ID'); ensureFieldExists('status', 'Status'); ensureFieldExists('email_id', 'Email'); ensureFieldExists('lead_owner', 'Lead Owner');
+
+        // Ensure critical fields always show up even if data is totally empty
+        const ensureFieldExists = (val, lab) => {
+            if (!fields.find(f => f.value === val)) fields.push({ label: lab, value: val });
+        };
+        ensureFieldExists('creation', 'Created On');
+        ensureFieldExists('modified', 'Last Updated On');
+        ensureFieldExists('name', 'Lead ID');
+        ensureFieldExists('status', 'Status');
+        ensureFieldExists('lead_owner', 'Lead Owner');
+
         return fields.sort((a, b) => a.label.localeCompare(b.label));
     }, [rows]);
 
