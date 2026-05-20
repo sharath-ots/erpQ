@@ -16,6 +16,7 @@ import EmailLayout from '../../../../crmQ/src/layouts/email-layout/index';
 import EmailDetails from '../../../../crmQ/components/email-app/email/EmailDetails';
 import Email from '../../../../crmQ/components/email-app/email/Email';
 import CommingSoonPage from '../../../../crmQ/pages/landing/comming_soon/index';
+import KanbanRoute from '../../../../crmQ/pages/crm/kanban/index'
 
 //import { usePortalMenu } from "./shared-ui/PortalMenuContext";
 
@@ -85,6 +86,10 @@ export function ModuleOutlet({ menuItems = [], deskBaseUrl, deskIframeQuery }) {
 
     if (normalized === "/m/crmq/landing") {
       return <CommingSoonPage />;
+    }
+
+    if (normalized === "/m/crmq/kanban") {
+      return <KanbanRoute />
     }
 
     // FALLBACK: If the route is missing

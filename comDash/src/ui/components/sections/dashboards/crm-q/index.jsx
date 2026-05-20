@@ -80,7 +80,7 @@ const CRMQ = () => {
       </Grid>
 
       {/* Row 3: Customer Acquisition Cost - FULL WIDTH FIX */}
-      <Grid container size={12} sx={{ alignItems: 'stretch' }}>
+      {/* <Grid container size={12} sx={{ alignItems: 'stretch' }}>
         <Grid
           size={12} // 🚀 Changed from 6 to 12 to span right to left
           sx={{
@@ -92,7 +92,7 @@ const CRMQ = () => {
         >
           <AcquisitionCost />
         </Grid>
-      </Grid>
+      </Grid> */}
 
       {/* Row 4: Communication Flow & Monthly Active Users - PERFECT 50/50 SPLIT */}
       <Grid container size={12} sx={{ alignItems: 'stretch' }}>

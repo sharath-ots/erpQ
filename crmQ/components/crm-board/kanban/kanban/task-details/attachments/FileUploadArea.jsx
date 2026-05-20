@@ -10,44 +10,33 @@ const createAttachmentFromFile = (file) => {
     filename: file.name,
     time: new Date().toISOString().slice(0, 19),
     addedBy: 'Sampro',
-    file,
+    file, // This 'file' object is what we check in TaskDetails to see if it's new
     ...(isImage && { image: URL.createObjectURL(file) }),
     ...(!isImage && { icon: getFileIcon(ext) }),
   };
 };
 
+// 🚀 Removed erpIds prop
 const FileUploadArea = () => {
-  const {
-    formState: { errors },
-    setValue,
-    watch,
-  } = useFormContext();
-
+  const { formState: { errors }, setValue, watch } = useFormContext();
   const files = watch('attachments') || [];
-  const uploadedOnly = files.filter((a) => Boolean(a.file));
-
+  
+  // 🚀 CLEAN: onDrop is now synchronous and only updates the form state
   const onDrop = (acceptedFiles) => {
     const uploadedFiles = acceptedFiles.map(createAttachmentFromFile);
     setValue('attachments', [...uploadedFiles, ...files], { shouldValidate: true });
   };
 
   const removeImage = (dropZoneIndex) => {
-    const removed = uploadedOnly[dropZoneIndex];
-    if (!removed) return;
-    if (removed.image && removed.image.startsWith('blob:')) {
-      URL.revokeObjectURL(removed.image);
-    }
-    setValue(
-      'attachments',
-      files.filter((a) => a.id !== removed.id),
-      { shouldValidate: true }
-    );
+    // Note: We need to filter by the specific index to match the FileDropZone UI
+    const newFiles = files.filter((_, i) => i !== dropZoneIndex);
+    setValue('attachments', newFiles, { shouldValidate: true });
   };
 
   return (
     <FileDropZone
       multiple
-      defaultFiles={uploadedOnly.map((a) => a.file)}
+      defaultFiles={files.filter(a => a.file).map(a => a.file)}
       accept={{
         'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.avif', '.webp'],
         'video/*': ['.mp4', '.mov'],

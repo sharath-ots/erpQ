@@ -1,5 +1,4 @@
 import { memo, useMemo } from 'react';
-import Avatar, { avatarClasses } from '@mui/material/Avatar';
 import AvatarGroup from '@mui/material/AvatarGroup';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -12,6 +11,10 @@ import Typography from '@mui/material/Typography';
 import dayjs from 'dayjs';
 import IconifyIcon from 'components/base/IconifyIcon';
 import Image from 'components/base/Image';
+import { useKanbanContext } from '../../../../../providers/KanbanProvider';
+
+// 🚀 IMPORT YOUR ILLUSTRATED AVATAR
+import IllustratedAvatar from '../../../IllustratedAvatar'; // Adjust this path to wherever you saved IllustratedAvatar.jsx!
 
 const getLabelChipColor = (val) => {
   switch (val) {
@@ -27,6 +30,9 @@ const getLabelChipColor = (val) => {
 };
 
 const TaskCard = memo(({ task }) => {
+
+  const { activeFilters, searchQuery } = useKanbanContext();
+
   const progressValue = useMemo(() => {
     if (task.progress?.showBar) {
       return (task.progress.completed / task.progress.total) * 100;
@@ -35,9 +41,19 @@ const TaskCard = memo(({ task }) => {
     return null;
   }, [task.progress]);
 
+  const failsFilter = activeFilters && activeFilters.length > 0 && !activeFilters.includes(task.label);
+
+  const matchesSearch = !searchQuery || 
+      (task.title && task.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (task.erp_raw_id && task.erp_raw_id.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (task.label && task.label.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  const isHidden = failsFilter || !matchesSearch;
+
   return (
     <Card
       sx={{
+        display: isHidden ? 'none' : 'block',
         borderRadius: 4,
         outline: 'none',
         bgcolor: 'background.elevation2',
@@ -73,7 +89,7 @@ const TaskCard = memo(({ task }) => {
           />
         )}
 
-        {progressValue && (
+        {progressValue !== null &&(
           <LinearProgress
             variant="determinate"
             color={progressValue === 100 ? 'success' : 'primary'}
@@ -86,7 +102,7 @@ const TaskCard = memo(({ task }) => {
           {task.title}
         </Typography>
 
-        <Stack spacing={1} sx={{ alignItems: 'center' }}>
+        <Stack spacing={1} sx={{ alignItems: 'center', direction: 'row' }}>
           {task.dueDate && (
             <Chip
               icon={<IconifyIcon icon="material-symbols:timer-outline-rounded" />}
@@ -97,25 +113,25 @@ const TaskCard = memo(({ task }) => {
           )}
 
           {task.progress?.showData && (
-            <Stack sx={{ alignItems: 'center', color: 'text.secondary' }}>
+            <Stack sx={{ alignItems: 'center', color: 'text.secondary', direction: 'row', ml: 1 }}>
               <IconifyIcon
                 icon={'material-symbols-light:check-box-outline'}
                 sx={{ fontSize: '18px !important' }}
               />
               <Typography
                 variant="caption"
-                sx={{ fontWeight: 500 }}
+                sx={{ fontWeight: 500, ml: 0.5 }}
               >{`${task.progress.completed}/${task.progress.total}`}</Typography>
             </Stack>
           )}
 
           {task.attachmentCount && (
-            <Stack sx={{ alignItems: 'center', color: 'text.secondary' }}>
+            <Stack sx={{ alignItems: 'center', color: 'text.secondary', direction: 'row', ml: 1 }}>
               <IconifyIcon
                 icon={'material-symbols-light:attachment-rounded'}
                 sx={{ fontSize: '18px !important' }}
               />
-              <Typography variant="caption" sx={{ fontWeight: 500 }}>
+              <Typography variant="caption" sx={{ fontWeight: 500, ml: 0.5 }}>
                 {task.attachmentCount}
               </Typography>
             </Stack>
@@ -123,21 +139,26 @@ const TaskCard = memo(({ task }) => {
 
           <AvatarGroup
             max={3}
-            color="primary"
             sx={{
               ml: 'auto',
               mr: 1,
-              [`& .${avatarClasses.root}`]: {
-                width: 24,
-                height: 24,
-                fontWeight: 'medium',
-                bgcolor: 'primary.main',
-              },
+              // Remove the default MUI Avatar styling so our custom one fits perfectly
+              '& .MuiAvatar-root': { width: 24, height: 24, border: 'none' } 
             }}
           >
             {task.assignee?.map((user) => (
-              <Tooltip title={user.name} key={user.name}>
-                <Avatar alt={user.name} src={user.avatar} />
+              <Tooltip title={user.name || 'Unknown User'} key={user.id || user.name}>
+                {/* 🚀 USE THE ILLUSTRATED AVATAR HERE */}
+                <div style={{ 
+                  borderRadius: '50%', 
+                  overflow: 'hidden', 
+                  width: 24, 
+                  height: 24, 
+                  border: '2px solid white', 
+                  marginLeft: -8 
+                }}>
+                  <IllustratedAvatar name={user.avatarSeed || user.name || user.id} size={24} />
+                </div>
               </Tooltip>
             ))}
           </AvatarGroup>

@@ -32,7 +32,7 @@ export const kanbanBoard = {
   id: 1,
   name: 'Lead Pipeline',
   assignee: [...users.slice(2, 8)],
-  backgroundOption: { type: 'color', background: '#f4f7fe' },
+  backgroundOption: { type: 'color', background: '#ffffff' },
   listItems: [
     { id: 'list1', title: 'Overdue', tasks: [] },
     { id: 'list2', title: 'Today', tasks: [] },
@@ -131,18 +131,47 @@ const Kanban = () => {
     if (contextBoard) fetchLeads();
   }, [contextBoard, setKanbanBoard]);
 
+  // Extract the background option to make the code cleaner
+  // Extract the background option to make the code cleaner
+  const bgOption = contextBoard?.backgroundOption;
+  
+  // Safely grab the CSS value
+  const bgValue = typeof bgOption?.background === 'string' 
+    ? bgOption.background 
+    : bgOption?.background?.src;
+
   return (
     <Paper elevation={0}>
+      {/* 1. Header stays at the top, untouched by the background */}
       <KanbanHeader />
-      <SimpleBar sx={{ height: 'calc(100vh - 200px)' }}>
-        <Stack sx={{ gap: 3, px: 3, py: 2 }}>
+
+      {/* 2. Apply the background ONLY to the scrollable body area */}
+      <SimpleBar 
+        sx={[
+          { height: 'calc(100vh - 200px)' },
+          { transition: 'background 0.3s ease-in-out' },
+          bgOption?.type === 'image' && {
+            backgroundImage: `url('${bgValue}')`,
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          },
+          bgOption?.type === 'color' && {
+            background: bgValue,
+          }
+        ]}
+      >
+        <Stack sx={{ gap: 3, px: 3, py: 2, minHeight: '100%' }}>
           {!dataLoaded ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 10 }}><CircularProgress /></Box>
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 10 }}>
+              <CircularProgress />
+            </Box>
           ) : (
             <KanbanApp />
           )}
         </Stack>
       </SimpleBar>
+
       <TaskDetails />
     </Paper>
   );

@@ -13,19 +13,19 @@ import Kanban from '../../../components/crm-board/kanban/kanban/index';
 
 export default function KanbanRoute() {
     return (
-        <SettingsProvider>
-            <ThemeProvider>
-                <CssBaseline />
-                <LocalizationProvider dateAdapter={AdapterDayjs}>
-                    <BreakpointsProvider>
-                        <NavProvider>
+        // <SettingsProvider>
+        //     <ThemeProvider>
+        //         <CssBaseline />
+        //         <LocalizationProvider dateAdapter={AdapterDayjs}>
+        //             <BreakpointsProvider>
+        //                 <NavProvider>
                             <KanbanProvider>
                                 <Kanban />
                             </KanbanProvider>
-                        </NavProvider>
-                    </BreakpointsProvider>
-                </LocalizationProvider>
-            </ThemeProvider>
-        </SettingsProvider>
+        //                 </NavProvider>
+        //             </BreakpointsProvider>
+        //         </LocalizationProvider>
+        //     </ThemeProvider>
+        // </SettingsProvider>
     );
 }
