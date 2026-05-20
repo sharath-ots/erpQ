@@ -5,6 +5,8 @@ import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
+import Dialog from '@mui/material/Dialog';         // 🚀 MUST IMPORT
+import DialogContent from '@mui/material/DialogContent'; // 🚀 MUST IMPORT
 import { getFileExtension, getFileIcon } from 'lib/utils';
 import Attachment from './Attachment';
 import FileUploadArea from './FileUploadArea';
@@ -13,10 +15,10 @@ const Attachments = () => {
   const { watch, setValue } = useFormContext();
   const { taskDetails } = useKanbanContext();
   const [isLoading, setIsLoading] = useState(false);
+  const [fullView, setFullView] = useState(null); // This state works now!
 
   const attachments = watch('attachments') || [];
   
-  // 🚀 THE FIX: Grab the full array of IDs, and pick the first one for fetching UI data
   const erpIds = taskDetails?.erp_ids || [];
   const fetchId = erpIds[0]; 
 
@@ -27,15 +29,12 @@ const Attachments = () => {
       try {
         const res = await fetch(`/api/frappe/files?doctype=ToDo&docname=${fetchId}`);
         const json = await res.json();
-        
         const uniqueFilesMap = new Map();
 
         (json.data || []).forEach(f => {
             if (!uniqueFilesMap.has(f.file_url)) {
                 const ext = getFileExtension(f.file_name).toLowerCase();
                 const isImage = ['jpeg', 'jpg', 'png', 'gif', 'avif', 'webp'].includes(ext);
-                
-                // 🚀 THE FIX: Create the proxy URL here
                 const proxyUrl = `/api/frappe/proxy-image?url=${encodeURIComponent(f.file_url)}`;
                 
                 uniqueFilesMap.set(f.file_url, {
@@ -48,34 +47,26 @@ const Attachments = () => {
                 });
             }
         });
-
         setValue('attachments', Array.from(uniqueFilesMap.values()));
-        
       } catch (error) {
         console.error("Failed to fetch attachments:", error);
       } finally {
         setIsLoading(false);
       }
     };
-
     fetchFiles();
   }, [fetchId, setValue]);
 
-  // 🚀 THE FIX: Delete based on URL and the array of IDs
   const handleDeleteAttachment = async (file_url) => {
     const confirm = window.confirm("Are you sure you want to permanently delete this file?");
     if (!confirm) return;
-
     try {
       const res = await fetch('/api/frappe/files', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ erp_ids: erpIds, file_url: file_url }) // Send them all to the backend!
+        body: JSON.stringify({ erp_ids: erpIds, file_url: file_url })
       });
-
       if (!res.ok) throw new Error("Failed to delete");
-
-      // Instantly remove it from the screen
       setValue('attachments', attachments.filter(a => a.file_url !== file_url));
     } catch (error) {
       alert("Error deleting file.");
@@ -93,8 +84,13 @@ const Attachments = () => {
       ) : (
         <Box sx={{ mb: 3 }}>
           {attachments.map((item) => (
-            <Box key={item.id} sx={{ position: 'relative' }}>
-               <Attachment data={item} />
+            <Box key={item.id} sx={{ position: 'relative', mb: 2 }}>
+               <Box 
+                 onClick={() => item.image && setFullView(item.image)} 
+                 sx={{ cursor: item.image ? 'pointer' : 'default' }}
+               >
+                 <Attachment data={item} />
+               </Box>
                <Typography 
                  onClick={() => handleDeleteAttachment(item.file_url)}
                  sx={{ 
@@ -110,8 +106,25 @@ const Attachments = () => {
         </Box>
       )}
       
-      {/* 🚀 Pass the entire array down to the uploader! */}
       <FileUploadArea erpIds={erpIds} /> 
+
+      {/* 🚀 THE MISSING PIECE: The Dialog component that actually displays the view */}
+      <Dialog 
+        open={!!fullView} 
+        onClose={() => setFullView(null)} 
+        maxWidth="lg" 
+        fullWidth
+      >
+        <DialogContent sx={{ p: 0, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          {fullView && (
+            <img 
+              src={fullView} 
+              alt="Full screen preview" 
+              style={{ width: '100%', height: 'auto', maxHeight: '90vh', objectFit: 'contain' }} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Paper>
   );
 };

@@ -1,4 +1,4 @@
-export const boards = ['Lead Pipeline', 'Marketing', 'Sales'];
+export const boards = ['Todo Task', 'Marketing', 'Sales'];
 export const taskLabels = ['task', 'event', 'lead', 'todo'];
 export const taskPriorities = ['high', 'medium', 'low'];
 
@@ -8,9 +8,9 @@ const description_fallback = `A Kanban Board follow-up...`;
 // --- 1. THE BOARD STRUCTURE ---
 export const kanbanBoard = {
   id: 1,
-  name: 'Lead Pipeline',
+  name: 'Todo Task',
   assignee: [], // 🚀 Cleaned out dummy user data
-  backgroundOption: { type: 'color', background: '#f4f7fe' },
+  backgroundOption: { type: 'color', background: 'transparent' },
   listItems: [
     { id: 'list1', title: 'Overdue', tasks: [] },
     { id: 'list2', title: 'Today', tasks: [] },
