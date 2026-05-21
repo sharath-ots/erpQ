@@ -1,0 +1,82 @@
+# Pull pre-built GHCR images on the production server and restart the stack.
+# Requires repository secrets (Settings -> Secrets and variables -> Actions).
+#
+# Secrets:
+#   PROD_SSH_HOST          - server hostname or IP
+#   PROD_SSH_USER          - deploy user (SSH key login)
+#   PROD_SSH_PRIVATE_KEY   - private key (full PEM, including BEGIN/END lines)
+#   GHCR_PULL_TOKEN        - GitHub PAT with read:packages (for private GHCR images)
+#
+# Optional variables (Settings -> Variables):
+#   PROD_DEPLOY_PATH       - default /opt/erpq
+#   PROD_USE_TRAEFIK       - set to "1" to add docker-compose.traefik.yml
+
+name: Deploy production (GHCR pull)
+
+on:
+  workflow_run:
+    workflows: ["Build and push images (GHCR)"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      app_version:
+        description: "Image tag to deploy (latest, main, v1.2.3, or sha-abc1234)"
+        required: true
+        default: "latest"
+
+concurrency:
+  group: erpq-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    environment: production
+
+    env:
+      APP_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.app_version || 'latest' }}
+
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          APP_VERSION: ${{ env.APP_VERSION }}
+          GHCR_OWNER: ${{ github.repository_owner }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          PROD_DEPLOY_PATH: ${{ vars.PROD_DEPLOY_PATH || '/opt/erpq' }}
+          PROD_USE_TRAEFIK: ${{ vars.PROD_USE_TRAEFIK || '1' }}
+        with:
+          host: ${{ secrets.PROD_SSH_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          envs: APP_VERSION,GHCR_OWNER,GHCR_PULL_TOKEN,PROD_DEPLOY_PATH,PROD_USE_TRAEFIK
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd "$PROD_DEPLOY_PATH"
+
+            if [ ! -f .env.production ]; then
+              echo "Missing .env.production in $PROD_DEPLOY_PATH" >&2
+              exit 1
+            fi
+
+            echo "$GHCR_PULL_TOKEN" | docker login ghcr.io -u "$GHCR_OWNER" --password-stdin
+
+            COMPOSE_FILES="-f docker-compose.production.yml"
+            if [ "$PROD_USE_TRAEFIK" = "1" ] && [ -f docker-compose.traefik.yml ]; then
+              COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.traefik.yml"
+            fi
+
+            export APP_VERSION
+            echo "Deploying APP_VERSION=$APP_VERSION"
+
+            docker compose -p erpq --env-file .env.production $COMPOSE_FILES pull
+            docker compose -p erpq --env-file .env.production $COMPOSE_FILES up -d --remove-orphans
+            docker compose -p erpq --env-file .env.production $COMPOSE_FILES ps
+
+            echo "Production deploy complete."

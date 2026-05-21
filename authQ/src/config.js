@@ -64,9 +64,14 @@ export const env = {
     accountsHost: trim(process.env.AUTHQ_ZOHO_ACCOUNTS_HOST || "accounts.zoho.com"),
     scope: trim(
       process.env.AUTHQ_ZOHO_SCOPE ??
-        "openid email profile aaaserver.profile.READ",
+        // Keep profile scopes for userinfo + add WorkDrive read scopes for docQ.
+        "openid email profile aaaserver.profile.READ WorkDrive.files.READ WorkDrive.team.READ",
     ),
   },
+
+  // Optional: internal docQ URL for storing Zoho refresh tokens (authQ -> docQ).
+  docqInternalUrl: trim(process.env.AUTHQ_DOCQ_INTERNAL_URL || ""),
+  cityqServiceKey: trim(process.env.CITYQ_SERVICE_KEY || ""),
 };
 
 export function parseOAuthAllowedDocTypes() {

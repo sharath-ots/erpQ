@@ -35,7 +35,10 @@ services:
       - "${TRAEFIK_DASHBOARD_PORT:-8088}:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ${TRAEFIK_DYNAMIC_DIR:-./traefik/dynamic}:/etc/traefik/dynamic:ro
+      - type: bind
+        source: ${TRAEFIK_DYNAMIC_DIR:-./traefik/dynamic}
+        target: /etc/traefik/dynamic
+        read_only: true
       - traefik_letsencrypt:/letsencrypt
     networks:
       - proxy
@@ -45,7 +48,7 @@ services:
     labels:
       - traefik.enable=true
       # Main portal + modules as path segments (single host)
-      - traefik.http.routers.comdash.rule=Host(`${PUBLIC_HOST}`) && (PathPrefix(`/`) && !PathPrefix(`/api`) && !PathPrefix(`/auth`) && !PathPrefix(`/login`) && !PathPrefix(`/erp`) && !PathPrefix(`/mq`))
+      - traefik.http.routers.comdash.rule=Host(`${PUBLIC_HOST}`) && (PathPrefix(`/`) && !PathPrefix(`/auth`) && !PathPrefix(`/login`) && !PathPrefix(`/erp`) && !PathPrefix(`/mq`) && !PathPrefix(`/api-gateway`))
       - traefik.http.routers.comdash.entrypoints=websecure
       - traefik.http.routers.comdash.tls=true
       - traefik.http.routers.comdash.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
@@ -70,15 +73,15 @@ services:
   apigate:
     labels:
       - traefik.enable=true
-      # Expose apiGate at https://<PUBLIC_HOST>/api/*
-      - traefik.http.routers.apigate.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/api`)
+      # Direct apiGate debugging endpoint. Browser app traffic uses comDash /api/* proxy.
+      - traefik.http.routers.apigate.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/api-gateway`)
       - traefik.http.routers.apigate.entrypoints=websecure
       - traefik.http.routers.apigate.tls=true
       - traefik.http.routers.apigate.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
       - traefik.http.services.apigate.loadbalancer.server.port=8080
-      # Strip /api before proxying to keep backend routes unchanged
+      # Strip /api-gateway before proxying to keep backend routes unchanged.
       - traefik.http.routers.apigate.middlewares=apigate-strip-api
-      - traefik.http.middlewares.apigate-strip-api.stripprefix.prefixes=/api
+      - traefik.http.middlewares.apigate-strip-api.stripprefix.prefixes=/api-gateway
 
   auth:
     labels:
@@ -105,8 +108,19 @@ services:
       - traefik.http.routers.authweb-path.tls=true
       - traefik.http.routers.authweb-path.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
       - traefik.http.routers.authweb-path.service=authweb
-      # Do NOT strip /login: auth-web is built with basePath=/login and must see the prefix
+      # Do NOT strip /login for the page route; only static/runtime asset requests are stripped below.
       - traefik.http.routers.authweb-path.middlewares=authweb-normalize-double-login
+
+      # auth-web emits assets as /login/_next/... so they do not collide with comDash /_next assets.
+      # Strip /login before the request reaches the Next server, which serves assets from /_next.
+      - traefik.http.routers.authweb-assets.rule=Host(`${PUBLIC_HOST}`) && (PathPrefix(`/login/_next`) || PathPrefix(`/login/runtime-config`))
+      - traefik.http.routers.authweb-assets.entrypoints=websecure
+      - traefik.http.routers.authweb-assets.tls=true
+      - traefik.http.routers.authweb-assets.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.routers.authweb-assets.service=authweb
+      - traefik.http.routers.authweb-assets.middlewares=authweb-strip-login
+      - traefik.http.routers.authweb-assets.priority=200
+      - traefik.http.middlewares.authweb-strip-login.stripprefix.prefixes=/login
 
       # Fix accidental double-prefix redirects like /login/login?redirect=...
       - traefik.http.middlewares.authweb-normalize-double-login.redirectregex.regex=^https?://([^/]+)/login/login(.*)

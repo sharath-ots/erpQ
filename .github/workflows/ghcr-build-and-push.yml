@@ -44,6 +44,10 @@ jobs:
             image: erpq-erp-proxy
             context: nginx
             dockerfile: nginx/Dockerfile
+          - id: docq
+            image: erpq-docq
+            context: docQ
+            dockerfile: docQ/Dockerfile
 
     steps:
       - uses: actions/checkout@v4

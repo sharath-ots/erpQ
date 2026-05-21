@@ -15,6 +15,9 @@ export const env = {
   /** Optional — forwarded to coreQ X-CityQ-Service-Key when set */
   cityqServiceKey: process.env.CITYQ_SERVICE_KEY ?? "",
 
+  /** docQ base URL (WorkDrive-backed doc workflows) */
+  docqUrl: (process.env.DOCQ_URL ?? "").trim().replace(/\/$/, ""),
+
   /** Dev-only: accept login with email only (no authQ) when 1 */
   devInsecureLogin: process.env.DEV_INSECURE_LOGIN === "1",
 
@@ -49,6 +52,7 @@ export const env = {
   /** Per–third-party rate limits (requests per timeWindow). Global limit still applies first. */
   erpPartnerRateMax: Number(process.env.ERP_PARTNER_RATE_MAX ?? 600),
   paymentPartnerRateMax: Number(process.env.PAYMENT_PARTNER_RATE_MAX ?? 120),
+  docqPartnerRateMax: Number(process.env.DOCQ_PARTNER_RATE_MAX ?? 300),
 
   /** e.g. https://accounts.zoho.com — also .eu / .in / .com.au */
   zohoAccountsBase: (process.env.ZOHO_ACCOUNTS_BASE ?? "https://accounts.zoho.com").replace(

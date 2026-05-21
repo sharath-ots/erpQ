@@ -11,6 +11,10 @@ import LeadListPage from '../../../../crmQ/pages/crm/lead-list/index'; // Update
 import AddLeadScreen from "../../../../crmQ/src/ui/AddLeadScreen"; // Update path if needed
 import ViewLeadScreen from "../../../../crmQ/src/ui/ViewLeadScreen"; // Update path if needed
 import EditLeadPage from "../../../../crmQ/pages/crm/lead-list/edit/[id]"; // Update path if needed
+import DocDashboard from "../../ui/components/sections/doc-q/DocDashboard";
+import DocWorkflowsAdmin from "../../ui/components/sections/doc-q/DocWorkflowsAdmin";
+import DocFileRegister from "../../ui/components/sections/doc-q/DocFileRegister";
+import DocErpNextLinker from "../../ui/components/sections/doc-q/DocErpNextLinker";
 //import { usePortalMenu } from "./shared-ui/PortalMenuContext";
 
 // const CrmqShell = dynamic(
@@ -82,6 +86,21 @@ export function ModuleOutlet({ menuItems = [], deskBaseUrl, deskIframeQuery }) {
       <Card>
         <Typography.Title level={4}>CRM Page Not Found</Typography.Title>
         <Typography.Paragraph>No matching CRM route for: {pathname}</Typography.Paragraph>
+      </Card>
+    );
+  }
+
+  if (pathname.startsWith("/m/docq")) {
+    const normalized = pathname.replace(/\/$/, "");
+    if (normalized === "/m/docq") return <DocDashboard />;
+    if (normalized === "/m/docq/register") return <DocFileRegister />;
+    if (normalized === "/m/docq/admin/workflows") return <DocWorkflowsAdmin />;
+    if (normalized === "/m/docq/erpnext-link") return <DocErpNextLinker />;
+
+    return (
+      <Card>
+        <Typography.Title level={4}>Documents Page Not Found</Typography.Title>
+        <Typography.Paragraph>No matching Documents route for: {pathname}</Typography.Paragraph>
       </Card>
     );
   }

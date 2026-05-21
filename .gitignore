@@ -5,6 +5,7 @@ dist/
 .env.*
 !.env.example
 !.env.production.example
+!.env.lan.example
 coverage/
 *.log
 .DS_Store

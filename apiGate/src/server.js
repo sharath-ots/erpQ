@@ -14,6 +14,16 @@ import { startMqWorkflowConsumer } from "./services/mqWorkflowConsumer.js";
 
 const app = Fastify({ logger: true });
 
+function readCookie(cookieHeader, name) {
+  const parts = String(cookieHeader || "").split(";");
+  for (const part of parts) {
+    const [rawKey, ...rawValue] = part.trim().split("=");
+    if (rawKey !== name) continue;
+    return decodeURIComponent(rawValue.join("=") || "");
+  }
+  return "";
+}
+
 await app.register(cors, {
   origin: true,
   credentials: true,
@@ -28,6 +38,14 @@ await app.register(jwt, {
   secret: env.jwtSecret,
 });
 
+app.addHook("onRequest", async (request) => {
+  if (request.headers.authorization) return;
+  const token = readCookie(request.headers.cookie, "cityq_access_token");
+  if (token) {
+    request.headers.authorization = `Bearer ${token}`;
+  }
+});
+
 await registerAuthRoutes(app);
 await registerSessionRoutes(app);
 await registerPortalRoutes(app);
@@ -39,6 +57,18 @@ const { paymentPartnerPlugin } = await import("./partners/payment/plugin.js");
 await app.register(paymentPartnerPlugin, {
   prefix: "/api/v1/partners/payment",
 });
+
+if (env.docqUrl) {
+  const { workdrivePartnerPlugin } = await import(
+    "./partners/workdrive/plugin.js"
+  );
+  await app.register(workdrivePartnerPlugin, {
+    prefix: "/api/v1/partners/workdrive",
+  });
+  app.log.info("WorkDrive partner routes registered");
+} else {
+  app.log.info("WorkDrive partner routes skipped (DOCQ_URL missing)");
+}
 
 const coreModules = await getCoreModulesCached();
 const erpCredentialsOk = Boolean(

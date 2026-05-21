@@ -45,6 +45,7 @@ function registerProvider(app, provider, {
   fetchProfile,
   primaryEmail,
   mapClaims,
+  onTokens,
 }) {
   const startPath = `/${provider}/start`;
   const cbPath = `/${provider}/callback`;
@@ -150,6 +151,15 @@ function registerProvider(app, provider, {
     }
 
     const claims = mapClaims(profile, email);
+
+    if (typeof onTokens === "function") {
+      try {
+        await onTokens({ tokens, profile, claims, request });
+      } catch (e) {
+        request.log.error({ err: e }, `${provider} onTokens hook failed`);
+        // Non-fatal for login; token persistence is best-effort.
+      }
+    }
     let minted;
     try {
       minted = await mintCityQAccessToken(reply, claims);
@@ -203,6 +213,34 @@ export async function oauthRoutes(app) {
         (typeof profile.zuid === "string" && profile.zuid) ||
         undefined,
     }),
+    onTokens: async ({ tokens, profile, claims, request }) => {
+      if (!env.docqInternalUrl) return;
+      if (!env.cityqServiceKey) return;
+      if (!tokens?.refresh_token) return;
+
+      const url = `${env.docqInternalUrl.replace(/\/$/, "")}/internal/zoho/token/upsert`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CityQ-Service-Key": env.cityqServiceKey,
+        },
+        body: JSON.stringify({
+          email: claims.email,
+          zohoId:
+            claims.zohoId ||
+            (typeof profile?.ZUID === "string" ? profile.ZUID : undefined),
+          refresh_token: tokens.refresh_token,
+        }),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        request.log.warn(
+          { status: res.status, body: text.slice(0, 200) },
+          "docQ refresh_token upsert failed",
+        );
+      }
+    },
   });
 
   app.get("/status", async () => ({

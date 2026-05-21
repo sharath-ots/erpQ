@@ -22,7 +22,7 @@ import StyledTextField from 'components/styled/StyledTextField';
 import { useERPUser } from 'providers/ERPUserProvider';
 
 const CRMGreeting = ({ data, subtitle }) => {
-  const { user, loading } = useERPUser();
+  const { displayName, loading } = useERPUser();
 
   // Dynamic Greeting Logic
   const getGreeting = () => {
@@ -33,7 +33,7 @@ const CRMGreeting = ({ data, subtitle }) => {
   };
 
   const timeGreeting = getGreeting();
-  const userName = loading ? '...' : (user?.first_name || user?.full_name || 'Captain');
+  const userName = loading ? '...' : (displayName || 'there');
 
   return (
     <Paper background={1} sx={{ px: { xs: 3, md: 5 }, py: 3 }}>

@@ -1,0 +1,370 @@
+## LAN / VM stack — **build images on the VM** (no GHCR)
+##
+## Same URLs as GHCR path (Traefik + path routing). Use when you have the full
+## repo and want `docker compose ... --build` on the VM.
+##
+##   cp .env.lan.example .env.lan
+##   docker compose -f docker-compose.lan.build-from-source.yml --env-file .env.lan up -d --build
+##
+## For pre-built images from GHCR (recommended on a test VM), use:
+##   ./scripts/lan-ghcr.sh pull
+##   ./scripts/lan-ghcr.sh up -d
+## (see .env.lan.example)
+
+services:
+  traefik:
+    image: traefik:v3.6
+    container_name: erpq-traefik
+    restart: unless-stopped
+    environment:
+      DOCKER_API_VERSION: "1.40"
+    command:
+      - --api.dashboard=true
+      - --api.insecure=${TRAEFIK_DASHBOARD_INSECURE:-false}
+      - --log.level=${TRAEFIK_LOG_LEVEL:-INFO}
+      - --accesslog=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=erpq_proxy
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+    ports:
+      - "80:80"
+      - "443:443"
+      - "${TRAEFIK_DASHBOARD_PORT:-8088}:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - type: bind
+        source: ${TRAEFIK_DYNAMIC_DIR:-./traefik/dynamic}
+        target: /etc/traefik/dynamic
+        read_only: true
+    networks:
+      - proxy
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-erpq}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-erpq_lan_change_me}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: unless-stopped
+    networks:
+      - default
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.rabbitmq.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/mq`)
+      - traefik.http.routers.rabbitmq.entrypoints=websecure
+      - traefik.http.routers.rabbitmq.tls=true
+      - traefik.http.routers.rabbitmq.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.services.rabbitmq.loadbalancer.server.port=15672
+      - traefik.http.routers.rabbitmq.middlewares=rabbitmq-strip-mq
+      - traefik.http.middlewares.rabbitmq-strip-mq.stripprefix.prefixes=/mq
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  docq-db:
+    image: postgres:16-alpine
+    hostname: docq-db
+    environment:
+      POSTGRES_DB: docq
+      POSTGRES_USER: docq
+      POSTGRES_PASSWORD: ${DOCQ_DB_PASSWORD:-docq_lan_change_me}
+    volumes:
+      - docq_pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U docq -d docq"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  docq:
+    build:
+      context: ./docQ
+      dockerfile: Dockerfile
+    image: erpq/docq:lan
+    environment:
+      DOCQ_HOST: "0.0.0.0"
+      DOCQ_PORT: "14160"
+      DOCQ_DATABASE_URL: postgres://docq:${DOCQ_DB_PASSWORD:-docq_lan_change_me}@docq-db:5432/docq
+      CITYQ_SERVICE_KEY: ${CITYQ_SERVICE_KEY:-change-me-lan-service-key}
+      DOCQ_TOKEN_ENC_KEY_B64: ${DOCQ_TOKEN_ENC_KEY_B64:-}
+    depends_on:
+      docq-db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - default
+      - proxy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:14160/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  core:
+    build:
+      context: ./coreQ
+      dockerfile: Dockerfile
+    image: erpq/core:lan
+    environment:
+      PORT: "4000"
+      HOST: "0.0.0.0"
+      CITYQ_MODULE_ERP: ${CITYQ_MODULE_ERP:-1}
+      CITYQ_MODULE_CRM: ${CITYQ_MODULE_CRM:-1}
+      CITYQ_MQ_URL: ${CITYQ_MQ_URL:-amqp://${RABBITMQ_DEFAULT_USER:-erpq}:${RABBITMQ_DEFAULT_PASS:-erpq_lan_change_me}@rabbitmq:5672}
+    restart: unless-stopped
+    networks:
+      - default
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.core.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/core`)
+      - traefik.http.routers.core.entrypoints=websecure
+      - traefik.http.routers.core.tls=true
+      - traefik.http.routers.core.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.services.core.loadbalancer.server.port=4000
+      - traefik.http.routers.core.middlewares=core-strip-core
+      - traefik.http.middlewares.core-strip-core.stripprefix.prefixes=/core
+    healthcheck:
+      test: [ "CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  auth:
+    build:
+      context: ./authQ
+      dockerfile: Dockerfile
+    image: erpq/auth:lan
+    environment:
+      PORT: "4100"
+      HOST: "0.0.0.0"
+      JWT_SECRET: ${JWT_SECRET:-change-me-lan-long-random}
+      CITYQ_INTERNAL_KEY: ${CITYQ_INTERNAL_KEY:-change-me-lan-long-random}
+      AUTHQ_PUBLIC_BASE_URL: ${AUTHQ_PUBLIC_BASE_URL:?Set AUTHQ_PUBLIC_BASE_URL in .env.lan}
+      AUTHQ_OAUTH_RETURN_URL_PREFIXES: ${AUTHQ_OAUTH_RETURN_URL_PREFIXES:?Set AUTHQ_OAUTH_RETURN_URL_PREFIXES in .env.lan}
+      AUTHQ_OAUTH_DEFAULT_RETURN_URL: ${AUTHQ_OAUTH_DEFAULT_RETURN_URL:?Set AUTHQ_OAUTH_DEFAULT_RETURN_URL in .env.lan}
+      AUTHQ_OAUTH_DEFAULT_ALLOWED_DOC_TYPES: ${AUTHQ_OAUTH_DEFAULT_ALLOWED_DOC_TYPES:-*}
+      AUTHQ_GOOGLE_CLIENT_ID: ${AUTHQ_GOOGLE_CLIENT_ID:-}
+      AUTHQ_GOOGLE_CLIENT_SECRET: ${AUTHQ_GOOGLE_CLIENT_SECRET:-}
+      AUTHQ_GOOGLE_REDIRECT_URI: ${AUTHQ_GOOGLE_REDIRECT_URI:-${AUTHQ_PUBLIC_BASE_URL}/oauth/google/callback}
+      AUTHQ_ZOHO_CLIENT_ID: ${AUTHQ_ZOHO_CLIENT_ID:-}
+      AUTHQ_ZOHO_CLIENT_SECRET: ${AUTHQ_ZOHO_CLIENT_SECRET:-}
+      AUTHQ_ZOHO_REDIRECT_URI: ${AUTHQ_ZOHO_REDIRECT_URI:-${AUTHQ_PUBLIC_BASE_URL}/oauth/zoho/callback}
+      AUTHQ_ZOHO_ACCOUNTS_HOST: ${AUTHQ_ZOHO_ACCOUNTS_HOST:-accounts.zoho.com}
+      AUTHQ_DOCQ_INTERNAL_URL: http://docq:14160
+      CITYQ_SERVICE_KEY: ${CITYQ_SERVICE_KEY:-change-me-lan-service-key}
+    restart: unless-stopped
+    networks:
+      - default
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.auth.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/auth`)
+      - traefik.http.routers.auth.entrypoints=websecure
+      - traefik.http.routers.auth.tls=true
+      - traefik.http.routers.auth.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.services.auth.loadbalancer.server.port=4100
+      - traefik.http.routers.auth.middlewares=auth-strip-auth
+      - traefik.http.middlewares.auth-strip-auth.stripprefix.prefixes=/auth
+    healthcheck:
+      test: [ "CMD", "node", "-e", "fetch('http://127.0.0.1:4100/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  auth-web:
+    build:
+      context: ./authQ/web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_APIGATE_URL: ${NEXT_PUBLIC_APIGATE_URL:?Set NEXT_PUBLIC_APIGATE_URL in .env.lan}
+        NEXT_PUBLIC_COMDASH_URL: ${NEXT_PUBLIC_COMDASH_URL:?Set NEXT_PUBLIC_COMDASH_URL in .env.lan}
+        NEXT_PUBLIC_AUTHQ_URL: ${NEXT_PUBLIC_AUTHQ_URL:?Set NEXT_PUBLIC_AUTHQ_URL in .env.lan}
+        NEXT_PUBLIC_LOGIN_DEV_BYPASS: ${NEXT_PUBLIC_LOGIN_DEV_BYPASS:-false}
+        NEXT_PUBLIC_ERPNEXT_SITE_LABEL: ${NEXT_PUBLIC_ERPNEXT_SITE_LABEL:-ERPNext}
+        AUTH_WEB_ASSET_PREFIX: ${AUTH_WEB_ASSET_PREFIX:-}
+    image: erpq/auth-web:lan
+    environment:
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      AUTH_WEB_RUNTIME_APIGATE: ${NEXT_PUBLIC_APIGATE_URL:?Set NEXT_PUBLIC_APIGATE_URL in .env.lan}
+      AUTH_WEB_RUNTIME_COMDASH: ${NEXT_PUBLIC_COMDASH_URL:?Set NEXT_PUBLIC_COMDASH_URL in .env.lan}
+      AUTH_WEB_RUNTIME_AUTHQ: ${NEXT_PUBLIC_AUTHQ_URL:?Set NEXT_PUBLIC_AUTHQ_URL in .env.lan}
+    restart: unless-stopped
+    networks:
+      - default
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.authweb.loadbalancer.server.port=3000
+      - traefik.http.routers.authweb-path.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/login`)
+      - traefik.http.routers.authweb-path.entrypoints=websecure
+      - traefik.http.routers.authweb-path.tls=true
+      - traefik.http.routers.authweb-path.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.routers.authweb-path.service=authweb
+      - traefik.http.routers.authweb-path.middlewares=authweb-normalize-double-login
+      - traefik.http.routers.authweb-assets.rule=Host(`${PUBLIC_HOST}`) && (PathPrefix(`/login/_next`) || PathPrefix(`/login/runtime-config`))
+      - traefik.http.routers.authweb-assets.entrypoints=websecure
+      - traefik.http.routers.authweb-assets.tls=true
+      - traefik.http.routers.authweb-assets.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.routers.authweb-assets.service=authweb
+      - traefik.http.routers.authweb-assets.middlewares=authweb-strip-login
+      - traefik.http.routers.authweb-assets.priority=200
+      - traefik.http.middlewares.authweb-strip-login.stripprefix.prefixes=/login
+      - traefik.http.middlewares.authweb-normalize-double-login.redirectregex.regex=^https?://([^/]+)/login/login(.*)
+      - traefik.http.middlewares.authweb-normalize-double-login.redirectregex.replacement=https://$${1}/login$${2}
+      - traefik.http.middlewares.authweb-normalize-double-login.redirectregex.permanent=false
+    healthcheck:
+      test: [ "CMD", "node", "-e", "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  apigate:
+    build:
+      context: .
+      dockerfile: apiGate/Dockerfile
+    image: erpq/apigate:lan
+    environment:
+      PORT: "8080"
+      HOST: "0.0.0.0"
+      JWT_SECRET: ${JWT_SECRET:-change-me-lan-long-random}
+      CORE_BACKEND_URL: http://core:4000
+      AUTHQ_URL: http://auth:4100
+      DOCQ_URL: http://docq:14160
+      CITYQ_INTERNAL_KEY: ${CITYQ_INTERNAL_KEY:-change-me-lan-long-random}
+      CITYQ_MQ_URL: ${CITYQ_MQ_URL:-amqp://${RABBITMQ_DEFAULT_USER:-erpq}:${RABBITMQ_DEFAULT_PASS:-erpq_lan_change_me}@rabbitmq:5672}
+      ERPNEXT_URL: ${ERPNEXT_URL:-}
+      ERPNEXT_PUBLIC_URL: ${ERPNEXT_PUBLIC_URL:-}
+      ERPNEXT_API_KEY: ${ERPNEXT_API_KEY:-}
+      ERPNEXT_API_SECRET: ${ERPNEXT_API_SECRET:-}
+      ERPNEXT_CRM_PATH: ${ERPNEXT_CRM_PATH:-/app/crm}
+      CITYQ_PORTAL_HRQ: ${CITYQ_PORTAL_HRQ:-1}
+      CITYQ_PORTAL_PURQ: ${CITYQ_PORTAL_PURQ:-1}
+      ERPNEXT_IFRAME_QUERY: ${ERPNEXT_IFRAME_QUERY:-}
+      ERP_ALLOW_DOCTYPE_DISCOVERY: ${ERP_ALLOW_DOCTYPE_DISCOVERY:-0}
+      ERP_PARTNER_RATE_MAX: ${ERP_PARTNER_RATE_MAX:-600}
+      PAYMENT_PARTNER_RATE_MAX: ${PAYMENT_PARTNER_RATE_MAX:-120}
+      DOCQ_PARTNER_RATE_MAX: ${DOCQ_PARTNER_RATE_MAX:-300}
+      ERP_DEFAULT_DOCTYPES: ${ERP_DEFAULT_DOCTYPES:-Lead,Opportunity,Customer,Contact,DocType,Quotation}
+    depends_on:
+      auth:
+        condition: service_started
+      core:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - default
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.apigate.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/api-gateway`)
+      - traefik.http.routers.apigate.entrypoints=websecure
+      - traefik.http.routers.apigate.tls=true
+      - traefik.http.routers.apigate.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.services.apigate.loadbalancer.server.port=8080
+      - traefik.http.routers.apigate.middlewares=apigate-strip-api
+      - traefik.http.middlewares.apigate-strip-api.stripprefix.prefixes=/api-gateway
+    healthcheck:
+      test: [ "CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  comdash:
+    build:
+      context: .
+      dockerfile: comDash/Dockerfile
+    image: erpq/comdash:lan
+    environment:
+      NODE_ENV: development
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      APIGATE_INTERNAL_URL: http://apigate:8080
+      NEXT_PUBLIC_AUTH_URL: ${NEXT_PUBLIC_AUTH_URL:?Set NEXT_PUBLIC_AUTH_URL in .env.lan}
+      NEXT_PUBLIC_APIGATE_URL: ${NEXT_PUBLIC_APIGATE_URL:?Set NEXT_PUBLIC_APIGATE_URL in .env.lan}
+      PUBLIC_HOST: ${PUBLIC_HOST:-erpq.lan}
+      PUBLIC_SCHEME: ${PUBLIC_SCHEME:-https}
+      ERPNEXT_URL: ${ERPNEXT_URL:-}
+      ERPNEXT_PUBLIC_URL: ${ERPNEXT_PUBLIC_URL:-}
+      ERPNEXT_API_KEY: ${ERPNEXT_API_KEY:-}
+      ERPNEXT_API_SECRET: ${ERPNEXT_API_SECRET:-}
+    restart: unless-stopped
+    networks:
+      - default
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.comdash.rule=Host(`${PUBLIC_HOST}`) && (PathPrefix(`/`) && !PathPrefix(`/auth`) && !PathPrefix(`/login`) && !PathPrefix(`/erp`) && !PathPrefix(`/mq`) && !PathPrefix(`/api-gateway`))
+      - traefik.http.routers.comdash.entrypoints=websecure
+      - traefik.http.routers.comdash.tls=true
+      - traefik.http.routers.comdash.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.services.comdash.loadbalancer.server.port=3000
+      - traefik.http.routers.comdash-hr.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/hr`)
+      - traefik.http.routers.comdash-hr.entrypoints=websecure
+      - traefik.http.routers.comdash-hr.tls=true
+      - traefik.http.routers.comdash-hr.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.routers.comdash-hr.service=comdash
+      - traefik.http.routers.comdash-crm.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/crm`)
+      - traefik.http.routers.comdash-crm.entrypoints=websecure
+      - traefik.http.routers.comdash-crm.tls=true
+      - traefik.http.routers.comdash-crm.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.routers.comdash-crm.service=comdash
+      - traefik.http.routers.comdash-pur.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/pur`)
+      - traefik.http.routers.comdash-pur.entrypoints=websecure
+      - traefik.http.routers.comdash-pur.tls=true
+      - traefik.http.routers.comdash-pur.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.routers.comdash-pur.service=comdash
+    healthcheck:
+      test: [ "CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  erp-proxy:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    image: erpq/erp-proxy:lan
+    restart: unless-stopped
+    networks:
+      - default
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.erpproxy.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/erp`)
+      - traefik.http.routers.erpproxy.entrypoints=websecure
+      - traefik.http.routers.erpproxy.tls=true
+      - traefik.http.routers.erpproxy.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.services.erpproxy.loadbalancer.server.port=80
+      - traefik.http.routers.erpproxy.middlewares=erpproxy-strip-erp
+      - traefik.http.middlewares.erpproxy-strip-erp.stripprefix.prefixes=/erp
+
+volumes:
+  rabbitmq_data:
+  docq_pg_data:
+
+networks:
+  proxy: {}

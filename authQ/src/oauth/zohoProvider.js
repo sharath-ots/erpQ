@@ -21,6 +21,9 @@ export function buildZohoAuthorizeUrl({ codeChallenge, state }) {
   u.searchParams.set("redirect_uri", env.zoho.redirectUri);
   u.searchParams.set("response_type", "code");
   u.searchParams.set("scope", env.zoho.scope);
+  // Ensure we can receive a refresh_token (Zoho typically returns it on first consent only).
+  u.searchParams.set("access_type", "offline");
+  u.searchParams.set("prompt", "consent");
   u.searchParams.set("state", state);
   u.searchParams.set("code_challenge", codeChallenge);
   u.searchParams.set("code_challenge_method", "S256");

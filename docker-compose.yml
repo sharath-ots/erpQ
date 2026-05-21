@@ -55,6 +55,53 @@ services:
       retries: 5
       start_period: 40s
 
+  docq-db:
+    image: postgres:16-alpine
+    hostname: docq-db
+    ports:
+      - "15432:5432"
+    environment:
+      POSTGRES_DB: docq
+      POSTGRES_USER: docq
+      POSTGRES_PASSWORD: ${DOCQ_DB_PASSWORD:-docq_dev_change_me}
+    volumes:
+      - docq_pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - default
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U docq -d docq" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  docq:
+    build:
+      context: ./docQ
+      dockerfile: Dockerfile
+    image: erpq/docq:latest
+    ports:
+      - "14160:14160"
+    environment:
+      DOCQ_HOST: "0.0.0.0"
+      DOCQ_PORT: "14160"
+      DOCQ_DATABASE_URL: postgres://docq:${DOCQ_DB_PASSWORD:-docq_dev_change_me}@docq-db:5432/docq
+      CITYQ_SERVICE_KEY: ${CITYQ_SERVICE_KEY:-}
+      DOCQ_TOKEN_ENC_KEY_B64: ${DOCQ_TOKEN_ENC_KEY_B64:-}
+    depends_on:
+      docq-db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - default
+    healthcheck:
+      test: [ "CMD", "node", "-e", "fetch('http://127.0.0.1:14160/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
   core:
     build:
       context: ./coreQ
@@ -107,6 +154,8 @@ services:
       AUTHQ_ZOHO_CLIENT_SECRET: ${AUTHQ_ZOHO_CLIENT_SECRET:-}
       AUTHQ_ZOHO_REDIRECT_URI: ${AUTHQ_ZOHO_REDIRECT_URI:-http://localhost:14100/oauth/zoho/callback}
       AUTHQ_ZOHO_ACCOUNTS_HOST: ${AUTHQ_ZOHO_ACCOUNTS_HOST:-accounts.zoho.com}
+      AUTHQ_DOCQ_INTERNAL_URL: http://docq:14160
+      CITYQ_SERVICE_KEY: ${CITYQ_SERVICE_KEY:-}
       VIRTUAL_HOST: ${VIRTUAL_HOST_AUTH}
       VIRTUAL_PORT: "4100"
     restart: unless-stopped
@@ -165,6 +214,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-erpq-dev-jwt-change-me}
       CORE_BACKEND_URL: http://core:4000
       AUTHQ_URL: http://auth:4100
+      DOCQ_URL: http://docq:14160
       CITYQ_INTERNAL_KEY: ${CITYQ_INTERNAL_KEY:-cityq-dev-internal-change-me}
       # Optional: enables MQ publish endpoint /api/v1/mq/events
       CITYQ_MQ_URL: ${CITYQ_MQ_URL:-amqp://cityq:erpq_dev_change_me@rabbitmq:5672}
@@ -182,6 +232,7 @@ services:
       ERP_ALLOW_DOCTYPE_DISCOVERY: ${ERP_ALLOW_DOCTYPE_DISCOVERY:-0}
       ERP_PARTNER_RATE_MAX: ${ERP_PARTNER_RATE_MAX:-600}
       PAYMENT_PARTNER_RATE_MAX: ${PAYMENT_PARTNER_RATE_MAX:-120}
+      DOCQ_PARTNER_RATE_MAX: ${DOCQ_PARTNER_RATE_MAX:-300}
       ERP_DEFAULT_DOCTYPES: ${ERP_DEFAULT_DOCTYPES:-Lead,Opportunity,Customer,Contact,DocType,Quotation}
       VIRTUAL_HOST: ${VIRTUAL_HOST_API}
       VIRTUAL_PORT: "8080"
@@ -253,6 +304,7 @@ services:
 
 volumes:
   rabbitmq_data:
+  docq_pg_data:
 
 networks:
   # Default: create an internal "proxy" network automatically.

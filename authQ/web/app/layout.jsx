@@ -1,6 +1,12 @@
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import "./globals.css";
 
+const rawAssetPrefix = process.env.AUTH_WEB_ASSET_PREFIX || "";
+const assetPrefix =
+  rawAssetPrefix && !rawAssetPrefix.startsWith("/")
+    ? `/${rawAssetPrefix}`
+    : rawAssetPrefix;
+
 export const metadata = {
   title: "CityQ — Sign in",
   description: "Authentication",
@@ -15,7 +21,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
-        <script src="/runtime-config" />
+        <script src={`${assetPrefix}/runtime-config`} />
       </head>
       <body className="min-h-screen bg-slate-100">
         <AntdRegistry>{children}</AntdRegistry>

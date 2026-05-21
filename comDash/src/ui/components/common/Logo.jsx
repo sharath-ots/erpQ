@@ -31,7 +31,7 @@ const Logo = ({ sx, viewBox = '0 0 26 40', showName = true, isShowcase = false, 
 
   return (
     <Link
-      href={pathname === '/' || pathname === paths.showcase ? rootPaths.root : paths.ecommerce}
+      href={pathname === '/' || pathname === paths.showcase ? rootPaths.root : paths.erpConfig}
       underline="none"
       sx={{
         display: 'flex',

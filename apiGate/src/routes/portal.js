@@ -153,6 +153,20 @@ export async function registerPortalRoutes(app) {
         });
       }
 
+      if (env.docqUrl) {
+        items.push({
+          key: "docq-root",
+          label: "Documents",
+          path: "/m/docq",
+          children: [
+            { key: "docq-dash", label: "Dashboard", path: "/m/docq" },
+            { key: "docq-register", label: "Register file", path: "/m/docq/register" },
+            { key: "docq-workflows", label: "Workflow admin", path: "/m/docq/admin/workflows" },
+            { key: "docq-erpnext", label: "ERPNext reference", path: "/m/docq/erpnext-link" },
+          ],
+        });
+      }
+
       if (m.messaging) {
         items.push({
           key: "messaging",

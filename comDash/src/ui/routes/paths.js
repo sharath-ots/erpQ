@@ -45,7 +45,7 @@ const paths = {
   hrm: `/${rootPaths.dashboardRoot}/hrm`,
   timeTracker: `/${rootPaths.dashboardRoot}/time-tracker`,
   hiring: `/${rootPaths.dashboardRoot}/${rootPaths.hiringRoot}`,
-  erpConfig: '/erp-config',
+  erpConfig: '/m/erp',
   starter: `/${rootPaths.pagesRoot}/starter`,
   notifications: `/${rootPaths.pagesRoot}/notifications`,
   defaultJwtLogin: `/${rootPaths.authRoot}/${rootPaths.authDefaultJwtRoot}/login`,

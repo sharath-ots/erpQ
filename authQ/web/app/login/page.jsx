@@ -1,6 +1,5 @@
 "use client";
 
-import { Button, Card, Divider, Form, Input, Space, Typography, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
 
 const erpSiteLabel = process.env.NEXT_PUBLIC_ERPNEXT_SITE_LABEL ?? "ERPNext";
@@ -19,16 +18,6 @@ function trimTrailingSlash(url) {
   return (url ?? "").replace(/\/$/, "");
 }
 
-/** Build-time NEXT_PUBLIC_* often still points at an old LAN host that the browser cannot resolve. */
-function bakedPointsAtErpqLan(url) {
-  if (!url || typeof url !== "string") return false;
-  try {
-    return new URL(url).hostname === "erpq.lan";
-  } catch {
-    return false;
-  }
-}
-
 /** Injected in root layout from AUTH_WEB_RUNTIME_* (Docker) — overrides baked NEXT_PUBLIC_*. */
 function getRuntimePublic() {
   if (typeof window === "undefined") return null;
@@ -37,12 +26,12 @@ function getRuntimePublic() {
   return w;
 }
 
-/** Prefer explicit URL; never use erpq.lan in the browser (DNS); else same-host :port guess. */
+/** Prefer explicit runtime/build URL; fall back to same-host port for local direct access. */
 function resolvePublicBase(port, runtimeVal, bakedVal) {
   const fromRt = runtimeVal && String(runtimeVal).trim();
-  if (fromRt && !bakedPointsAtErpqLan(fromRt)) return trimTrailingSlash(fromRt);
+  if (fromRt) return trimTrailingSlash(fromRt);
   const baked = bakedVal && String(bakedVal).trim();
-  if (baked && !bakedPointsAtErpqLan(baked)) return trimTrailingSlash(baked);
+  if (baked) return trimTrailingSlash(baked);
   return trimTrailingSlash(guessBase(port));
 }
 
@@ -59,6 +48,10 @@ function getAuthQBase() {
 function getComDashBase() {
   const rt = getRuntimePublic();
   return resolvePublicBase(13000, rt?.comdash, process.env.NEXT_PUBLIC_COMDASH_URL);
+}
+
+function isLoginUrl(url) {
+  return url.pathname === "/login" || url.pathname.startsWith("/login/");
 }
 
 function Brand() {
@@ -80,12 +73,12 @@ function IllustrationPanel() {
       <div className="absolute -right-24 -bottom-24 h-80 w-80 rounded-full bg-indigo-200/60 blur-3xl" />
 
       <div className="relative mt-8 w-full">
-        <Typography.Title level={2} className="!mb-3 !text-slate-900">
+        <h2 className="mb-3 text-3xl font-semibold tracking-tight text-slate-900">
           Welcome back
-        </Typography.Title>
-        <Typography.Paragraph className="!mb-10 !text-slate-600 max-w-md">
+        </h2>
+        <p className="mb-10 max-w-md text-base text-slate-600">
           Sign in to continue to the Q portal. Use your {erpSiteLabel} credentials or SSO.
-        </Typography.Paragraph>
+        </p>
 
         {/* Lightweight inline illustration (no external assets) */}
         <div className="w-full max-w-xl">
@@ -127,33 +120,24 @@ function IllustrationPanel() {
 
 function SsoButton({ href, provider }) {
   const label = provider === "google" ? "Sign in with Google" : "Sign in with Zoho";
-  const badge =
-    provider === "google" ? (
-      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-slate-700 text-xs font-semibold">
-        G
-      </span>
-    ) : (
-      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-slate-700 text-xs font-semibold">
-        Z
-      </span>
-    );
 
   return (
-    <Button
-      block
-      size="large"
+    <a
       href={href}
-      className="!h-11 !rounded-xl !bg-slate-900 !text-white hover:!bg-slate-800"
-      icon={badge}
+      className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
     >
+      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-xs font-semibold text-slate-700">
+        {provider === "google" ? "G" : "Z"}
+      </span>
       {label}
-    </Button>
+    </a>
   );
 }
 
 function LoginCard() {
   const [loading, setLoading] = useState(false);
   const [redirect, setRedirect] = useState("/");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -164,8 +148,15 @@ function LoginCard() {
   const googleHref = `${getAuthQBase()}/oauth/google/start?return_url=${oauthReturn}`;
   const zohoHref = `${getAuthQBase()}/oauth/zoho/start?return_url=${oauthReturn}`;
 
-  async function onFinish(values) {
+  async function onSubmit(event) {
+    event.preventDefault();
     setLoading(true);
+    setError("");
+
+    const formData = new FormData(event.currentTarget);
+    const email = String(formData.get("email") || "");
+    const password = String(formData.get("password") || "");
+
     try {
       const params = new URLSearchParams(window.location.search);
       const target = params.get("redirect") ?? getComDashBase();
@@ -173,96 +164,115 @@ function LoginCard() {
         target,
         typeof window !== "undefined" ? window.location.href : undefined,
       );
+      if (isLoginUrl(dest)) {
+        const fallback = new URL(getComDashBase());
+        dest.protocol = fallback.protocol;
+        dest.host = fallback.host;
+        dest.pathname = fallback.pathname || "/";
+        dest.search = fallback.search;
+      }
 
       const res = await fetch(`${getApiBase()}/api/v1/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          email: values.email,
+          email,
           password:
-            devBypass && !(values.password ?? "").trim()
+            devBypass && !password.trim()
               ? ""
-              : (values.password ?? ""),
+              : password,
         }),
       });
 
       const data = (await res.json().catch(() => ({}))) ?? {};
 
       if (!res.ok) {
-        message.error(data.detail ?? data.error ?? `Login failed (${res.status})`);
+        setError(data.detail ?? data.error ?? `Login failed (${res.status})`);
         return;
       }
 
       const token = data.access_token;
       if (!token) {
-        message.error("No access token from apiGate");
+        setError("No access token from apiGate");
         return;
       }
 
       dest.hash = `cityq_token=${encodeURIComponent(token)}`;
       window.location.href = dest.toString();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login request failed");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <Card className="w-full max-w-md shadow-lg !rounded-3xl">
-      <div className="flex items-center justify-between mb-6">
-        <Typography.Title level={2} className="!mb-0">
+    <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-xl">
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
           Log in
-        </Typography.Title>
-        <Typography.Text type="secondary" className="text-xs">
+        </h2>
+        <p className="text-xs text-slate-500">
           Need help? Contact admin
-        </Typography.Text>
+        </p>
       </div>
 
-      <Space direction="vertical" className="w-full" size="middle">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <SsoButton href={googleHref} provider="google" />
-          <SsoButton href={zohoHref} provider="zoho" />
-        </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <SsoButton href={googleHref} provider="google" />
+        <SsoButton href={zohoHref} provider="zoho" />
+      </div>
 
-        <Divider plain className="!my-2">
+      <div className="my-6 flex items-center gap-3">
+        <div className="h-px flex-1 bg-slate-200" />
+        <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
           or use email
-        </Divider>
+        </span>
+        <div className="h-px flex-1 bg-slate-200" />
+      </div>
 
-        <Form layout="vertical" onFinish={onFinish}>
-          <Form.Item
+      <form className="space-y-4" onSubmit={onSubmit}>
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium text-slate-700">
+            Email / ERPNext username
+          </span>
+          <input
             name="email"
-            label="Email / ERPNext username"
-            rules={[{ required: true, message: "Required" }]}
-          >
-            <Input type="text" autoComplete="username" className="!h-11 !rounded-xl" />
-          </Form.Item>
+            type="text"
+            autoComplete="username"
+            required
+            className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+          />
+        </label>
 
-          <Form.Item
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium text-slate-700">
+            Password
+          </span>
+          <input
             name="password"
-            label="Password"
-            rules={[
-              {
-                required: !devBypass,
-                message: devBypass ? "" : "Required for ERPNext login",
-              },
-            ]}
-          >
-            <Input.Password autoComplete="current-password" className="!h-11 !rounded-xl" />
-          </Form.Item>
+            type="password"
+            autoComplete="current-password"
+            required={!devBypass}
+            className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+          />
+        </label>
 
-          <Button
-            type="primary"
-            htmlType="submit"
-            loading={loading}
-            block
-            size="large"
-            className="!h-11 !rounded-xl"
-          >
-            Continue
-          </Button>
-        </Form>
-      </Space>
-    </Card>
+        {error ? (
+          <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </p>
+        ) : null}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {loading ? "Signing in..." : "Continue"}
+        </button>
+      </form>
+    </div>
   );
 }
 
