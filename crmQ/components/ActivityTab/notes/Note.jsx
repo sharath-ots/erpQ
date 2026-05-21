@@ -18,19 +18,20 @@ const Note = ({ note }) => {
       sx={{
         py: 2.5,
         px: 2,
-        borderBottom: '1px solid #f1f5f9',
-        '&:hover': { bgcolor: '#f8fafc' },
+        borderBottom: 1,
+        borderColor: 'divider',
+        '&:hover': { bgcolor: 'action.hover' },
         transition: 'background-color 0.2s'
       }}
     >
-      {/* 🚀 Sleek Frappe-style Avatar */}
+      {/* 🚀 Changed to use theme primary colors instead of hardcoded green */}
       <Avatar
         src={note.author.avatar || undefined}
         sx={{
           width: 36,
           height: 36,
-          bgcolor: '#d1fae5', // Soft green background
-          color: '#047857',   // Dark green text
+          bgcolor: 'primary.main',
+          color: 'primary.contrastText',
           fontSize: '1rem',
           fontWeight: 600
         }}
@@ -44,10 +45,10 @@ const Note = ({ note }) => {
 
           {/* Author & Exact Frappe Date Format */}
           <Stack direction="column" spacing={0.5}>
-            <Typography variant="body2" sx={{ fontWeight: 700, color: '#1e293b' }}>
+            <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
               {note.author.name}
             </Typography>
-            <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 500 }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
               {/* 🚀 format('Do MMMM YYYY, hh:mm A') outputs: "20th April 2026, 07:22 PM" */}
               {dayjs(note.createdAt).format('Do MMMM YYYY, hh:mm A')}
             </Typography>
@@ -66,7 +67,7 @@ const Note = ({ note }) => {
         </Stack>
 
         {/* Note Body */}
-        <Typography variant="body2" sx={{ color: '#334155', whiteSpace: 'pre-wrap', pr: 4 }}>
+        <Typography variant="body2" sx={{ color: 'text.primary', whiteSpace: 'pre-wrap', pr: 4 }}>
           {note.description}
         </Typography>
       </Stack>
@@ -75,3 +76,5 @@ const Note = ({ note }) => {
 };
 
 export default Note;
+
+

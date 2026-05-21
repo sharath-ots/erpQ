@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Button, Spin } from "antd";
 import { isTokenExpired, redirectToLogin } from "@/lib/apigate";
 
-/** Dev / cross-origin login: token arrives in hash (localStorage is per-origin; 3100 ≠ 13000). */
+/** Dev / cross-origin login: token arrives in hash (localStorage is per-origin; 3100 ≠ 13001). */
 function consumeTokenFromHash() {
   if (typeof window === "undefined") return null;
   const { hash } = window.location;

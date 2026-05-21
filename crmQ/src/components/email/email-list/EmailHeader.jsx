@@ -1,5 +1,7 @@
+'use client';
+
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { usePathname } from 'next/navigation'; // 🚀 Swapped useParams for usePathname
 import { Box, Button, Stack } from '@mui/material';
 import { useEmailContext } from 'providers/EmailProvider';
 import { REFRESH_EMAILS, SEARCH_EMAIL } from 'reducers/EmailReducer';
@@ -12,45 +14,54 @@ const EmailHeader = ({ toggleDrawer }) => {
   const [searchText, setSearchText] = useState('');
   const [openFilterDialog, setOpenFilterDialog] = useState(false);
   const [openComposeDialog, setOpenComposeDialog] = useState(false);
-  const { emailDispatch, resizableWidth } = useEmailContext();
-  const { label, id } = useParams();
 
-  const toggleFilterDialog = () => {
-    setOpenFilterDialog((prev) => !prev);
-  };
+  const context = useEmailContext() || {};
+  const emailDispatch = context.emailDispatch;
+  const resizableWidth = context.resizableWidth;
 
-  const toggleComposeDialog = () => {
-    setOpenComposeDialog(!openComposeDialog);
-  };
+  // 🚀 FIXED: Extract label from path (since useParams might be empty in your shell)
+  const pathname = usePathname();
+  const pathParts = pathname.split('/').filter(Boolean);
+  const isDetailsView = pathname.includes('/details/');
+  const currentLabel = isDetailsView
+    ? pathParts[pathParts.length - 2]
+    : pathParts[pathParts.length - 1] || 'inbox';
+
+  const toggleFilterDialog = () => setOpenFilterDialog((prev) => !prev);
+  const toggleComposeDialog = () => setOpenComposeDialog(!openComposeDialog);
 
   const handleSearch = (e) => {
-    setSearchText(e.target.value);
-    emailDispatch({
-      type: SEARCH_EMAIL,
-      payload: { query: e.target.value, folder: Array.isArray(label) ? label[0] : label },
-    });
+    const value = e.target.value;
+    setSearchText(value);
+    if (emailDispatch) {
+      emailDispatch({
+        type: SEARCH_EMAIL,
+        payload: { query: value, folder: currentLabel },
+      });
+    }
   };
 
   const handleRefresh = () => {
     setSearchText('');
-    emailDispatch({ type: REFRESH_EMAILS, payload: label });
+    if (emailDispatch) {
+      emailDispatch({ type: REFRESH_EMAILS, payload: currentLabel });
+    }
   };
 
+  // 🚀 CRASH-PROOF EFFECT
   useEffect(() => {
     setSearchText('');
-    emailDispatch({ type: SEARCH_EMAIL, payload: { query: '', folder: label } });
-  }, [label]);
-
-  const isInvalidOrLargeWidth = !id || resizableWidth > 500;
+    if (emailDispatch && currentLabel !== 'email') {
+      emailDispatch({ type: SEARCH_EMAIL, payload: { query: '', folder: currentLabel } });
+    }
+    return undefined; // 🚀 THIS STOPS THE "s is not a function" ERROR
+  }, [currentLabel, emailDispatch]);
 
   return (
     <Box sx={{ mb: '2px' }}>
       <Stack
         spacing={1}
-        sx={[
-          { px: 3, flexWrap: 'wrap' },
-          isInvalidOrLargeWidth && { px: { sm: 5 }, flexWrap: { sm: 'nowrap' } },
-        ]}
+        sx={{ px: 3, flexWrap: 'wrap' }}
       >
         <Button color="neutral" variant="soft" shape="square" onClick={toggleDrawer}>
           <IconifyIcon icon="material-symbols:filter-list-rounded" fontSize={20} />
@@ -58,7 +69,7 @@ const EmailHeader = ({ toggleDrawer }) => {
         <Button
           variant="contained"
           onClick={toggleComposeDialog}
-          sx={[{ flex: 1 }, (!id || resizableWidth > 500) && { flex: { sm: 'unset' } }]}
+          sx={{ flex: 1 }}
           startIcon={<IconifyIcon icon="material-symbols:add-2-rounded" sx={{ fontSize: 20 }} />}
         >
           Compose
@@ -69,21 +80,9 @@ const EmailHeader = ({ toggleDrawer }) => {
           value={searchText}
           onChange={handleSearch}
           placeholder="Search email"
-          sx={[
-            { order: 1, width: 1 },
-            isInvalidOrLargeWidth && {
-              order: { sm: 0 },
-              width: { sm: 'auto' },
-              flex: { sm: 1 },
-            },
-          ]}
+          sx={{ order: 1, width: 1, flex: { sm: 1 } }}
         />
-        <Box
-          sx={[
-            { mr: { xs: '-8px' }, ml: 'auto' },
-            isInvalidOrLargeWidth && { mr: { sm: '-10px' } },
-          ]}
-        >
+        <Box sx={{ ml: 'auto' }}>
           <Button shape="square" color="neutral" onClick={toggleFilterDialog}>
             <IconifyIcon icon="material-symbols:filter-alt-outline" fontSize={20} />
           </Button>

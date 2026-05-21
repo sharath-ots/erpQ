@@ -1,11 +1,12 @@
-import { Chip, Checkbox, TableRow, TableCell, TableBody, Table, TableContainer, Box, Typography, Stack, tableCellClasses, IconButton, Tooltip } from '@mui/material';
+import { Chip, TableRow, TableCell, TableBody, Table, TableContainer, Box, Typography, Stack, tableCellClasses, IconButton, Tooltip } from '@mui/material';
 import dayjs from 'dayjs';
 import IconifyIcon from 'components/base/IconifyIcon';
 
+// 🚀 Changed to return standard MUI colors instead of hardcoded hex!
 const getPriorityColor = (p) => {
-  if (p === 'High') return { bg: '#fee2e2', text: '#991b1b' };
-  if (p === 'Medium') return { bg: '#fef3c7', text: '#92400e' };
-  return { bg: '#f1f5f9', text: '#475569' };
+  if (p === 'High') return 'error';
+  if (p === 'Medium') return 'warning';
+  return 'default';
 };
 
 const TaskTable = ({ taskList, onViewTask }) => {
@@ -13,32 +14,29 @@ const TaskTable = ({ taskList, onViewTask }) => {
 
   return (
     <TableContainer>
-      <Table size="small" sx={{ [`& .${tableCellClasses.root}`]: { borderBottom: '1px solid #f1f5f9', py: 1.5 } }}>
+      <Table size="small" sx={{ [`& .${tableCellClasses.root}`]: { borderBottom: 1, borderColor: 'divider', py: 1.5 } }}>
         <TableBody>
           {taskList.map((task) => (
-            <TableRow key={task.id} sx={{ '&:hover': { bgcolor: '#fcfcfd' } }}>
-              {/* <TableCell padding="checkbox">
-                <Checkbox checked={task.completed} size="small" />
-              </TableCell> */}
+            <TableRow key={task.id} sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
 
               <TableCell sx={{ pl: 1 }}>
                 <Stack spacing={0.5}>
                   <Typography variant="body2" sx={{
                     fontWeight: 700,
-                    color: task.completed ? 'text.disabled' : '#1e293b',
+                    color: task.completed ? 'text.disabled' : 'text.primary',
                     textDecoration: task.completed ? 'line-through' : 'none',
                   }}>
-                    {/* 🚀 Show a clean title (first 40 chars of description) */}
                     {task.title || 'Untitled Task'}
                   </Typography>
 
-                  {/* 🚀 NEW: Subtext for a quick description peek */}
-                  {/* <Typography variant="caption" noWrap sx={{ color: 'text.secondary', maxWidth: 300, display: 'block' }}>
-                    {task.description_raw || 'No additional details.'}
-                  </Typography> */}
-
                   <Stack direction="row" spacing={1} alignItems="center">
-                    <Chip label={task.priority} size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 900, bgcolor: getPriorityColor(task.priority).bg, color: getPriorityColor(task.priority).text }} />
+                    <Chip
+                      label={task.priority}
+                      size="small"
+                      color={getPriorityColor(task.priority)}
+                      variant="outlined"
+                      sx={{ height: 18, fontSize: '0.6rem', fontWeight: 900 }}
+                    />
                     <Typography variant="caption" sx={{ color: 'text.disabled', fontWeight: 600 }}>
                       {task.dueDate ? `Due: ${dayjs(task.dueDate).format('DD MMM')}` : 'No Due Date'}
                     </Typography>
@@ -52,9 +50,8 @@ const TaskTable = ({ taskList, onViewTask }) => {
                     {dayjs(task.timeStamp).format('hh:mm a')}
                   </Typography>
 
-                  {/* 🚀 NEW: VIEW BUTTON */}
                   <Tooltip title="View Details">
-                    <IconButton size="small" onClick={() => onViewTask(task)} sx={{ bgcolor: '#f1f5f9', '&:hover': { bgcolor: '#e2e8f0' } }}>
+                    <IconButton size="small" onClick={() => onViewTask(task)} sx={{ bgcolor: 'action.selected', '&:hover': { bgcolor: 'action.focus' } }}>
                       <IconifyIcon icon="material-symbols:visibility-outline-rounded" fontSize="1rem" />
                     </IconButton>
                   </Tooltip>

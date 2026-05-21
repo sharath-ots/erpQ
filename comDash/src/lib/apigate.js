@@ -13,6 +13,30 @@ export const apiBase = process.env.NEXT_PUBLIC_APIGATE_URL ?? "";
 
 export function getAccessToken() {
   if (typeof window === "undefined") return null;
+
+  // 1. Intercept the token from the URL hash BEFORE checking local storage
+  if (window.location.hash.includes("cityq_token=")) {
+    // Extract everything after the '#'
+    const hashString = window.location.hash.replace(/^#/, "");
+    const hashParams = new URLSearchParams(hashString);
+    const tokenFromUrl = hashParams.get("cityq_token");
+
+    if (tokenFromUrl) {
+      // Instantly save it so we don't lose it
+      window.localStorage.setItem("cityq_access_token", tokenFromUrl);
+
+      // Optional but highly recommended: Clean up the URL so the massive token disappears
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + window.location.search
+      );
+
+      return tokenFromUrl;
+    }
+  }
+
+  // 2. Fall back to local storage if there is no token in the URL
   return window.localStorage.getItem("cityq_access_token");
 }
 

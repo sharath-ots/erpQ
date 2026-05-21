@@ -25,7 +25,7 @@ data:
 
   # auth (public URLs must match Ingress hosts)
   AUTHQ_PUBLIC_BASE_URL: "http://auth.local"
-  AUTHQ_OAUTH_RETURN_URL_PREFIXES: "http://dashboard.local,http://127.0.0.1:13000"
+  AUTHQ_OAUTH_RETURN_URL_PREFIXES: "http://dashboard.local,http://127.0.0.1:13001"
   AUTHQ_OAUTH_DEFAULT_RETURN_URL: "http://dashboard.local/"
   AUTHQ_OAUTH_DEFAULT_ALLOWED_DOC_TYPES: "*"
   AUTHQ_GOOGLE_REDIRECT_URI: "http://auth.local/oauth/google/callback"

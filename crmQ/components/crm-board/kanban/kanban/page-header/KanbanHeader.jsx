@@ -12,14 +12,17 @@ import BoardTheme from './BoardTheme';
 import HeaderMenu from './HeaderMenu';
 import InviteButton from './InviteButton';
 import FilterMenu from './filter-menu/FilterMenu';
+import { useKanbanContext } from '../../../../../providers/KanbanProvider';
 
 const KanbanHeader = () => {
   const { up } = useBreakpoints();
   const upXl = up('xl');
   const upSm = up('sm');
 
+  const { setSearchQuery } = useKanbanContext();
+
   const handleSearch = (e) => {
-    console.log(e.target.value);
+    setSearchQuery(e.target.value);
   };
 
   return (
@@ -35,12 +38,12 @@ const KanbanHeader = () => {
     >
       <Stack spacing={{ xs: 1, xl: 2 }} sx={{ width: { xs: 1, sm: 'auto' }, alignItems: 'center' }}>
         <HeaderMenu />
-        <BoardMembers
+        {/* <BoardMembers
           members={kanbanBoard.assignee}
           sx={{ ml: { xs: 'auto', sm: 0 } }}
           assigneeType="board"
-        />
-        <InviteButton />
+        /> */}
+        {/* <InviteButton /> */}
         <Divider
           orientation="vertical"
           variant="middle"
@@ -62,7 +65,7 @@ const KanbanHeader = () => {
         {upSm && <BoardTheme />}
         <FilterMenu />
 
-        <Tooltip title="Export / Import" disableHoverListener={upXl ? true : false}>
+        {/* <Tooltip title="Export / Import" disableHoverListener={upXl ? true : false}>
           <Button
             variant={upXl ? 'text' : 'soft'}
             color="neutral"
@@ -84,7 +87,7 @@ const KanbanHeader = () => {
           >
             {upXl && 'Export / Import'}
           </Button>
-        </Tooltip>
+        </Tooltip> */}
 
         <StyledTextField
           id="search-box"

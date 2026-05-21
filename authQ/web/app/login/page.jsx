@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 const erpSiteLabel = process.env.NEXT_PUBLIC_ERPNEXT_SITE_LABEL ?? "ERPNext";
 
-/** When true: password optional (portal still needs a real JWT from apiGate — dummy tokens break /api/v1/portal/menu). */
+/** When true: password optional (portal still needs a real JWT from apiGate). */
 const devBypass =
   process.env.NEXT_PUBLIC_LOGIN_DEV_BYPASS === "true" ||
   process.env.NEXT_PUBLIC_LOGIN_DEV_BYPASS === "1";
@@ -18,7 +18,6 @@ function trimTrailingSlash(url) {
   return (url ?? "").replace(/\/$/, "");
 }
 
-/** Injected in root layout from AUTH_WEB_RUNTIME_* (Docker) — overrides baked NEXT_PUBLIC_*. */
 function getRuntimePublic() {
   if (typeof window === "undefined") return null;
   const w = window.__AUTH_WEB_PUBLIC__;
@@ -26,7 +25,6 @@ function getRuntimePublic() {
   return w;
 }
 
-/** Prefer explicit runtime/build URL; fall back to same-host port for local direct access. */
 function resolvePublicBase(port, runtimeVal, bakedVal) {
   const fromRt = runtimeVal && String(runtimeVal).trim();
   if (fromRt) return trimTrailingSlash(fromRt);
@@ -47,7 +45,7 @@ function getAuthQBase() {
 
 function getComDashBase() {
   const rt = getRuntimePublic();
-  return resolvePublicBase(13000, rt?.comdash, process.env.NEXT_PUBLIC_COMDASH_URL);
+  return resolvePublicBase(13001, rt?.comdash, process.env.NEXT_PUBLIC_COMDASH_URL);
 }
 
 function isLoginUrl(url) {
@@ -80,7 +78,6 @@ function IllustrationPanel() {
           Sign in to continue to the Q portal. Use your {erpSiteLabel} credentials or SSO.
         </p>
 
-        {/* Lightweight inline illustration (no external assets) */}
         <div className="w-full max-w-xl">
           <svg viewBox="0 0 820 420" className="w-full h-auto">
             <defs>
@@ -95,7 +92,6 @@ function IllustrationPanel() {
             </defs>
             <rect x="80" y="170" width="540" height="120" rx="60" fill="url(#g1)" opacity="0.9" />
             <rect x="140" y="130" width="520" height="120" rx="60" fill="url(#g2)" opacity="0.55" />
-
             <g transform="translate(150,210)">
               <circle cx="60" cy="60" r="44" fill="#E0F2FE" />
               <circle cx="60" cy="52" r="10" fill="#0F172A" opacity="0.6" />
@@ -138,6 +134,7 @@ function LoginCard() {
   const [loading, setLoading] = useState(false);
   const [redirect, setRedirect] = useState("/");
   const [error, setError] = useState("");
+  const [errorPopup, setErrorPopup] = useState(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -152,6 +149,7 @@ function LoginCard() {
     event.preventDefault();
     setLoading(true);
     setError("");
+    setErrorPopup(null);
 
     const formData = new FormData(event.currentTarget);
     const email = String(formData.get("email") || "");
@@ -178,101 +176,125 @@ function LoginCard() {
         credentials: "include",
         body: JSON.stringify({
           email,
-          password:
-            devBypass && !password.trim()
-              ? ""
-              : password,
+          password: devBypass && !password.trim() ? "" : password,
         }),
       });
 
-      const data = (await res.json().catch(() => ({}))) ?? {};
+      const data = await res.json().catch(() => ({}));
 
-      if (!res.ok) {
-        setError(data.detail ?? data.error ?? `Login failed (${res.status})`);
+      if (!res.ok || !data.access_token) {
+        let cleanMessage = "Incorrect email or password. Please try again.";
+        if (res.status >= 500) {
+          cleanMessage = "The server encountered an error. Please try again later.";
+        } else if (data.detail && typeof data.detail === "string" && !data.detail.includes("Frappe")) {
+          cleanMessage = data.detail;
+        } else if (data.error && typeof data.error === "string") {
+          cleanMessage = data.error;
+        }
+        setErrorPopup(cleanMessage);
+        setError(cleanMessage);
         return;
       }
 
-      const token = data.access_token;
-      if (!token) {
-        setError("No access token from apiGate");
-        return;
-      }
-
-      dest.hash = `cityq_token=${encodeURIComponent(token)}`;
+      dest.hash = `cityq_token=${encodeURIComponent(data.access_token)}`;
       window.location.href = dest.toString();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login request failed");
+      const msg = "Could not connect to the server. Please check your connection.";
+      setErrorPopup(msg);
+      setError(msg);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-xl">
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
-          Log in
-        </h2>
-        <p className="text-xs text-slate-500">
-          Need help? Contact admin
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <SsoButton href={googleHref} provider="google" />
-        <SsoButton href={zohoHref} provider="zoho" />
-      </div>
-
-      <div className="my-6 flex items-center gap-3">
-        <div className="h-px flex-1 bg-slate-200" />
-        <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
-          or use email
-        </span>
-        <div className="h-px flex-1 bg-slate-200" />
-      </div>
-
-      <form className="space-y-4" onSubmit={onSubmit}>
-        <label className="block">
-          <span className="mb-1.5 block text-sm font-medium text-slate-700">
-            Email / ERPNext username
-          </span>
-          <input
-            name="email"
-            type="text"
-            autoComplete="username"
-            required
-            className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
-          />
-        </label>
-
-        <label className="block">
-          <span className="mb-1.5 block text-sm font-medium text-slate-700">
-            Password
-          </span>
-          <input
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required={!devBypass}
-            className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
-          />
-        </label>
-
-        {error ? (
-          <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
+    <>
+      <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-xl">
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
+            Log in
+          </h2>
+          <p className="text-xs text-slate-500">
+            Need help? Contact admin
           </p>
-        ) : null}
+        </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <SsoButton href={googleHref} provider="google" />
+          <SsoButton href={zohoHref} provider="zoho" />
+        </div>
+
+        <div className="my-6 flex items-center gap-3">
+          <div className="h-px flex-1 bg-slate-200" />
+          <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+            or use email
+          </span>
+          <div className="h-px flex-1 bg-slate-200" />
+        </div>
+
+        <form className="space-y-4" onSubmit={onSubmit}>
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-slate-700">
+              Email / ERPNext username
+            </span>
+            <input
+              name="email"
+              type="text"
+              autoComplete="username"
+              required
+              className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-slate-700">
+              Password
+            </span>
+            <input
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required={!devBypass}
+              className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+            />
+          </label>
+
+          {error ? (
+            <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </p>
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {loading ? "Signing in..." : "Continue"}
+          </button>
+        </form>
+      </div>
+
+      {errorPopup ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
         >
-          {loading ? "Signing in..." : "Continue"}
-        </button>
-      </form>
-    </div>
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-slate-900">Authentication failed</h3>
+            <p className="mt-2 text-sm text-red-600">{errorPopup}</p>
+            <button
+              type="button"
+              className="mt-4 h-10 w-full rounded-xl bg-slate-900 text-sm font-semibold text-white"
+              onClick={() => setErrorPopup(null)}
+            >
+              Try again
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -294,4 +316,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

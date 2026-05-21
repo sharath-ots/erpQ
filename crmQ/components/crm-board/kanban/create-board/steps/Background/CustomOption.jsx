@@ -22,8 +22,11 @@ const CustomOption = ({ type, onChange, actionButton }) => {
 
   return (
     <Box sx={{ mt: 2, width: 1 }}>
-      <Stack sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-        <Stack alignItems="center" spacing={1}>
+      {/* Set direction to row to keep Confirm button on the right */}
+      <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'flex-end' }}>
+        
+        {/* 🚀 WE COMMENTED OUT THIS ENTIRE BLOCK SO THE BUTTON HIDES */}
+        {/* <Stack alignItems="center" spacing={1} direction="row">
           <Typography variant="body2">or,</Typography>
           <Box sx={{ position: 'relative' }}>
             <Button
@@ -52,7 +55,10 @@ const CustomOption = ({ type, onChange, actionButton }) => {
               />
             </Button>
           </Box>
-        </Stack>
+        </Stack> 
+        */}
+
+        {/* 🚀 We leave the Confirm button completely alone! */}
         {actionButton}
       </Stack>
     </Box>

@@ -30,9 +30,11 @@ const BoardThemeOptionsDialog = ({ open, handleClose }) => {
         type: UPDATE_BOARD_BACKGROUND,
         payload: {
           type: backgroundOptions.selected.type,
-          background: backgroundOptions.selected.background,
+          // 🚀 FIX: Remove the extra .background at the end of this line
+          background: backgroundOptions.selected, 
         },
       });
+      handleClose();
     }
   };
 
@@ -69,7 +71,7 @@ const BoardThemeOptionsDialog = ({ open, handleClose }) => {
           </Stack>
           <Background
             actionButton={
-              <Button onClick={handleClose} type="submit">
+              <Button type="submit">
                 Confirm
               </Button>
             }

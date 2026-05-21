@@ -1,11 +1,23 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Button } from '@mui/material';
 import { Box, ButtonGroup, Stack, toggleButtonClasses } from '@mui/material';
 import Editor, { editorDefaultToolbar } from 'components/base/Editor';
-import IconifyIcon from 'components/base/IconifyIcon';
 
 const EmailComposeEditor = ({ onChange, content, isValid }) => {
   const rteRef = useRef(null);
+
+  // 🚀 EXPERT FIX: Force the Rich Text Editor to sync with external changes!
+  useEffect(() => {
+    if (rteRef.current && rteRef.current.editor) {
+      const currentEditorHTML = rteRef.current.editor.getHTML();
+
+      // Only force an update if the incoming HTML is actually different,
+      // otherwise the cursor jumps to the end of the line while typing.
+      if (content !== currentEditorHTML) {
+        rteRef.current.editor.commands.setContent(content || '');
+      }
+    }
+  }, [content]);
 
   return (
     <Editor
@@ -35,12 +47,6 @@ const EmailComposeEditor = ({ onChange, content, isValid }) => {
           <ButtonGroup variant="contained" sx={{ ml: 'auto' }}>
             <Button sx={{ borderRight: '0 !important' }} type="submit">
               Send
-            </Button>
-            <Button size="small">
-              <IconifyIcon
-                icon="material-symbols:keyboard-arrow-down-rounded"
-                sx={{ fontSize: 20 }}
-              />
             </Button>
           </ButtonGroup>
         </Stack>

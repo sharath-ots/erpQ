@@ -6,8 +6,8 @@ services:
     restart: unless-stopped
     environment:
       # Traefik's Docker provider talks to the Docker Engine API over /var/run/docker.sock.
-      # Our Engine enforces a minimum API version (1.40). Pin the client API to a compatible version.
-      DOCKER_API_VERSION: "1.40"
+      # Keep this compatible with current Docker engines used on production servers.
+      DOCKER_API_VERSION: "1.44"
     command:
       - --api.dashboard=true
       - --api.insecure=${TRAEFIK_DASHBOARD_INSECURE:-false}
@@ -69,19 +69,28 @@ services:
       - traefik.http.routers.comdash-pur.tls=true
       - traefik.http.routers.comdash-pur.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
       - traefik.http.routers.comdash-pur.service=comdash
+      # comDash owns Next.js API routes such as /api/erp-test, /api/erp-sidebar,
+      # /api/crm-q-dashboard, and /api/v1/* (which proxies to apiGate internally).
+      - traefik.http.routers.comdash-api.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/api`)
+      - traefik.http.routers.comdash-api.priority=100
+      - traefik.http.routers.comdash-api.entrypoints=websecure
+      - traefik.http.routers.comdash-api.tls=true
+      - traefik.http.routers.comdash-api.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.routers.comdash-api.service=comdash
 
   apigate:
     labels:
       - traefik.enable=true
-      # Direct apiGate debugging endpoint. Browser app traffic uses comDash /api/* proxy.
-      - traefik.http.routers.apigate.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/api-gateway`)
+      # auth-web posts to /api/api/v1/*; strip the first /api before proxying.
+      # Other /api/* paths belong to comDash and are routed by comdash-api above.
+      - traefik.http.routers.apigate.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/api/api/v1`)
+      - traefik.http.routers.apigate.priority=200
       - traefik.http.routers.apigate.entrypoints=websecure
       - traefik.http.routers.apigate.tls=true
       - traefik.http.routers.apigate.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
       - traefik.http.services.apigate.loadbalancer.server.port=8080
-      # Strip /api-gateway before proxying to keep backend routes unchanged.
       - traefik.http.routers.apigate.middlewares=apigate-strip-api
-      - traefik.http.middlewares.apigate-strip-api.stripprefix.prefixes=/api-gateway
+      - traefik.http.middlewares.apigate-strip-api.stripprefix.prefixes=/api
 
   auth:
     labels:
@@ -111,9 +120,15 @@ services:
       # Do NOT strip /login for the page route; only static/runtime asset requests are stripped below.
       - traefik.http.routers.authweb-path.middlewares=authweb-normalize-double-login
 
-      # auth-web emits assets as /login/_next/... so they do not collide with comDash /_next assets.
-      # Strip /login before the request reaches the Next server, which serves assets from /_next.
-      - traefik.http.routers.authweb-assets.rule=Host(`${PUBLIC_HOST}`) && (PathPrefix(`/login/_next`) || PathPrefix(`/login/runtime-config`))
+      # Root layout loads /runtime-config (deployment URL overrides).
+      - traefik.http.routers.authweb-runtime-config.rule=Host(`${PUBLIC_HOST}`) && Path(`/runtime-config`)
+      - traefik.http.routers.authweb-runtime-config.priority=1000
+      - traefik.http.routers.authweb-runtime-config.entrypoints=websecure
+      - traefik.http.routers.authweb-runtime-config.tls=true
+      - traefik.http.routers.authweb-runtime-config.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.routers.authweb-runtime-config.service=authweb
+      # auth-web assets under /login/_next (strip /login prefix).
+      - traefik.http.routers.authweb-assets.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/login/_next`)
       - traefik.http.routers.authweb-assets.entrypoints=websecure
       - traefik.http.routers.authweb-assets.tls=true
       - traefik.http.routers.authweb-assets.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
@@ -146,13 +161,20 @@ services:
     labels:
       - traefik.enable=true
       # Optional: ERP iframe proxy at https://<PUBLIC_HOST>/erp/*
-      - traefik.http.routers.erpproxy.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/erp`)
+      # Match /erp and /erp/* only; do not steal comDash routes like /erp-config.
+      - traefik.http.routers.erpproxy.rule=Host(`${PUBLIC_HOST}`) && (Path(`/erp`) || PathPrefix(`/erp/`))
       - traefik.http.routers.erpproxy.entrypoints=websecure
       - traefik.http.routers.erpproxy.tls=true
       - traefik.http.routers.erpproxy.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
       - traefik.http.services.erpproxy.loadbalancer.server.port=80
       - traefik.http.routers.erpproxy.middlewares=erpproxy-strip-erp
       - traefik.http.middlewares.erpproxy-strip-erp.stripprefix.prefixes=/erp
+      # Frappe/ERPNext pages often reference these assets from root paths.
+      - traefik.http.routers.erpproxy-assets.rule=Host(`${PUBLIC_HOST}`) && (PathPrefix(`/assets`) || PathPrefix(`/files`) || PathPrefix(`/private/files`) || Path(`/website_script.js`) || PathPrefix(`/socket.io`))
+      - traefik.http.routers.erpproxy-assets.entrypoints=websecure
+      - traefik.http.routers.erpproxy-assets.tls=true
+      - traefik.http.routers.erpproxy-assets.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.routers.erpproxy-assets.service=erpproxy
 
   rabbitmq:
     labels:

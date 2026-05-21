@@ -4,7 +4,7 @@ import ThemeProvider from '@/shared-ui/providers/ThemeProvider';
 import SettingsProvider from '@/shared-ui/providers/SettingsProvider';
 import BreakpointsProvider from '@/shared-ui/providers/BreakpointsProvider'; // 👈 1. NEW IMPORT
 import LeadsTable from '../../../data/crm/LeadList';
-import LeadSideAndHeaderLayout from '../../../components/side-and-header/LeadSideAndHeaderLayout';
+//import LeadSideAndHeaderLayout from '../../../components/side-and-header/LeadSideAndHeaderLayout';
 
 export default function LeadListPage() {
     // const openLeadInErpNext = (id) => {
@@ -13,18 +13,16 @@ export default function LeadListPage() {
     // };
 
     return (
-        <SettingsProvider>
-            <ThemeProvider>
-                <CssBaseline />
-                <BreakpointsProvider>
-                    <LeadSideAndHeaderLayout>
-                        <Box sx={{ p: 0 }}>
-                            <LeadsTable />
-                        </Box>
-                    </LeadSideAndHeaderLayout>
-                </BreakpointsProvider>
+        // <SettingsProvider>
+        //     <ThemeProvider>
+        //         <CssBaseline />
+        //         <BreakpointsProvider>
+        //             <Box sx={{ p: 0 }}>
+        <LeadsTable />
+        //             </Box>
+        //         </BreakpointsProvider>
 
-            </ThemeProvider>
-        </SettingsProvider>
+        //     </ThemeProvider>
+        // </SettingsProvider>
     );
 }

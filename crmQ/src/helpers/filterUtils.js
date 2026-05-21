@@ -83,8 +83,23 @@ export const evaluateFrappeFilter = (rowValue, filterOperator, filterValue, fiel
             if (val2 === 'set') return val1 !== '';
             if (val2 === 'not set') return val1 === '';
             return false;
-        case '>': return parseFloat(rowValue) > parseFloat(filterValue);
-        case '<': return parseFloat(rowValue) < parseFloat(filterValue);
+
+        // 🚀 EXPERT FIX: Smart Number vs Date Comparison
+        case '>': {
+            const isNumeric = !isNaN(Number(rowValue)) && !isNaN(Number(filterValue)) && rowValue !== '' && filterValue !== '';
+            if (isNumeric) {
+                return Number(rowValue) > Number(filterValue);
+            }
+            return val1 > val2; // Natively handles ISO Date strings like '2026-04-30' > '2026-02-06'
+        }
+        case '<': {
+            const isNumeric = !isNaN(Number(rowValue)) && !isNaN(Number(filterValue)) && rowValue !== '' && filterValue !== '';
+            if (isNumeric) {
+                return Number(rowValue) < Number(filterValue);
+            }
+            return val1 < val2; // Natively handles ISO Date strings
+        }
+
         default: return true;
     }
 };

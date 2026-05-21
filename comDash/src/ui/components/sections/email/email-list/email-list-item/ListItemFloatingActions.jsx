@@ -1,4 +1,4 @@
-import { useParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { ButtonBase, IconButton, Stack, Tooltip } from '@mui/material';
 import { useEmailContext } from 'providers/EmailProvider';
 import {
@@ -10,19 +10,39 @@ import {
 import IconifyIcon from 'components/base/IconifyIcon';
 
 const ListItemFloatingActions = ({ email }) => {
-  const { label, id } = useParams();
-  const { emailDispatch, resizableWidth } = useEmailContext();
+  const pathname = usePathname();
+  const pathParts = pathname.split('/').filter(Boolean);
+
+  // 🚀 FIXED: Smarter Path Parsing
+  // If URL is /m/emailq/email/list/inbox -> label is "inbox"
+  // If URL is /m/emailq/email/details/inbox/123 -> label is "inbox"
+  const extractedId = pathParts[pathParts.length - 1];
+  const extractedLabel = pathname.includes('/details/')
+    ? pathParts[pathParts.length - 2]
+    : pathParts[pathParts.length - 1];
+
+  const params = {
+    id: extractedId,
+    label: extractedLabel || 'inbox'
+  };
+
+  const context = useEmailContext() || {};
+  const emailDispatch = context.emailDispatch;
+  const resizableWidth = context.resizableWidth || 0;
 
   const preventDefaultBehaviour = (e) => {
     e.preventDefault();
     e.stopPropagation();
   };
 
+  if (!emailDispatch) return null; // Safety check
+
   return (
     <Stack
       className="actions"
       onClick={preventDefaultBehaviour}
       onMouseDown={preventDefaultBehaviour}
+      direction="row"
       sx={[
         {
           alignItems: 'center',
@@ -34,11 +54,11 @@ const ListItemFloatingActions = ({ email }) => {
           opacity: 0,
           display: { xs: 'none', sm: 'flex' },
         },
-        !!id &&
-          resizableWidth < 500 && {
-            height: 'auto',
-            top: 16,
-          },
+        params.id !== 'email' &&
+        resizableWidth < 500 && {
+          height: 'auto',
+          top: 16,
+        },
       ]}
     >
       <Tooltip title="Delete">
@@ -46,38 +66,38 @@ const ListItemFloatingActions = ({ email }) => {
           size="small"
           component={ButtonBase}
           onClick={() => emailDispatch({ type: DELETE_EMAIL, payload: [email.id] })}
-          disabled={label === 'trash'}
+          disabled={params.label === 'trash'}
           sx={{
             fontSize: 20,
-            color: label === 'trash' ? 'text.disabled' : 'text.secondary',
-            '&:hover': {
-              color: 'text.primary',
-            },
+            color: params.label === 'trash' ? 'text.disabled' : 'text.secondary',
+            '&:hover': { color: 'text.primary' },
           }}
         >
           <IconifyIcon icon="material-symbols:delete-outline-rounded" />
         </IconButton>
       </Tooltip>
+
       <Tooltip title="Archive">
         <IconButton
           size="small"
           component={ButtonBase}
           onClick={() => emailDispatch({ type: ARCHIVE_EMAIL, payload: [email.id] })}
-          disabled={label === 'trash' || label === 'archived'}
+          // 🚀 FIXED: Changed 'label' to 'params.label'
+          disabled={params.label === 'trash' || params.label === 'archived'}
           sx={[
             {
               fontSize: 20,
               color: 'text.secondary',
-              '&:hover': {
-                color: 'text.primary',
-              },
+              '&:hover': { color: 'text.primary' },
             },
-            (label === 'trash' || label === 'archived') && { color: 'text.disabled' },
+            // 🚀 FIXED: Changed 'label' to 'params.label'
+            (params.label === 'trash' || params.label === 'archived') && { color: 'text.disabled' },
           ]}
         >
           <IconifyIcon icon="material-symbols:archive-outline-rounded" />
         </IconButton>
       </Tooltip>
+
       <Tooltip title={email.snoozedTill === null ? 'Snooze for 1 day' : 'Unsnooze'}>
         <IconButton
           size="small"
@@ -85,14 +105,13 @@ const ListItemFloatingActions = ({ email }) => {
           sx={{
             fontSize: 20,
             color: 'text.secondary',
-            '&:hover': {
-              color: 'text.primary',
-            },
+            '&:hover': { color: 'text.primary' },
           }}
         >
           <IconifyIcon icon="material-symbols:snooze-outline-rounded" />
         </IconButton>
       </Tooltip>
+
       <Tooltip title={email.readAt === null ? 'Mark as read' : 'Mark as unread'}>
         <IconButton
           size="small"
@@ -102,9 +121,7 @@ const ListItemFloatingActions = ({ email }) => {
           sx={{
             fontSize: 20,
             color: 'text.secondary',
-            '&:hover': {
-              color: 'text.primary',
-            },
+            '&:hover': { color: 'text.primary' },
           }}
         >
           <IconifyIcon

@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request) {
   const url = new URL(request.url);
 
-  // Port-based: http(s)://host:13000 -> auth-web on host:3100. Standard 80/443 -> same-origin /login (reverse proxy).
+  // Port-based: http(s)://host:13001 -> auth-web on host:3100. Standard 80/443 -> same-origin /login (reverse proxy).
   const origin = url.origin;
   const port = url.port;
   const usePathLogin = !port || port === "80" || port === "443";

@@ -8,7 +8,7 @@ const assetPrefix =
     : rawAssetPrefix;
 
 export const metadata = {
-  title: "CityQ — Sign in",
+  title: "Q-Portal Sign In",
   description: "Authentication",
 };
 

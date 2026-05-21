@@ -22,16 +22,16 @@ export const env = {
 
   /**
    * Comma-separated URL prefixes allowed for ?return_url= after OAuth (fragment token delivery).
-   * Example: http://localhost:13000,http://localhost:3000
+   * Example: http://localhost:13001,http://localhost:3000
    */
   oauthReturnUrlPrefixes: listCsv(
     process.env.AUTHQ_OAUTH_RETURN_URL_PREFIXES ??
-      "http://localhost:13000,http://localhost:3000,http://127.0.0.1:13000",
+      "http://localhost:13001,http://localhost:3000,http://127.0.0.1:13001",
   ),
 
   /** When ?return_url= is omitted, use this (must match a prefix above). */
   oauthDefaultReturnUrl: trim(
-    process.env.AUTHQ_OAUTH_DEFAULT_RETURN_URL ?? "http://localhost:13000/login",
+    process.env.AUTHQ_OAUTH_DEFAULT_RETURN_URL ?? "http://localhost:13001/login",
   ),
 
   /**

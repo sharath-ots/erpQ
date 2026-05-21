@@ -18,7 +18,12 @@ const AcquisitionCost = () => {
   const { legendState, handleLegendToggle } = useToggleChartLegends(chartRef);
 
   return (
-    <Paper sx={{ height: 1, p: { xs: 3, md: 5 } }}>
+    <Paper sx={{
+      height: 1, p: { xs: 3, md: 5 }, width: 1,
+      borderRadius: 0,
+      boxShadow: 'none',
+      bgcolor: 'transparent'
+    }}>
       <Stack
         sx={{
           columnGap: { xs: 5, lg: 3 },
@@ -67,7 +72,7 @@ const AcquisitionCost = () => {
 
       <AcquisitionCostChart
         data={acquisitionCostData}
-        sx={{ height: '230px !important' }}
+        sx={{ height: '230px !important', width: 1, flex: 1 }}
         ref={chartRef}
       />
     </Paper>

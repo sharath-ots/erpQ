@@ -24,7 +24,7 @@ import paths, { authPaths } from 'routes/paths';
 
 import { useERPUser } from 'providers/ERPUserProvider';
 import { ERP_CONFIG } from 'lib/erpApi';
-import { redirectToLogin } from '@/lib/apigate'; 
+import { redirectToLogin } from '@/lib/apigate';
 
 const ProfileMenu = ({ type = 'default' }) => {
   const [anchorEl, setAnchorEl] = useState(null);
@@ -84,7 +84,7 @@ const ProfileMenu = ({ type = 'default' }) => {
           type === 'slim' && { width: 24, height: 24, border: 1, borderColor: 'background.paper' },
         ]}
       >
-        {!userImage && initial} 
+        {!userImage && initial}
       </StatusAvatar>
     </Button>
   );
@@ -152,9 +152,9 @@ const ProfileMenu = ({ type = 'default' }) => {
             </Typography>
           </Box>
         </Stack>
-        
+
         <Divider />
-        
+
         <Box sx={{ py: 1 }}>
           {/* Changed to Roles and Permissions */}
           <ProfileMenuItem icon="material-symbols:shield-person-outline-rounded" onClick={handleClose}>
@@ -162,8 +162,8 @@ const ProfileMenu = ({ type = 'default' }) => {
           </ProfileMenuItem>
 
           {/* Changed to Go to ERPNext and opens in new tab */}
-          <ProfileMenuItem 
-            icon="material-symbols:open-in-new-rounded" 
+          <ProfileMenuItem
+            icon="material-symbols:open-in-new-rounded"
             onClick={handleClose}
             href="https://cityqerp.ortusolis.in/app"
             target="_blank" // Opens in new tab
@@ -171,9 +171,9 @@ const ProfileMenu = ({ type = 'default' }) => {
             Go to ERPNext
           </ProfileMenuItem>
         </Box>
-        
+
         <Divider />
-        
+
         <Box sx={{ py: 1 }}>
           <ProfileMenuItem
             icon="material-symbols:manage-accounts-outline-rounded"
@@ -190,9 +190,9 @@ const ProfileMenu = ({ type = 'default' }) => {
             Help Center
           </ProfileMenuItem>
         </Box>
-        
+
         <Divider />
-        
+
         <Box sx={{ py: 1 }}>
           {/* Made Log Out button RED */}
           <ProfileMenuItem
@@ -201,7 +201,7 @@ const ProfileMenu = ({ type = 'default' }) => {
               redirectToLogin();
             }}
             icon="material-symbols:logout-rounded"
-            sx={{ color: 'error.main' }} 
+            sx={{ color: 'error.main' }}
             iconColor="error.main"
           >
             Sign Out

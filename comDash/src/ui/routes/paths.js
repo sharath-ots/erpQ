@@ -73,8 +73,7 @@ const paths = {
   ecommerceHomepage: `/${rootPaths.appsRoot}/${rootPaths.ecommerceRoot}/${rootPaths.ecommerceCustomerRoot}/homepage`,
   products: `/${rootPaths.appsRoot}/${rootPaths.ecommerceRoot}/${rootPaths.ecommerceCustomerRoot}/products`,
   productDetails: (productId) =>
-    `/${rootPaths.appsRoot}/${rootPaths.ecommerceRoot}/${rootPaths.ecommerceCustomerRoot}/product-details${
-      productId ? `/${productId}` : ''
+    `/${rootPaths.appsRoot}/${rootPaths.ecommerceRoot}/${rootPaths.ecommerceCustomerRoot}/product-details${productId ? `/${productId}` : ''
     }`,
   cart: `/${rootPaths.appsRoot}/${rootPaths.ecommerceRoot}/${rootPaths.ecommerceCustomerRoot}/cart`,
   customerAccount: `/${rootPaths.appsRoot}/${rootPaths.ecommerceRoot}/${rootPaths.ecommerceCustomerRoot}/customer-account`,
@@ -95,9 +94,9 @@ const paths = {
   adminInvoiceList: `/${rootPaths.appsRoot}/${rootPaths.ecommerceRoot}/${rootPaths.ecommerceAdminRoot}/invoice-list`,
   adminInvoice: `/${rootPaths.appsRoot}/${rootPaths.ecommerceRoot}/${rootPaths.ecommerceAdminRoot}/invoice`,
 
-  email: `/${rootPaths.appsRoot}`,
-  emailLabel: (label) => `/${rootPaths.appsRoot}/email/list/${label}`,
-  emailDetails: (label, id) => `/${rootPaths.appsRoot}/email/details/${label}/${id}`,
+  email: `/m/emailq/email`,
+  emailLabel: (label) => `/m/emailq/email/list/${label}`,
+  emailDetails: (label, id) => `/m/emailq/email/details/${label}/${id}`,
 
   kanban: `/${rootPaths.appsRoot}/${rootPaths.kanbanRoot}`,
   boards: `/${rootPaths.appsRoot}/${rootPaths.kanbanRoot}/boards`,
@@ -171,8 +170,7 @@ const paths = {
   hiringCandidate: `/${rootPaths.appsRoot}/${rootPaths.hiringRoot}/${rootPaths.hiringCandidate}`,
   hiringJobList: `/${rootPaths.appsRoot}/${rootPaths.hiringRoot}/${rootPaths.hiringCandidate}/job-list`,
   hiringJobDetails: (jobId) =>
-    `/${rootPaths.appsRoot}/${rootPaths.hiringRoot}/${rootPaths.hiringCandidate}/job-details${
-      jobId ? `/${jobId}` : ''
+    `/${rootPaths.appsRoot}/${rootPaths.hiringRoot}/${rootPaths.hiringCandidate}/job-details${jobId ? `/${jobId}` : ''
     }`,
   hiringJobApplication: `/${rootPaths.appsRoot}/${rootPaths.hiringRoot}/${rootPaths.hiringCandidate}/job-application`,
 

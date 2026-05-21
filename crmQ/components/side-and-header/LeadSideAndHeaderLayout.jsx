@@ -3,30 +3,34 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-
 import {
-    Box, Drawer, AppBar, Toolbar, Typography, Stack, InputBase,
-    IconButton, Avatar, Badge, List, ListItem, ListItemButton,
+    Box, Typography, Stack, IconButton,
+    List, ListItem, ListItemButton,
     ListItemIcon, ListItemText, Divider
 } from "@mui/material";
-
 import { Icon as IconifyIcon } from "@iconify/react";
-import { LeadProvider, useLead } from "../../src/contexts/LeadContext";
+import { useLead } from "../../src/contexts/LeadContext";
+import { mainDrawerWidth } from "../../src/lib/constants";
 
-const DRAWER_WIDTH = 200;
-const COLLAPSED_WIDTH = 80;
+const HEADER_HEIGHT = 72;
 
 const LeadSideBar = ({ isCollapsed, onToggleDesktop }) => {
     const pathname = usePathname();
     const searchParams = useSearchParams();
 
-    const { selectedDetailLeadId, setSelectedDetailLeadId, activeDetailTab, setActiveDetailTab } = useLead();
+    // 🚀 LOGIC: Grab the lead context
+    const {
+        selectedDetailLeadId,
+        setSelectedDetailLeadId,
+        activeDetailTab,
+        setActiveDetailTab,
+        leadCounts
+    } = useLead();
 
-    // 🚀 EXPERT FIX: Local state to lock in the highlight when clicked
     const [activeNav, setActiveNav] = useState("All Leads");
     const [isInitialized, setIsInitialized] = useState(false);
 
-    // Read the URL once on mount (e.g., if you came from a Dashboard Card)
+    // 🚀 LOGIC: Parse filters from URL on load
     useEffect(() => {
         if (!isInitialized) {
             const filters = searchParams.get('filters');
@@ -45,14 +49,16 @@ const LeadSideBar = ({ isCollapsed, onToggleDesktop }) => {
         return `${basePath}?filters=${encodeURIComponent(JSON.stringify(filterRules))}`;
     };
 
+    // 🚀 NAMES & LOGIC: Standard Navigation
     const navItems = [
-        { label: "All Leads", icon: "material-symbols:analytics-outline", path: getFilterUrl([]) },
-        { label: "New Leads", icon: "material-symbols:fiber-new-outline", path: getFilterUrl([{ field: 'status', operator: '=', value: 'New' }]) },
-        { label: "Urgent Attention", icon: "material-symbols:warning-outline", path: getFilterUrl([[{ field: 'urgency', operator: 'in', value: 'Immediate, In 1 month' }, { field: 'custom_unreplied_email', operator: '=', value: '1' }]]) },
-        { label: "Hot Leads", icon: "material-symbols:local-fire-department-outline", path: getFilterUrl([[{ field: 'potential_volume', operator: 'in', value: '11-25 vehicle, 25+ vehicle' }, { field: 'conversion_potential', operator: 'in', value: '51 - 75%, 76 - 100%' }]]) },
-        { label: "Archived", icon: "material-symbols:archive-outline", path: getFilterUrl([{ field: 'status', operator: 'in', value: 'Lost Quotation, Do Not Contact, Completed, Hold' }]) },
+        { label: "All Leads", count: leadCounts.all, icon: "material-symbols:analytics-outline", path: getFilterUrl([]) },
+        { label: "New Leads", count: leadCounts.new, icon: "material-symbols:fiber-new-outline", path: getFilterUrl([{ field: 'status', operator: '=', value: 'New' }]) },
+        { label: "Urgent Attention", count: leadCounts.urgent, icon: "material-symbols:warning-outline", path: getFilterUrl([[{ field: 'urgency', operator: 'in', value: 'Immediate, In 1 month' }, { field: 'custom_unreplied_email', operator: '=', value: '1' }]]) },
+        { label: "Hot Leads", count: leadCounts.hot, icon: "material-symbols:local-fire-department-outline", path: getFilterUrl([[{ field: 'potential_volume', operator: 'in', value: '11-25 vehicle, 25+ vehicle' }, { field: 'conversion_potential', operator: 'in', value: '51 - 75%, 76 - 100%' }]]) },
+        { label: "Archived", count: leadCounts.archived, icon: "material-symbols:archive-outline", path: getFilterUrl([{ field: 'status', operator: 'in', value: 'Lost Quotation, Do Not Contact, Completed, Hold' }]) },
     ];
 
+    // 🚀 NAMES & LOGIC: Record Details (Visible when a lead is clicked)
     const detailMenuItems = [
         { id: 'Email', label: 'Email', icon: 'material-symbols:mail-outline' },
         { id: 'Task', label: 'Tasks', icon: 'material-symbols:check-box-outline' },
@@ -62,106 +68,291 @@ const LeadSideBar = ({ isCollapsed, onToggleDesktop }) => {
     ];
 
     return (
-        <Box sx={{ height: "100%", display: "flex", flexDirection: "column", bgcolor: "#ffffff", borderRight: "1px solid #e2e8f0", overflowX: "hidden" }}>
+        <Box
+            sx={{
+                height: '100%',
+                width: {
+                    xs: 260,
+                    md: isCollapsed ? 160 : 260
+                },
+                transition: 'width 240ms cubic-bezier(0.4,0,0.2,1)',
+                flexDirection: 'column',
+                overflowX: 'hidden',
+                backgroundColor: 'background.paper',
+                position: 'relative',
 
-            {/* BRANDING HEADER */}
-            <Box sx={{ minHeight: 70, display: "flex", alignItems: "center", px: isCollapsed ? 0 : 3, justifyContent: isCollapsed ? "center" : "space-between", borderBottom: "1px solid #f1f5f9" }}>
-                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ display: isCollapsed ? 'none' : 'flex' }}>
-                    <Box sx={{ width: 32, height: 32, bgcolor: "#2563eb", borderRadius: 1.5, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 4px rgba(37,99,235,0.2)" }}>
-                        <IconifyIcon icon="material-symbols:leaderboard" color="white" fontSize="1.2rem" />
+                // 🚀 THE FIX: Hide on mobile main screen, but show on desktop
+                display: { xs: 'none', md: 'flex' },
+
+                // 🚀 THE FIX: If this component is inside the mobile Drawer, force it to display!
+                '.MuiDrawer-paper &': {
+                    display: 'flex'
+                }
+            }}
+        >
+            {/* ================= HEADER ================= */}
+            <Box
+                sx={{
+                    minHeight: 72,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: {
+                        xs: 'space-between',
+                        md: isCollapsed ? 'center' : 'space-between'
+                    },
+                    px: { xs: 2.5, md: isCollapsed ? 1.5 : 2.5 },
+                    position: 'relative',
+                    borderBottom: '1px solid',
+                    borderColor: 'rgba(145,158,171,0.12)'
+                }}
+            >
+                <Stack
+                    direction="row"
+                    spacing={{ xs: 1.5, md: isCollapsed ? 0 : 1.5 }}
+                    alignItems="center"
+                    justifyContent={{
+                        xs: 'flex-start',
+                        md: isCollapsed ? 'center' : 'flex-start'
+                    }}
+                    sx={{ width: '100%' }}
+                >
+                    <Box
+                        sx={{
+                            width: { xs: 36, md: isCollapsed ? 56 : 36 },
+                            height: { xs: 36, md: isCollapsed ? 56 : 36 },
+                            borderRadius: { xs: 2, md: isCollapsed ? 3 : 2 },
+                            bgcolor: 'primary.main',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            mx: { xs: 0, md: isCollapsed ? 'auto' : 0 },
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        <IconifyIcon
+                            icon="material-symbols:leaderboard"
+                            color="white"
+                            fontSize={{ xs: '1.15rem', md: isCollapsed ? '1.35rem' : '1.15rem' }}
+                        />
                     </Box>
-                    <Typography variant="h6" sx={{ fontWeight: 800, color: "#0f172a", letterSpacing: -0.5 }}>Leads</Typography>
+
+                    <Typography
+                        variant="h6"
+                        sx={{
+                            display: { xs: 'block', md: isCollapsed ? 'none' : 'block' },
+                            fontWeight: 700,
+                            letterSpacing: '-0.02em'
+                        }}
+                    >
+                        Leads
+                    </Typography>
                 </Stack>
-                <IconButton onClick={onToggleDesktop} size="small" sx={{ color: "#94a3b8", display: { xs: "none", md: "flex" }, transition: "all 0.2s", "&:hover": { color: "#0f172a", bgcolor: "#f1f5f9" } }}>
-                    <IconifyIcon icon={isCollapsed ? "material-symbols:chevron-right" : "material-symbols:chevron-left"} fontSize="1.5rem" />
+
+                <IconButton
+                    onClick={onToggleDesktop}
+                    size="small"
+                    sx={{
+                        display: { xs: 'none', md: 'inline-flex' }, // Hide chevron entirely on mobile Drawer
+                        width: 28,
+                        height: 28,
+                        position: isCollapsed ? 'absolute' : 'relative',
+                        right: isCollapsed ? 8 : 0,
+                        top: isCollapsed ? 22 : 'auto'
+                    }}
+                >
+                    <IconifyIcon
+                        icon={isCollapsed ? 'material-symbols:chevron-right' : 'material-symbols:chevron-left'}
+                        fontSize={isCollapsed ? '1.45rem' : '1.1rem'}
+                    />
                 </IconButton>
             </Box>
 
-            <Box sx={{ flexGrow: 1, overflowY: "auto", overflowX: "hidden", px: isCollapsed ? 1 : 2, py: 3 }}>
+            <Box sx={{ flexGrow: 1, overflowY: "auto", px: 2, pt: 2.5, pb: 3 }}>
+                <Typography
+                    variant="caption"
+                    sx={{
+                        display: { xs: 'block', md: isCollapsed ? 'none' : 'block' },
+                        px: 1,
+                        mb: 2,
+                        fontWeight: 700,
+                        letterSpacing: '0.08em',
+                        color: 'text.secondary'
+                    }}
+                >
+                    {selectedDetailLeadId ? 'RECORD DETAILS' : 'NAVIGATION'}
+                </Typography>
 
-                {/* SECTION DIVIDER */}
-                {!isCollapsed && (
-                    <Typography variant="overline" sx={{ px: 2, color: "#94a3b8", fontWeight: 700, letterSpacing: 1, mb: 1, display: "block" }}>
-                        {selectedDetailLeadId ? "RECORD DETAILS" : "NAVIGATION"}
-                    </Typography>
-                )}
+                {/* ================= BACK BUTTON ================= */}
+                <ListItem
+                    disablePadding
+                    sx={{ mb: 1, display: 'flex', justifyContent: 'center' }}
+                >
+                    <ListItemButton
+                        component={selectedDetailLeadId ? 'div' : Link}
+                        href={!selectedDetailLeadId ? (pathname.startsWith('/m/crmq') ? '/m/crmq' : '/crm') : undefined}
+                        onClick={selectedDetailLeadId ? () => setSelectedDetailLeadId(null) : undefined}
+                        sx={{
+                            minHeight: { xs: 52, md: isCollapsed ? 72 : 52 },
+                            width: '100%',
+                            borderRadius: 3,
+                            px: { xs: 1.5, md: isCollapsed ? 0 : 1.5 },
+                            justifyContent: { xs: 'flex-start', md: isCollapsed ? 'center' : 'flex-start' },
+                            transition: 'all 0.2s ease',
+                            '&:hover': { bgcolor: 'action.hover' }
+                        }}
+                    >
+                        <ListItemIcon
+                            sx={{
+                                minWidth: 0,
+                                mr: { xs: 2, md: isCollapsed ? 0 : 2 },
+                                width: { xs: 'auto', md: isCollapsed ? '100%' : 'auto' },
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                color: 'text.secondary'
+                            }}
+                        >
+                            <IconifyIcon
+                                icon={selectedDetailLeadId ? "material-symbols:arrow-back" : "material-symbols:home-outline"}
+                                width={isCollapsed ? 24 : 22}
+                                height={isCollapsed ? 24 : 22}
+                            />
+                        </ListItemIcon>
 
-                {/* DYNAMIC BACK BUTTON */}
-                <ListItem disablePadding sx={{ mb: 2 }}>
-                    {selectedDetailLeadId ? (
-                        <ListItemButton
-                            onClick={() => setSelectedDetailLeadId(null)}
-                            sx={{ borderRadius: 2, bgcolor: '#ffffff', border: '1px solid #e2e8f0', transition: 'all 0.2s', '&:hover': { bgcolor: '#f8fafc' } }}
-                        >
-                            <ListItemIcon sx={{ minWidth: 0, mr: isCollapsed ? 0 : 1.5, color: '#475569' }}>
-                                <IconifyIcon icon="material-symbols:arrow-back" fontSize="1.25rem" />
-                            </ListItemIcon>
-                            {!isCollapsed && <ListItemText primary="Back to Lead List" primaryTypographyProps={{ fontSize: "0.875rem", fontWeight: 600, color: '#334155' }} />}
-                        </ListItemButton>
-                    ) : (
-                        <ListItemButton
-                            component={Link}
-                            href={pathname.startsWith('/m/crmq') ? '/m/crmq' : '/crm'}
-                            sx={{ borderRadius: 2, bgcolor: '#ffffff', border: '1px solid #e2e8f0', transition: 'all 0.2s', '&:hover': { bgcolor: '#f8fafc' } }}
-                        >
-                            <ListItemIcon sx={{ minWidth: 0, mr: isCollapsed ? 0 : 1.5, color: '#475569' }}>
-                                <IconifyIcon icon="material-symbols:home-outline" fontSize="1.25rem" />
-                            </ListItemIcon>
-                            {!isCollapsed && <ListItemText primary="Back to Home" primaryTypographyProps={{ fontSize: "0.875rem", fontWeight: 600, color: '#334155' }} />}
-                        </ListItemButton>
-                    )}
+                        <ListItemText
+                            primary={selectedDetailLeadId ? "Back to Lead List" : "Back to Home"}
+                            sx={{ display: { xs: 'block', md: isCollapsed ? 'none' : 'block' } }}
+                            primaryTypographyProps={{ noWrap: true, fontSize: '1rem' }}
+                        />
+                    </ListItemButton>
                 </ListItem>
 
-                <Divider sx={{ mb: 2, borderColor: '#f1f5f9' }} />
+                <Divider sx={{ mb: 2, mx: 1, borderColor: 'rgba(145,158,171,0.12)' }} />
 
-                <List sx={{ p: 0 }}>
+                <List sx={{ px: { xs: 1, md: isCollapsed ? 0 : 1 }, pb: 2, pt: 0 }}>
                     {selectedDetailLeadId ? (
-                        /* Detail Menu */
+                        /* 🚀 LOGIC: Show Email, Tasks, etc. when a lead is open */
                         detailMenuItems.map((item) => {
                             const isActive = activeDetailTab === item.id;
                             return (
-                                <ListItem disablePadding key={item.id} sx={{ mb: 0.5 }}>
-                                    <ListItemButton onClick={() => setActiveDetailTab(item.id)} sx={{
-                                        borderRadius: 2,
-                                        bgcolor: isActive ? "#eff6ff" : "transparent",
-                                        transition: "all 0.2s ease-in-out",
-                                        justifyContent: isCollapsed ? "center" : "flex-start",
-                                        px: isCollapsed ? 0 : 2, py: 1.25,
-                                        borderLeft: isActive && !isCollapsed ? "3px solid #2563eb" : "3px solid transparent",
-                                        "&:hover": { bgcolor: isActive ? "#eff6ff" : "#f1f5f9" }
-                                    }}>
-                                        <ListItemIcon sx={{ minWidth: 0, mr: isCollapsed ? 0 : 1.5, color: isActive ? "#2563eb" : "#64748b" }}><IconifyIcon icon={item.icon} fontSize="1.25rem" /></ListItemIcon>
-                                        {!isCollapsed && <ListItemText primary={item.label} primaryTypographyProps={{ fontSize: "0.875rem", fontWeight: isActive ? 700 : 500, color: isActive ? "#1d4ed8" : "#475569" }} />}
+                                <ListItem disablePadding key={item.id} sx={{ mb: 1, display: 'flex', justifyContent: 'center' }}>
+                                    <ListItemButton
+                                        onClick={() => setActiveDetailTab(item.id)}
+                                        sx={{
+                                            minHeight: { xs: 52, md: isCollapsed ? 64 : 52 },
+                                            width: '100%',
+                                            borderRadius: 3,
+                                            px: { xs: 1.5, md: isCollapsed ? 0 : 1.5 },
+                                            justifyContent: { xs: 'flex-start', md: isCollapsed ? 'center' : 'flex-start' },
+                                            bgcolor: 'transparent',
+                                            transition: 'all 0.2s ease',
+                                            '&:hover': { bgcolor: 'action.hover' }
+                                        }}
+                                    >
+                                        <ListItemIcon
+                                            sx={{
+                                                minWidth: 0,
+                                                mr: { xs: 2, md: isCollapsed ? 0 : 2 },
+                                                justifyContent: 'center',
+                                                color: 'text.secondary',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                width: { xs: 'auto', md: isCollapsed ? 56 : 'auto' }
+                                            }}
+                                        >
+                                            <IconifyIcon
+                                                icon={item.icon}
+                                                width={isCollapsed ? 24 : 22}
+                                                height={isCollapsed ? 24 : 22}
+                                            />
+                                        </ListItemIcon>
+
+                                        <ListItemText
+                                            primary={item.label}
+                                            sx={{ display: { xs: 'block', md: isCollapsed ? 'none' : 'block' } }}
+                                            primaryTypographyProps={{ noWrap: true, fontSize: '1rem' }}
+                                        />
                                     </ListItemButton>
                                 </ListItem>
                             );
                         })
                     ) : (
-                        /* Main Nav Menu */
+                        /* 🚀 LOGIC: Show standard filter list when no lead is open */
                         navItems.map((item) => {
-                            // 🚀 EXPERT FIX: Check state directly
                             const isActive = activeNav === item.label;
-
                             return (
-                                <ListItem disablePadding key={item.label} sx={{ mb: 0.5 }}>
+                                <ListItem disablePadding key={item.label} sx={{ mb: 1, display: 'flex', justifyContent: 'center' }}>
                                     <ListItemButton
                                         component={Link}
                                         href={item.path}
-                                        onClick={() => setActiveNav(item.label)} // 🚀 INSTANT HIGHLIGHT ON CLICK
+                                        onClick={() => setActiveNav(item.label)}
                                         sx={{
-                                            borderRadius: 1.5,
-                                            bgcolor: isActive ? "#eff6ff" : "transparent",
-                                            transition: "all 0.2s ease-in-out",
-                                            justifyContent: isCollapsed ? "center" : "flex-start",
-                                            px: isCollapsed ? 0 : 2, py: 1.25,
-                                            borderLeft: isActive && !isCollapsed ? "3px solid #2563eb" : "3px solid transparent",
-                                            "&:hover": { bgcolor: isActive ? "#eff6ff" : "#f1f5f9" }
+                                            minHeight: { xs: 52, md: isCollapsed ? 72 : 52 },
+                                            width: '100%',
+                                            borderRadius: 3,
+                                            px: { xs: 1.5, md: isCollapsed ? 0 : 1.5 },
+                                            justifyContent: { xs: 'flex-start', md: isCollapsed ? 'center' : 'flex-start' },
+                                            bgcolor: isActive ? 'action.selected' : 'transparent',
+                                            transition: 'all 0.2s ease',
+                                            '&:hover': { bgcolor: 'action.hover' }
                                         }}
                                     >
-                                        <ListItemIcon sx={{ minWidth: 0, mr: isCollapsed ? 0 : 1.5, color: isActive ? "#2563eb" : "#64748b" }}>
-                                            <IconifyIcon icon={item.icon} fontSize="1.25rem" />
+                                        <ListItemIcon
+                                            sx={{
+                                                minWidth: 0,
+                                                mr: { xs: 2, md: isCollapsed ? 0 : 2 },
+                                                width: { xs: 'auto', md: isCollapsed ? '100%' : 'auto' },
+                                                display: 'flex',
+                                                justifyContent: 'center',
+                                                alignItems: 'center',
+                                                color: isActive ? 'primary.main' : 'text.secondary'
+                                            }}
+                                        >
+                                            <IconifyIcon
+                                                icon={item.icon}
+                                                width={isCollapsed ? 24 : 22}
+                                                height={isCollapsed ? 24 : 22}
+                                            />
                                         </ListItemIcon>
-                                        {!isCollapsed && <ListItemText primary={item.label} primaryTypographyProps={{ fontSize: "0.875rem", fontWeight: isActive ? 700 : 500, color: isActive ? "#1d4ed8" : "#475569" }} />}
+
+                                        <Box
+                                            sx={{
+                                                display: { xs: 'flex', md: isCollapsed ? 'none' : 'flex' },
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                width: '100%',
+                                                overflow: 'hidden'
+                                            }}
+                                        >
+                                            <ListItemText
+                                                primary={item.label}
+                                                primaryTypographyProps={{
+                                                    fontSize: '0.98rem',
+                                                    fontWeight: isActive ? 600 : 500,
+                                                    noWrap: true
+                                                }}
+                                            />
+                                            {item.count > 0 && (
+                                                <Box
+                                                    sx={{
+                                                        minWidth: 22,
+                                                        height: 22,
+                                                        px: 0.75,
+                                                        borderRadius: 999,
+                                                        bgcolor: 'action.hover',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontSize: '0.72rem',
+                                                        fontWeight: 700,
+                                                        color: 'text.secondary'
+                                                    }}
+                                                >
+                                                    {item.count}
+                                                </Box>
+                                            )}
+                                        </Box>
                                     </ListItemButton>
                                 </ListItem>
                             );
@@ -173,86 +364,4 @@ const LeadSideBar = ({ isCollapsed, onToggleDesktop }) => {
     );
 };
 
-
-const LeadTopBar = ({ onToggleMobile, onToggleDesktop, isCollapsed }) => {
-    const currentDrawerWidth = isCollapsed ? COLLAPSED_WIDTH : DRAWER_WIDTH;
-
-    return (
-        <AppBar
-            position="fixed"
-            sx={{
-                width: { md: `calc(100% - ${currentDrawerWidth}px)` },
-                ml: { md: `${currentDrawerWidth}px` },
-                bgcolor: "rgba(255, 255, 255, 0.85)",
-                backdropFilter: "blur(12px)",
-                boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03)",
-                borderBottom: "1px solid rgba(226, 232, 240, 0.8)",
-                color: "text.primary",
-                transition: "width 0.3s ease-in-out, margin 0.3s ease-in-out",
-            }}
-        >
-            <Toolbar sx={{ minHeight: "70px", px: { xs: 2, md: 4 }, justifyContent: "space-between" }}>
-
-                <Stack direction="row" alignItems="center">
-                    <IconButton color="inherit" edge="start" onClick={onToggleMobile} sx={{ mr: 2, display: { md: "none" } }}>
-                        <IconifyIcon icon="material-symbols:menu" />
-                    </IconButton>
-
-                    <Box sx={{ display: { xs: "none", sm: "flex" }, alignItems: "center", bgcolor: "#f1f5f9", borderRadius: 2, px: 2, py: 1, width: "100%", minWidth: 300, maxWidth: 450, transition: "all 0.2s ease-in-out", border: "1px solid transparent", "&:hover": { bgcolor: "#e2e8f0" }, "&:focus-within": { bgcolor: "#ffffff", border: "1px solid #cbd5e1", boxShadow: "0 0 0 3px rgba(59, 130, 246, 0.1)" } }}>
-                        <IconifyIcon icon="material-symbols:search" color="#64748b" fontSize="1.2rem" />
-                        <InputBase placeholder="Search leads, organizations..." sx={{ ml: 1.5, flex: 1, fontSize: "0.875rem", color: "#0f172a", fontWeight: 500 }} />
-                    </Box>
-                </Stack>
-
-                <Stack direction="row" alignItems="center" spacing={2.5}>
-                    <IconButton sx={{ border: "1px solid #e2e8f0", bgcolor: "#ffffff", transition: "all 0.2s", "&:hover": { bgcolor: "#f8fafc", borderColor: "#cbd5e1", transform: "translateY(-1px)", boxShadow: "0 2px 4px rgba(0,0,0,0.05)" } }}>
-                        <Badge badgeContent="" color="error" variant="dot">
-                            <IconifyIcon icon="material-symbols:notifications-outline" fontSize="1.2rem" color="#475569" />
-                        </Badge>
-                    </IconButton>
-
-                    <Badge
-                        overlap="circular"
-                        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-                        variant="dot"
-                        sx={{ "& .MuiBadge-badge": { backgroundColor: "#10b981", color: "#10b981", boxShadow: "0 0 0 2px white" } }}
-                    >
-                        <Avatar sx={{ width: 40, height: 40, cursor: "pointer", border: "2px solid #ffffff", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", transition: "all 0.2s", "&:hover": { transform: "scale(1.05)", boxShadow: "0 4px 6px rgba(0,0,0,0.15)" } }} />
-                    </Badge>
-                </Stack>
-            </Toolbar>
-        </AppBar>
-    );
-};
-
-export default function LeadSideAndHeaderLayout({ children }) {
-    const [mobileOpen, setMobileOpen] = useState(false);
-    const [isCollapsed, setIsCollapsed] = useState(false);
-
-    const handleMobileToggle = () => setMobileOpen(!mobileOpen);
-    const handleDesktopToggle = () => setIsCollapsed(!isCollapsed);
-
-    const currentDrawerWidth = isCollapsed ? COLLAPSED_WIDTH : DRAWER_WIDTH;
-
-    return (
-        <LeadProvider>
-            <Box sx={{ display: "flex", height: "100vh", overflow: "hidden", bgcolor: "#f8fafc" }}>
-
-                <LeadTopBar onToggleMobile={handleMobileToggle} onToggleDesktop={handleDesktopToggle} isCollapsed={isCollapsed} />
-
-                <Box component="nav" sx={{ width: { md: currentDrawerWidth }, flexShrink: { md: 0 }, transition: "width 0.3s ease-in-out", zIndex: 1200 }}>
-                    <Drawer variant="temporary" open={mobileOpen} onClose={handleMobileToggle} ModalProps={{ keepMounted: true }} sx={{ display: { xs: "block", md: "none" }, "& .MuiDrawer-paper": { boxSizing: "border-box", width: DRAWER_WIDTH, borderRight: "none" } }}>
-                        <LeadSideBar isCollapsed={false} onToggleDesktop={handleDesktopToggle} />
-                    </Drawer>
-                    <Drawer variant="permanent" open sx={{ display: { xs: "none", md: "block" }, "& .MuiDrawer-paper": { boxSizing: "border-box", width: currentDrawerWidth, borderRight: "none", transition: "width 0.3s ease-in-out", overflowX: "hidden" } }}>
-                        <LeadSideBar isCollapsed={isCollapsed} onToggleDesktop={handleDesktopToggle} />
-                    </Drawer>
-                </Box>
-
-                <Box component="main" sx={{ flexGrow: 1, p: 0, width: { md: `calc(100% - ${currentDrawerWidth}px)` }, mt: "70px", height: "calc(100vh - 70px)", overflowY: "auto", overflowX: "hidden", transition: "width 0.3s ease-in-out" }}>
-                    {children}
-                </Box>
-            </Box>
-        </LeadProvider>
-    );
-}
+export default LeadSideBar;

@@ -1,10 +1,44 @@
 {
-    "compilerOptions": {
-        "baseUrl": ".",
-        "paths": {
-            "@/*": [
-                "src/*"
-            ]
-        }
+  "compilerOptions": {
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@/shared-ui/*": [
+        "./src/ui/*"
+      ],
+      "@cityq/crmq": [
+        "../crmQ/src/index.js"
+      ],
+      // 🚀 FIX: Add crmQ's data folder to the search paths
+      "data/*": [
+        "../crmQ/data/*",  
+        "./src/aurora/data/*",
+        "./src/ui/data/*",
+        "./src/data/*"
+      ],
+      "@ui/*": [
+        "./src/ui/*"
+      ],
+      "components/*": [
+        "../crmQ/components/*",
+        "./src/components/*",
+        "./src/ui/components/*"
+      ],
+      "*": [
+        "./src/ui/*",
+        "./src/*"
+      ],
+      "assets/*": [
+        "./public/assets/*"
+      ]
     }
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".next"
+  ]
 }

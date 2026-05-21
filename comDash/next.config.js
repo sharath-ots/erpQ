@@ -67,6 +67,9 @@ const nextConfig = {
     if (!config.resolve.modules.includes(comDashNodeModules)) {
       config.resolve.modules.unshift(comDashNodeModules);
     }
+    // 🚀 NEW METHOD: Tell Webpack to search these folders for bare imports
+    config.resolve.modules.push(path.resolve(__dirname, '../crmQ/src'));
+    config.resolve.modules.push(path.resolve(__dirname, '../crmQ'));
 
     config.resolve.alias["@cityq/crmq"] = path.resolve(
       __dirname,
@@ -126,7 +129,11 @@ const nextConfig = {
       /** Theme bundle mock data (`data/*` imports in src/shared-ui). */
       "@secrets": path.join(__dirname, "src", "secrets.js"),
       "@crm-api": path.resolve(__dirname, "../crmQ/pages/api"),
-      data: path.join(sharedUiSrc, "data"),
+      data: [
+        path.resolve(__dirname, "../crmQ/src/data"),
+        path.resolve(__dirname, "../crmQ/data"),
+        path.join(sharedUiSrc, "data")
+      ],
       providers: path.join(sharedUiSrc, "providers"),
       layouts: path.join(sharedUiSrc, "layouts"),
       lib: path.join(sharedUiSrc, "lib"),
@@ -154,10 +161,8 @@ const nextConfig = {
         "components/sections/dashboards/crm",
       ),
       "data/crm/dashboard": path.join(crmqSrc, "data/crm/dashboard.js"),
-      /** crmQ email module uses bare imports that live outside crmQ/src. */
       "data/email": path.resolve(__dirname, "../crmQ/data/email"),
       "components/email": path.resolve(__dirname, "../crmQ/components/email"),
-      /** crmQ sometimes imports from `src/...` (treat as crmQ/src in this monorepo build). */
       "src/layouts/email-layout": path.join(crmqSrc, "layouts/email-layout"),
       "src/layouts/email-layout/EmailSidebar": path.join(
         crmqSrc,

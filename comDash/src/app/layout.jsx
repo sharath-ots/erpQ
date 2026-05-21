@@ -20,7 +20,7 @@ const splineSansMono = Spline_Sans_Mono({
 });
 
 export const metadata = {
-  title: "Q — Portal",
+  title: "Q-Portal",
   description: "Central dashboard and module loader",
 };
 

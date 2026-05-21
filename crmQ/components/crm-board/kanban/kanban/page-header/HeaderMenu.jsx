@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation'; // 🚀 ADDED: Import Next.js router
 import Button, { buttonClasses } from '@mui/material/Button';
 import Menu, { menuClasses } from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
@@ -10,6 +11,8 @@ import IconifyIcon from 'components/base/IconifyIcon';
 const HeaderMenu = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedBoard, setSelectedBoard] = useState(kanbanBoard.name);
+  
+  const router = useRouter(); // 🚀 ADDED: Initialize the router
 
   const open = Boolean(anchorEl);
 
@@ -22,8 +25,14 @@ const HeaderMenu = () => {
   };
 
   const handleClick = (item) => {
-    setSelectedBoard(item);
-    handleClose();
+    handleClose(); // Always close the menu first
+    
+    // 🚀 THE FIX: Check which board was clicked and route accordingly
+    if (item === 'Marketing' || item === 'Sales') {
+      router.push('/m/crmq/landing');
+    } else {
+      setSelectedBoard(item);
+    }
   };
 
   return (

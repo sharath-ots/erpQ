@@ -74,7 +74,7 @@ const ListHeader = ({ listId, title, compactMode, handleAddTaskFormOpen }) => {
                 sx={{ fontSize: 18, pointerEvents: 'none' }}
               />
             </Button>
-            <ListContainerMenu />
+            {/* <ListContainerMenu /> */}
           </>
         )}
         <Button

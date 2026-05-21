@@ -4,12 +4,12 @@ import dayjs from 'dayjs';
 
 const DetailRow = ({ label, value, icon }) => (
     <Stack direction="row" spacing={2} alignItems="center" sx={{ py: 1.5 }}>
-        <IconifyIcon icon={icon} sx={{ color: '#64748b', fontSize: '1.2rem' }} />
+        <IconifyIcon icon={icon} sx={{ color: 'text.secondary', fontSize: '1.2rem' }} />
         <Box>
-            <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 700, display: 'block', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, display: 'block', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                 {label}
             </Typography>
-            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e293b' }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                 {value || 'N/A'}
             </Typography>
         </Box>
@@ -22,7 +22,7 @@ const TaskDetailsDialog = ({ open, onClose, task }) => {
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: 3 } }}>
             <DialogTitle sx={{ p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6" fontWeight={800}>Task Details</Typography>
+                <Typography variant="h6" fontWeight={800} color="text.primary">Task Details</Typography>
                 <IconButton onClick={onClose}><IconifyIcon icon="material-symbols:close" /></IconButton>
             </DialogTitle>
 
@@ -31,10 +31,10 @@ const TaskDetailsDialog = ({ open, onClose, task }) => {
             <DialogContent sx={{ p: 3 }}>
                 <Stack spacing={1}>
                     {/* Main Info */}
-                    <Box sx={{ mb: 2, p: 2, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #f1f5f9' }}>
-                        <Typography variant="caption" sx={{ color: '#2563eb', fontWeight: 800 }}>DESCRIPTION</Typography>
-                        <Typography variant="body1" sx={{ mt: 1, fontWeight: 500, color: '#1e293b' }}>
-                            {task.title} {/* This is your mapped description */}
+                    <Box sx={{ mb: 2, p: 2, bgcolor: 'action.hover', borderRadius: 2, border: 1, borderColor: 'divider' }}>
+                        <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 800 }}>DESCRIPTION</Typography>
+                        <Typography variant="body1" sx={{ mt: 1, fontWeight: 500, color: 'text.primary' }}>
+                            {task.title}
                         </Typography>
                     </Box>
 

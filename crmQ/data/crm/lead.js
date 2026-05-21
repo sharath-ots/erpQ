@@ -21,7 +21,8 @@ export const fetchLeadListAdmin = async () => {
             urgency: lead.urgency,
             potential_volume: lead.potential_volume,
             conversion_potential: lead.conversion_potential,
-            custom_unreplied_email: lead.custom_unreplied_email
+            custom_unreplied_email: lead.custom_unreplied_email,
+            source: lead.source
         }));
 
     } catch (error) {

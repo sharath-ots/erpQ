@@ -16,7 +16,7 @@ const KanbanElements = () => {
         {listItems.map((item) => (
           <SortableListItem key={item.id} taskList={item} />
         ))}
-        <AddNewList />
+        {/* <AddNewList /> */}
       </SortableContext>
       {createPortal(
         <DragOverlay>
