@@ -55,6 +55,14 @@ const sitemap = [
         icon: 'mingcute:chart-bar-line',
         active: true,
       },
+      {
+        name: 'Kanban Board',
+        key: 'CRM-Q-Kanban',
+        path: '/m/crmq/kanban',
+        pathName: 'crm-q-kanban',
+        icon: 'material-symbols:view-kanban-outline-rounded',
+        active: true,
+      },
       // {
       //   name: 'Analytics',
       //   key: 'analytics',

@@ -4,7 +4,7 @@ import { createContext, useReducer, use, useCallback, useState } from 'react';
 import { kanbanBoard } from '../data/kanban/kanban/kanban';
 import { DRAG_START, DRAG_OVER, DRAG_END } from '../reducers/KanbanReducer';
 import { kanbanReducer } from '../reducers/KanbanReducer';
-import dayjs from 'dayjs'; // 🚀 Added to calculate today/tomorrow automatically
+import dayjs from 'dayjs';
 
 const initialState = {
     kanbanBoard: kanbanBoard,
@@ -22,6 +22,62 @@ const KanbanProvider = ({ children }) => {
     const [activeFilters, setActiveFilters] = useState([]);
 
     const [searchQuery, setSearchQuery] = useState('');
+
+    // 🚀 THE FIX: Added Cache-Busting so Next.js never serves stale data!
+    const silentCardRefresh = async (erpRawId) => {
+        try {
+            // 1. Force the browser/server to fetch fresh data, bypassing all caches
+            const res = await fetch(`/api/frappe/todo?_t=${Date.now()}`, {
+                cache: 'no-store'
+            });
+            const data = await res.json();
+            const todos = Array.isArray(data.data || data) ? (data.data || data) : [];
+
+            // 2. Find the specific updated task
+            const freshTodo = todos.find(t => t.name === erpRawId);
+            
+            if (freshTodo) {
+                const cardLabel = (freshTodo.reference_type || 'todo').toLowerCase();
+                const cardTitle = freshTodo.reference_name || (freshTodo.description ? freshTodo.description.split('\n')[0] : 'Untitled Task');
+                
+                const formattedCard = {
+                    id: `todo-${freshTodo.name}`,
+                    erp_raw_id: freshTodo.name,
+                    erp_ids: [freshTodo.name],
+                    title: cardTitle,
+                    label: cardLabel,
+                    dueDate: freshTodo.date || 'No Date',
+                    followUpDate: freshTodo.follow_up_date || null,
+                    priority: (freshTodo.priority || 'medium').toLowerCase(),
+                    description: freshTodo.description || '',
+                    assignedBy: freshTodo.assigned_by || 'Unknown',
+                    completed: freshTodo.status === "Closed",
+                    attachments: [], 
+                    subtasks: [], 
+                    activities: [], 
+                    attachmentCount: 0,
+                    assignee: freshTodo.allocated_to ? [{ 
+                        id: freshTodo.allocated_to, 
+                        name: freshTodo.allocated_to.split('@')[0], 
+                        avatarSeed: freshTodo.allocated_to 
+                    }] : [],
+                    // 🚀 3. Added progress data so TaskCard doesn't throw a visual error
+                    progress: { 
+                        total: 100, 
+                        completed: cardLabel === 'task' ? 0 : 100, 
+                        showBar: cardLabel === 'task' 
+                    }
+                };
+
+                // Force the UI to accept the fresh, perfect data
+                kanbanDispatch({ type: 'EDIT_TASK', payload: formattedCard });
+            } else {
+                console.warn(`Card ${erpRawId} not found in fresh data yet.`);
+            }
+        } catch (error) {
+            console.error("Silent refresh failed:", error);
+        }
+    };
 
     const handleDragStart = (event) => {
         kanbanDispatch({
@@ -52,84 +108,74 @@ const KanbanProvider = ({ children }) => {
         [],
     );
 
-    // 🚀 THE FIX: Intercept the drag end, calculate dates, and update ERPNext!
     const handleDragEnd = (event) => {
         const { active, over } = event;
-
-        // 1. Execute the physical UI move immediately for a smooth animation
-        kanbanDispatch({
-            type: DRAG_END,
-            payload: { activeId: active?.id, overId: over?.id },
-        });
-
         if (!active || !over) return;
 
-        // 2. Find the exact task we just dragged using the CURRENT state
-        let movedTask = null;
-        for (const list of state.listItems) {
-            const found = list.tasks.find(t => t.id === active.id);
-            if (found) {
-                movedTask = found;
+        // 1. Find the active task and the exact list it belongs to
+        let sourceList = null;
+        let taskIndex = -1;
+        for (let i = 0; i < state.listItems.length; i++) {
+            taskIndex = state.listItems[i].tasks.findIndex(t => t.id === active.id);
+            if (taskIndex !== -1) {
+                sourceList = state.listItems[i];
                 break;
             }
         }
 
-        // 3. Determine the destination list ID (it could be hovering over a list OR another task)
+        if (!sourceList || taskIndex === -1) return;
+        const movedTask = sourceList.tasks[taskIndex];
+
+        // 2. Find the destination list
         let destListId = over.id;
         for (const list of state.listItems) {
             if (list.id === over.id || list.tasks.some(t => t.id === over.id)) {
-                destListId = list.id;
-                break;
+                destListId = list.id; break;
             }
         }
 
-        // 4. Calculate the new dates and update ERPNext
-        if (movedTask && movedTask.erp_ids && movedTask.erp_ids.length > 0) {
-            const today = dayjs().format('YYYY-MM-DD');
-            const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD');
+        // 3. Calculate new dates
+        const today = dayjs().format('YYYY-MM-DD');
+        const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD');
+        const yesterday = dayjs().subtract(1, 'day').format('YYYY-MM-DD'); 
 
-            const updatedFields = {};
+        let newFollowUpDate = movedTask.followUpDate;
 
-            // Map the destination columns to dates
-            if (destListId === 'list2') { 
-                // Moved to "Today"
-                //updatedFields.dueDate = today;
-                updatedFields.followUpDate = today;
-            } else if (destListId === 'list3') { 
-                // Moved to "Tomorrow"
-                //updatedFields.dueDate = tomorrow;
-                updatedFields.followUpDate = tomorrow;
-            } else if (destListId === 'list4') { 
-                // Moved to "Urgent"
-                updatedFields.priority = 'urgent';
-            }
+        if (destListId === 'list1') newFollowUpDate = yesterday;
+        else if (destListId === 'list2') newFollowUpDate = today;
+        else if (destListId === 'list3') newFollowUpDate = tomorrow;
 
-            // Only fire updates if it actually landed in a column that changes its values
-            if (Object.keys(updatedFields).length > 0) {
-                
-                // A. Dispatch EDIT_TASK so the card's Date Chip & properties update visually instantly
-                kanbanDispatch({
-                    type: 'EDIT_TASK', 
-                    payload: { ...movedTask, ...updatedFields }
-                });
+        // 4. 🚀 THE FIX: Break the React.memo cache!
+        if (newFollowUpDate && newFollowUpDate !== movedTask.followUpDate) {
+             
+             // Create a BRAND NEW object reference. 
+             // When the reducer moves this, TaskCard will see a new object and instantly re-render!
+             sourceList.tasks[taskIndex] = {
+                 ...movedTask,
+                 followUpDate: newFollowUpDate
+             };
 
-                // B. Silently save to ERPNext in the background
-                fetch('/api/frappe/todo', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        erp_ids: movedTask.erp_ids,
-                        ...updatedFields,
-                        follow_up_date: updatedFields.followUpDate // Map to snake_case for backend
-                    })
-                }).catch(err => console.error("Failed to sync drag update to ERPNext:", err));
-            }
+             // Silently save to ERPNext in the background
+             fetch('/api/frappe/todo', {
+                 method: 'PUT',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({
+                     erp_ids: movedTask.erp_ids,
+                     follow_up_date: newFollowUpDate 
+                 })
+             }).catch(err => console.error("Failed to sync drag update:", err));
         }
+
+        // 5. Physically move the card. It now carries the new object reference with it!
+        kanbanDispatch({
+            type: DRAG_END,
+            payload: { activeId: active.id, overId: over.id },
+        });
     };
 
     return (
         <KanbanContext
-            value={{ ...state, handleDragStart, handleDragOver, handleDragEnd, kanbanDispatch, activeFilters, setActiveFilters, searchQuery, setSearchQuery }}
+            value={{ ...state, handleDragStart, handleDragOver, handleDragEnd, kanbanDispatch, activeFilters, setActiveFilters, searchQuery, setSearchQuery, silentCardRefresh }}
         >
             {children}
         </KanbanContext>

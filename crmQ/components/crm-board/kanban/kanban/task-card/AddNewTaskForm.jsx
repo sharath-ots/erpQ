@@ -17,9 +17,10 @@ import TextField from '@mui/material/TextField';
 import { useKanbanContext } from '../../../../../providers/KanbanProvider';
 import { ADD_NEW_TASK } from '../../../../../reducers/KanbanReducer';
 import { useERPUser } from '../../../../../../comDash/src/ui/providers/ERPUserProvider';
+import dayjs from 'dayjs';
 
 const AddNewTaskForm = ({ listId, position, handleFormClose }) => {
-  const { kanbanDispatch } = useKanbanContext();
+  const { kanbanDispatch, silentCardRefresh } = useKanbanContext();
 
   const { displayEmail } = useERPUser();
   
@@ -104,8 +105,7 @@ const AddNewTaskForm = ({ listId, position, handleFormClose }) => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!newTask.description) return;
-    if (!newTask.dueDate) return
+    if (!newTask.description || !newTask.dueDate) return;
 
     setIsSubmitting(true);
 
@@ -119,31 +119,19 @@ const AddNewTaskForm = ({ listId, position, handleFormClose }) => {
         })
       });
 
-      const responseData = await res.json();
+      if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Failed to save to ERPNext");
+      }
 
-      if (!res.ok) throw new Error(responseData.error || "Failed to save to ERPNext");
-
-      const selectedUsers = userList
-        .filter(u => newTask.assignee.includes(u.name))
-        .map(u => ({ id: u.name, name: u.full_name, avatar: u.user_image }));
-
-      kanbanDispatch({ 
-        type: ADD_NEW_TASK, 
-        payload: { 
-          position, 
-          ...newTask,
-          id: responseData.data.primary_id, 
-          erp_ids: responseData.data.all_ids, 
-          assignee: selectedUsers
-        } 
-      });
-      
+      // 🚀 THE FIX: Close the modal and brute-force reload the page
       handleFormClose();
+      window.location.reload(); 
+
     } catch (error) {
       console.error("Save Error:", error);
       alert("Failed to save task to ERPNext: " + error.message);
-    } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false); // Only stop loading if there's an error
     }
   };
 
