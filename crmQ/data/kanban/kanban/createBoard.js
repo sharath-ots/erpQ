@@ -1,7 +1,7 @@
 import { initialConfig } from 'config';
 import { users } from 'data/users';
 
-const bgImage = (index) => `/assets/images/kanban/background/${index}.webp`;
+const bgImage = (index) => `/next-images/kanban/background/${index}.webp`;
 
 export const backgroundImageOptions = [
   {

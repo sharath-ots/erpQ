@@ -95,12 +95,20 @@ export async function PUT(request) {
             else updatePayload.priority = "Medium";
         }
 
-        // 🚀 THE FIX: Add the individual explicit date fields back to the payload!
         if (body.dueDate) {
             updatePayload.date = body.dueDate;
         }
         if (body.follow_up_date) {
             updatePayload.follow_up_date = body.follow_up_date;
+        }
+
+        // 🚀 THE FIX: Map the Reference fields to the ERPNext payload!
+        if (body.referenceType !== undefined) {
+            // Using || null allows the user to clear out a reference
+            updatePayload.reference_type = body.referenceType || null; 
+        }
+        if (body.referenceName !== undefined) {
+            updatePayload.reference_name = body.referenceName || null;
         }
 
         if (body.status) updatePayload.status = body.status;

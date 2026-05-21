@@ -13,11 +13,11 @@ import CheckList from './check-list/CheckList';
 import CoverImage from './cover-image/CoverImage';
 import Description from './description/Description';
 import CircularProgress from '@mui/material/CircularProgress';
-import dayjs from 'dayjs'; // 🚀 Added dayjs to format the date
+import dayjs from 'dayjs'; 
 
 const TaskDetails = () => {
-  const { taskDetails, kanbanDispatch } = useKanbanContext();
-  const [isSaving, setIsSaving] = useState(false); // 🚀 Loading state for the save button
+  const { taskDetails, kanbanDispatch, listItems } = useKanbanContext();
+  const [isSaving, setIsSaving] = useState(false); 
 
   const initialData = {
     ...taskDetails,
@@ -28,7 +28,6 @@ const TaskDetails = () => {
     referenceType: taskDetails?.referenceType || '', 
     referenceName: taskDetails?.referenceName || '',
     assignedBy: taskDetails?.assignedBy || '',
-
   };
 
   const methods = useForm({
@@ -68,7 +67,7 @@ const TaskDetails = () => {
                 console.error(err);
                 alert(`Error uploading ${attachment.filename}`);
                 setIsSaving(false);
-                return; // Stop here if upload fails
+                return; 
             }
         }
     }
@@ -83,7 +82,10 @@ const TaskDetails = () => {
     const hasDescChanged = data.description !== initialData.description;
     const hasPriorityChanged = data.priority !== initialData.priority;
     
-    // Format dates to simple YYYY-MM-DD for accurate comparison
+    // 🚀 THE FIX: Check if the references changed!
+    const hasRefTypeChanged = data.referenceType !== initialData.referenceType;
+    const hasRefNameChanged = data.referenceName !== initialData.referenceName;
+    
     const newDate = data.dueDate ? dayjs(data.dueDate).format('YYYY-MM-DD') : null;
     const oldDate = initialData.dueDate ? dayjs(initialData.dueDate).format('YYYY-MM-DD') : null;
     const hasDateChanged = newDate !== oldDate;
@@ -93,9 +95,10 @@ const TaskDetails = () => {
     const hasFollowDateChanged = newFollowDate !== oldFollowDate;
 
     // 2. IF NOTHING CHANGED, DO NOTHING!
-    if (!hasTitleChanged && !hasDescChanged && !hasPriorityChanged && !hasDateChanged && !hasFollowDateChanged) {
+    // 🚀 THE FIX: Included the reference checks here
+    if (!hasTitleChanged && !hasDescChanged && !hasPriorityChanged && !hasDateChanged && !hasFollowDateChanged && !hasRefTypeChanged && !hasRefNameChanged) {
         kanbanDispatch({ type: TASK_DETAILS_CLOSE });
-        return; // Saves an API call entirely!
+        return; 
     }
 
     setIsSaving(true);
@@ -104,7 +107,6 @@ const TaskDetails = () => {
       // 3. BUILD THE CLEAN PAYLOAD
       const updatedFields = {};
       
-      // If Title OR Description changed, we send BOTH so the backend can combine them cleanly
       if (hasTitleChanged || hasDescChanged) {
           updatedFields.title = data.title || '';
           updatedFields.description = data.description || '';
@@ -114,13 +116,31 @@ const TaskDetails = () => {
       if (hasDateChanged) updatedFields.dueDate = newDate;
       if (hasFollowDateChanged) updatedFields.follow_up_date = newFollowDate;
 
+      // 🚀 THE FIX: If references changed, force the UI to forget the old names
+      if (hasRefTypeChanged || hasRefNameChanged) {
+          updatedFields.referenceType = data.referenceType;
+          updatedFields.referenceName = data.referenceName;
+          
+          // Also set snake_case versions just to be safe
+          updatedFields.reference_type = data.referenceType;
+          updatedFields.reference_name = data.referenceName;
+          
+          // Nuke the old cached human names! 
+          // This forces TaskCard to fall back to the new ID instantly
+          updatedFields.lead_name = null;
+          updatedFields.leadName = null;
+          updatedFields.subject = null;
+          updatedFields.customer_name = null;
+          updatedFields.project_name = null;
+      }
+
       // 4. Send to our PUT endpoint
       const res = await fetch('/api/frappe/todo', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           erp_ids: taskDetails.erp_ids,
-          ...updatedFields // 🚀 Only sending exactly what needs to be updated!
+          ...updatedFields 
         })
       });
 
@@ -130,10 +150,26 @@ const TaskDetails = () => {
           throw new Error(responseData.error || "Failed to update ERPNext");
       }
       
-      // 5. Update the Kanban UI & close the drawer
+      let currentListId = null;
+      if (listItems) {
+          for (const list of listItems) {
+              const taskIndex = list.tasks.findIndex(t => t.id === taskDetails.id);
+              if (taskIndex !== -1) {
+                  currentListId = list.id;
+                  list.tasks[taskIndex] = { ...taskDetails, ...updatedFields };
+                  break;
+              }
+          }
+      }
+
+      // 5. Update the Kanban UI instantly & close the drawer
       kanbanDispatch({
          type: 'EDIT_TASK', 
-         payload: { ...taskDetails, ...updatedFields } // Update UI instantly
+         payload: { 
+             ...taskDetails, 
+             ...updatedFields,
+             listId: currentListId 
+         } 
       });
       kanbanDispatch({ type: TASK_DETAILS_CLOSE });
 

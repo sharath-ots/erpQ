@@ -11,6 +11,8 @@ export const TASK_DETAILS_CLOSE = 'TASK_DETAILS_CLOSE';
 export const TOGGLE_COMPACT_MODE = 'TOGGLE_COMPACT_MODE';
 export const UPDATE_LIST_TITLE = 'UPDATE_LIST_TITLE';
 export const UPDATE_BOARD_BACKGROUND = 'UPDATE_BOARD_BACKGROUND';
+// 🚀 1. Add the exported constant here
+export const EDIT_TASK = 'EDIT_TASK'; 
 
 const findTaskList = (id, listItems) => {
     if (!id) {
@@ -31,6 +33,30 @@ const findTaskList = (id, listItems) => {
 
 export const kanbanReducer = (state, action) => {
     switch (action.type) {
+        // 🚀 2. Add the handler for EDIT_TASK
+        case EDIT_TASK: {
+            const updatedTask = action.payload;
+
+            return {
+                ...state,
+                listItems: state.listItems.map((list) => {
+                    // Check if this list contains the task we are trying to edit
+                    const taskExists = list.tasks.some((t) => t.id === updatedTask.id);
+                    
+                    if (taskExists) {
+                        return {
+                            ...list,
+                            tasks: list.tasks.map((task) =>
+                                // When we find the exact task, clone it and apply the new updates instantly
+                                task.id === updatedTask.id ? { ...task, ...updatedTask } : task
+                            ),
+                        };
+                    }
+                    return list;
+                }),
+            };
+        }
+
         case DRAG_START: {
             if (action.payload.type === 'task')
                 return { ...state, draggedTask: action.payload.item.task };

@@ -7,7 +7,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
-import Menu from '@mui/material/Menu'; // 🚀 ADDED: Menu for the avatar list
+import Menu from '@mui/material/Menu'; 
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -27,15 +27,13 @@ const options = [
   { name: 'priority', items: taskPriorities },
 ];
 
-const referenceTypes = ['Lead', 'Task', 'Event', 'Project', 'Customer', 'Issue'];
-
 const TaskSummary = () => {
   const { listItems, taskDetails } = useKanbanContext();
   const { control, setValue, watch } = useFormContext();
   const [isEditing, setIsEditing] = useState(false);
   
   const [isOpenInviteDialog, setIsOpenInviteDialog] = useState(false);
-  const [avatarMenuAnchor, setAvatarMenuAnchor] = useState(null); // 🚀 ADDED: State for avatar menu
+  const [avatarMenuAnchor, setAvatarMenuAnchor] = useState(null); 
 
   const title = watch('title');
   const currentAssignees = taskDetails?.assignee || [];
@@ -43,6 +41,10 @@ const TaskSummary = () => {
   const referenceType = watch('referenceType');
   const [docNames, setDocNames] = useState([]);
   const [loadingNames, setLoadingNames] = useState(false);
+  
+  // 🚀 ADDED: State to hold the dynamic reference types
+  const [docTypes, setDocTypes] = useState([]);
+  const [loadingTypes, setLoadingTypes] = useState(true);
 
   const selectItems = useMemo(
     () =>
@@ -61,6 +63,25 @@ const TaskSummary = () => {
     setIsEditing(false);
   };
 
+  // 🚀 ADDED: Fetch DocTypes exactly like AddNewTaskForm
+  useEffect(() => {
+    const fetchDocTypes = async () => {
+      setLoadingTypes(true);
+      try {
+        const res = await fetch('/api/frappe/doctypes');
+        const tJson = await res.json();
+        const tData = tJson.message || tJson;
+        setDocTypes(Array.isArray(tData) ? tData : []);
+      } catch (error) {
+        console.error("Failed to fetch DocTypes:", error);
+        setDocTypes([]);
+      } finally {
+        setLoadingTypes(false);
+      }
+    };
+    fetchDocTypes();
+  }, []);
+
   useEffect(() => {
     if (!referenceType) {
       setDocNames([]);
@@ -70,11 +91,9 @@ const TaskSummary = () => {
     const fetchReferenceNames = async () => {
       setLoadingNames(true);
       try {
-        // 🚀 FIXED: Replaced the failing endpoint with your working one from AddNewTaskForm
         const res = await fetch(`/api/frappe/names?doctype=${referenceType}`);
         const nJson = await res.json();
         
-        // 🚀 FIXED: Parse it exactly like AddNewTaskForm does (nJson.message)
         const nData = nJson.message || nJson; 
         
         setDocNames(Array.isArray(nData) ? nData : []);
@@ -126,12 +145,10 @@ const TaskSummary = () => {
             </Typography>
             <Stack direction="row" spacing={1} sx={{ mt: 1, alignItems: 'center' }}>
               
-              {/* 🚀 FIXED: Clicking avatars now opens the list Menu instead of Invite Dialog */}
               <Box onClick={(e) => setAvatarMenuAnchor(e.currentTarget)} sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                 <BoardMembers members={currentAssignees} />
               </Box>
 
-              {/* 🚀 ADDED: The dropdown menu showing assignee names */}
               <Menu
                 anchorEl={avatarMenuAnchor}
                 open={Boolean(avatarMenuAnchor)}
@@ -224,6 +241,7 @@ const TaskSummary = () => {
                       id={`custom-select-${item.name}`}
                       size="medium"
                       select
+                      disabled={item.name === 'board' || item.name === 'column' || item.name === 'label'}
                       sx={{ width: 1, textTransform: 'capitalize' }}
                     >
                       {item.items.map((option) => (
@@ -238,30 +256,42 @@ const TaskSummary = () => {
             </Grid>
           ))}
 
+          {/* 🚀 THE FIX: Swapped out hardcoded array for dynamic Autocomplete */}
           <Grid size={{ xs: 12, md: 6 }}>
             <Controller
               name="referenceType"
               control={control}
-              render={({ field }) => (
+              render={({ field: { onChange, value } }) => (
                 <div>
                   <Typography variant="body1" sx={{ mb: 1, fontWeight: 700, color: 'text.secondary' }}>
                     Reference Type
                   </Typography>
-                  <StyledTextField
-                    {...field}
-                    size="medium"
-                    select
-                    sx={{ width: 1, textTransform: 'capitalize' }}
-                    onChange={(e) => {
-                       field.onChange(e);
+                  <Autocomplete
+                    options={docTypes}
+                    loading={loadingTypes}
+                    getOptionLabel={(option) => option?.name || (typeof option === 'string' ? option : "")}
+                    value={docTypes.find(t => t.name === value) || value || null}
+                    onChange={(event, newValue) => {
+                       onChange(newValue ? newValue.name : '');
                        setValue('referenceName', ''); 
                     }}
-                  >
-                    <MenuItem value=""><em>None</em></MenuItem>
-                    {referenceTypes.map((type) => (
-                      <MenuItem key={type} value={type}>{type}</MenuItem>
-                    ))}
-                  </StyledTextField>
+                    renderInput={(params) => (
+                      <StyledTextField 
+                        {...params} 
+                        size="medium" 
+                        placeholder="Select Type"
+                        InputProps={{ 
+                          ...params.InputProps, 
+                          endAdornment: (
+                            <> 
+                              {loadingTypes ? <CircularProgress color="inherit" size={20} /> : null} 
+                              {params.InputProps.endAdornment} 
+                            </>
+                          )
+                        }} 
+                      />
+                    )}
+                  />
                 </div>
               )}
             />
@@ -330,6 +360,7 @@ const TaskSummary = () => {
               )}
             />
           </Grid>
+          
           <Grid size={{ xs: 12, md: 6 }}>
             <Controller
               name="assignedBy"
