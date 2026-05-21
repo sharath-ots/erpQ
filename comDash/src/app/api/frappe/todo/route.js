@@ -199,17 +199,18 @@ export async function DELETE(request) {
 
         // ERPNext requires deleting records individually by their specific resource URL
         for (const id of erp_ids) {
-            const response = await fetch(`${process.env.CITYQ_ERPNEXT_URL}/api/resource/ToDo/${id}`, {
+            const response = await fetch(`${CITYQ_ERPNEXT_URL}/api/resource/ToDo/${id}`, {
                 method: 'DELETE',
                 headers: {
-                    'Authorization': `token ${process.env.ERPNEXT_API_KEY}:${process.env.ERPNEXT_API_SECRET}`
+                    'Authorization': `token ${ERPNEXT_API_KEY}:${ERPNEXT_API_SECRET}`
                 }
             });
 
             if (!response.ok) {
-                console.error(`Failed to delete ToDo: ${id}`);
-                // Depending on your strictness, you can throw an error here, 
-                // but usually it's best to continue trying to delete the rest if it's a batch.
+                // 🚀 If it fails, read the actual error message from ERPNext
+                const errorText = await response.text();
+                console.error(`Failed to delete ToDo ${id}. ERPNext says:`, errorText);
+                throw new Error(`Failed to delete ${id} in ERPNext`); 
             }
         }
 
