@@ -76,16 +76,19 @@ export async function GET() {
             { id: 6, title: 'Win Rate', value: `${winRate}%`, amount: `${winRate}%`, subtitle: 'Conversion rate', icon: { name: 'material-symbols-light:military-tech-outline-rounded', color: 'error.main' } }
         ];
 
-        // ... (Keep Opportunity Tracker, Comm Flow, Lead Sources, and Sale Funnel exact same as before) ...
+        // 🚀 FIX: Change from 7-week blocks to 7-day blocks
         const open = Array(7).fill(0), converted = Array(7).fill(0), lost = Array(7).fill(0);
         const categories = Array(7).fill('');
+        
         for (let i = 0; i < 7; i++) {
-            const weekStart = new Date(now.getTime() - (6 - i + 1) * 7 * 24 * 60 * 60 * 1000);
-            const weekEnd = new Date(now.getTime() - (6 - i) * 7 * 24 * 60 * 60 * 1000);
-            categories[i] = `W${i + 1}`;
+            // Calculate day by day for the last 7 days
+            const d = new Date(now.getTime() - (6 - i) * 24 * 60 * 60 * 1000);
+            categories[i] = d.toLocaleDateString('en-US', { weekday: 'short' }); // e.g., "Mon", "Tue"
+            
             opps.forEach(o => {
-                const d = new Date(o.creation);
-                if (d >= weekStart && d < weekEnd) {
+                const oppDate = new Date(o.creation);
+                // Check if the opportunity creation date matches the loop day (ignoring time)
+                if (oppDate.toDateString() === d.toDateString()) {
                     if (o.status === 'Lost') lost[i]++;
                     else if (o.status === 'Converted' || o.status === 'Won') converted[i]++;
                     else open[i]++;

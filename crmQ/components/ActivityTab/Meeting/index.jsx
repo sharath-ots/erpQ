@@ -13,7 +13,8 @@ import IconifyIcon from '@/shared-ui/components/base/IconifyIcon';
 import StyledTextField from '@/shared-ui/components/styled/StyledTextField';
 import MeetingList from './MeetingList';
 
-const MeetingTabPanel = ({ meetingData, onRefresh, leadId }) => {
+// 🚀 Accept referenceId and referenceType instead of leadId
+const MeetingTabPanel = ({ meetingData, onRefresh, referenceId, referenceType }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isNewEvent, setIsNewEvent] = useState(false);
@@ -43,7 +44,6 @@ const MeetingTabPanel = ({ meetingData, onRefresh, leadId }) => {
       description: '',
       notes: '',
       actions: []
-      // Note: event_participants is intentionally removed from default UI state
     });
     setIsNewEvent(true);
     setIsEditing(true);
@@ -64,12 +64,12 @@ const MeetingTabPanel = ({ meetingData, onRefresh, leadId }) => {
 
     setIsSaving(true);
     try {
-      // 🚀 INVISIBLE HARDCODING: Construct participants in the background
+      // 🚀 INVISIBLE HARDCODING: Construct participants dynamically
       const hiddenParticipants = [];
-      if (leadId) {
+      if (referenceId && referenceType) {
         hiddenParticipants.push({
-          reference_doctype: 'Lead',
-          reference_docname: leadId
+          reference_doctype: referenceType, // Will be "Lead" or "Opportunity"
+          reference_docname: referenceId    // Will be the actual ID
         });
       }
 
@@ -83,8 +83,6 @@ const MeetingTabPanel = ({ meetingData, onRefresh, leadId }) => {
         repeat_this_event: tempEvent.repeat_this_event ? 1 : 0,
         sync_with_google_calendar: tempEvent.sync_with_google_calendar ? 1 : 0,
         actions: (tempEvent.actions || []).filter(a => a.task_description?.trim()),
-
-        // Push the invisible payload to ERPNext
         event_participants: hiddenParticipants
       };
 

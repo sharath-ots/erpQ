@@ -5,7 +5,7 @@ import { Box, CircularProgress, Typography } from '@mui/material';
 import dayjs from 'dayjs';
 
 // --- YOUR EXISTING IMPORTS ---
-import AllActivitiesTabPanel from '@/shared-ui/components/sections/crm/common/activity-tab-panels/all-activities';
+import AllActivitiesTabPanel from '../../src/components/sections/crm/common/activity-tab-panels/all-activities';
 import MeetingTabPanel from './Meeting/index';
 import NotesTabPanel from './notes/index';
 import TaskTabPanel from '../../components/ActivityTab/tasks/index';
@@ -182,24 +182,16 @@ export default function LeadDetailPanels({ leadId, activeTab }) {
 
 
     if (activeTab === ActivityTab.Activities) {
-        return loadingActivities ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box> : activities.length > 0 ? <AllActivitiesTabPanel allActivities={activities} /> : <Box sx={{ p: 5, textAlign: 'center', color: 'text.secondary' }}><Typography variant="body1">No recent activity found.</Typography></Box>;
+        return loadingActivities ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box> : activities.length > 0 ? <AllActivitiesTabPanel referenceId={leadId} referenceType="Lead" /> : <Box sx={{ p: 5, textAlign: 'center', color: 'text.secondary' }}><Typography variant="body1">No recent activity found.</Typography></Box>;
     }
 
     if (activeTab === ActivityTab.Email) {
         return loadingEmails ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box> : emails.length > 0 ? <StandardEmailTabWrapper emailData={emails} /> : <Box sx={{ p: 5, textAlign: 'center', color: 'text.secondary' }}><Typography variant="body1">No emails found for this Lead.</Typography></Box>;
     }
 
-    if (activeTab === ActivityTab.Meeting) {
-        return loadingEvents ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box> : <Box>{events.length === 0 && <Box sx={{ p: 5, pb: 2, textAlign: 'center', color: 'text.secondary' }}><Typography variant="body1">No events scheduled for this Lead.</Typography></Box>}<MeetingTabPanel meetingData={events} leadId={leadId} onRefresh={() => setEvents([])} /></Box>;
-    }
-
-    if (activeTab === ActivityTab.Task) {
-        return loadingTasks ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box> : <TaskTabPanel tasksData={tasks} leadId={leadId} />;
-    }
-
-    if (activeTab === ActivityTab.Notes) {
-        return <NotesTabPanel leadId={leadId} />;
-    }
+    if (activeTab === ActivityTab.Meeting) return loadingEvents ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box> : <Box>{events.length === 0 && <Box sx={{ p: 5, pb: 2, textAlign: 'center', color: 'text.secondary' }}><Typography variant="body1">No events scheduled for this Lead.</Typography></Box>}<MeetingTabPanel meetingData={events} referenceId={leadId} referenceType="Lead" onRefresh={() => setEvents([])} /></Box>;
+    if (activeTab === ActivityTab.Task) return loadingTasks ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box> : <TaskTabPanel tasksData={tasks} referenceId={leadId} referenceType="Lead" />;
+    if (activeTab === ActivityTab.Notes) return <NotesTabPanel referenceId={leadId} referenceType="Lead" />;
 
     return null;
 }

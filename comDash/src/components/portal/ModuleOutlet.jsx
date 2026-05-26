@@ -21,6 +21,10 @@ import EmailDetails from '../../../../crmQ/components/email-app/email/EmailDetai
 import Email from '../../../../crmQ/components/email-app/email/Email';
 import CommingSoonPage from '../../../../crmQ/pages/landing/comming_soon/index';
 import KanbanRoute from '../../../../crmQ/pages/crm/kanban/index';
+import OpportunityListPage from '../../../../crmQ/pages/crm/opportunity/index'
+import AddOpportunityScreen from "../../../../crmQ/src/ui/AddOpportunityScreen";
+import EditOpportunityPage from "../../../../crmQ/pages/crm/opportunity/edit/[id]"
+import ViewOpportunityScreen from "../../../../crmQ/src/ui/ViewOpportunityScreen";
 //import { usePortalMenu } from "./shared-ui/PortalMenuContext";
 
 // const CrmqShell = dynamic(
@@ -93,6 +97,24 @@ export function ModuleOutlet({ menuItems = [], deskBaseUrl, deskIframeQuery }) {
 
     if (normalized === "/m/crmq/kanban") {
       return <KanbanRoute />
+    }
+
+    if (normalized === "/m/crmq/opportunity-list") {
+      return <OpportunityListPage />
+    }
+
+    if (normalized === "/m/crmq/add-opportunity") {
+      return <AddOpportunityScreen />
+    }
+
+    const editOpportunityMatch = normalized.match(/^\/m\/crmq\/edit-opportunity\/([^/]+)$/);
+    if (editOpportunityMatch) {
+      return <EditOpportunityPage id={editOpportunityMatch[1]} />;
+    }
+
+    const viewOpportunityMatch = normalized.match(/^\/m\/crmq\/view-opportunity\/([^/]+)$/);
+    if (viewOpportunityMatch) {
+      return <ViewOpportunityScreen id={viewOpportunityMatch[1]} />;
     }
 
     // FALLBACK: If the route is missing

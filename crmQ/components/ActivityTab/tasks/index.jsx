@@ -9,7 +9,8 @@ import SimpleBar from 'components/base/SimpleBar';
 import TaskList from './TaskList';
 import TaskDetailsDialog from './TaskDetailsDialog';
 
-const TaskTabPanel = ({ leadId }) => {
+// 🚀 Accept referenceId and referenceType instead of leadId
+const TaskTabPanel = ({ referenceId, referenceType }) => {
   const [tasks, setTasks] = useState([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -24,36 +25,50 @@ const TaskTabPanel = ({ leadId }) => {
     attachments: []
   });
 
-  // 🚀 Replaced hardcoded array with empty state
   const [users, setUsers] = useState([]);
   const [userGroups, setUserGroups] = useState(['Sales Team', 'Support', 'Management']);
 
-  const fetchTasks = async () => {
-    const res = await fetch(`/api/lead/tasks?leadId=${leadId}`);
-    const rawData = await res.json();
-
-    const formattedTasks = rawData.map(t => {
-      let rawText = t.subject || t.description || 'No Description';
-      let cleanTitle = rawText.replace(/<[^>]*>?/gm, '');
-
-      return {
-        ...t,
-        id: t.name || t.id,
-        title: cleanTitle,
-        completed: t.status === 'Closed' || t.status === 'Cancelled',
-        dueDate: t.date || t.expected_end_date,
-        timeStamp: t.modified || t.creation
-      };
-    });
-
-    setTasks(formattedTasks);
-    setLoading(false);
+  // 🚀 Helper to get the correct API endpoint dynamically
+  const getApiUrl = () => {
+    if (referenceType === 'Opportunity') {
+      return `/api/opportunity/opportunity-tasks?opportunity_id=${referenceId}`;
+    }
+    return `/api/lead/tasks?leadId=${referenceId}`; // Default to Lead
   };
 
-  // 🚀 Fetch real users from your API
+  const fetchTasks = async () => {
+    if (!referenceId) return;
+    setLoading(true);
+    
+    try {
+      const res = await fetch(getApiUrl());
+      const rawData = await res.json();
+
+      const formattedTasks = rawData.map(t => {
+        let rawText = t.subject || t.description || 'No Description';
+        let cleanTitle = rawText.replace(/<[^>]*>?/gm, '');
+
+        return {
+          ...t,
+          id: t.name || t.id,
+          title: cleanTitle,
+          completed: t.status === 'Closed' || t.status === 'Cancelled',
+          dueDate: t.date || t.expected_end_date,
+          timeStamp: t.modified || t.creation
+        };
+      });
+
+      setTasks(formattedTasks);
+    } catch (error) {
+      console.error('Failed to fetch tasks:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchUsers = async () => {
     try {
-      const res = await fetch('/api/users/system-users'); // Adjust this path if you named your API file differently
+      const res = await fetch('/api/users/system-users'); 
       if (res.ok) {
         const data = await res.json();
         setUsers(data);
@@ -64,9 +79,9 @@ const TaskTabPanel = ({ leadId }) => {
   };
 
   useEffect(() => {
-    if (leadId) fetchTasks();
-    fetchUsers(); // Fetch users on mount
-  }, [leadId]);
+    if (referenceId) fetchTasks();
+    fetchUsers(); 
+  }, [referenceId, referenceType]);
 
   const handleAddTask = async () => {
     const payload = { ...newTask };
@@ -76,17 +91,25 @@ const TaskTabPanel = ({ leadId }) => {
     if (payload.assign_to_me) {
       payload.assign_to = 'Administrator';
     }
+    
+    // Ensure the backend knows what this task belongs to if your POST endpoint expects it
+    payload.reference_doctype = referenceType;
+    payload.reference_name = referenceId;
 
-    const res = await fetch(`/api/lead/tasks?leadId=${leadId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    try {
+      const res = await fetch(getApiUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
 
-    if (res.ok) {
-      setOpen(false);
-      fetchTasks();
-      setNewTask({ date: '', assign_to_me: false, assign_to: [], assign_to_user_group: '', description: '', attachments: [] });
+      if (res.ok) {
+        setOpen(false);
+        fetchTasks();
+        setNewTask({ date: '', assign_to_me: false, assign_to: [], assign_to_user_group: '', description: '', attachments: [] });
+      }
+    } catch (error) {
+      console.error('Failed to add task:', error);
     }
   };
 
@@ -151,7 +174,6 @@ const TaskTabPanel = ({ leadId }) => {
               </Typography>
 
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-
                 <TextField
                   select
                   SelectProps={{
@@ -172,7 +194,6 @@ const TaskTabPanel = ({ leadId }) => {
                     </MenuItem>
                   ))}
                 </TextField>
-
               </Box>
             </Box>
 

@@ -11,20 +11,29 @@ import SimpleBar from 'components/base/SimpleBar';
 import StyledTextField from 'components/styled/StyledTextField';
 import Note from './Note';
 
-const NotesTabPanel = ({ leadId }) => {
+// 🚀 Accept referenceId and referenceType instead of leadId
+const NotesTabPanel = ({ referenceId, referenceType }) => {
   const [notes, setNotes] = useState([]);
   const [newNote, setNewNote] = useState('');
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Helper to get the correct API endpoint
+  const getApiUrl = () => {
+    if (referenceType === 'Opportunity') {
+      return `/api/opportunity/opportunity-notes?opportunity_id=${referenceId}`;
+    }
+    // Default to Lead
+    return `/api/lead-notes?lead_id=${referenceId}`;
+  };
+
   // 🚀 FETCH NOTES FROM BACKEND
   const fetchNotes = async () => {
-    if (!leadId) return;
+    if (!referenceId) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/lead-notes?lead_id=${leadId}`);
+      const res = await fetch(getApiUrl());
 
-      // 🚀 EXPERT FIX: Read the exact error message from the server
       if (!res.ok) {
         const errorText = await res.text();
         throw new Error(`Backend Error ${res.status}: ${errorText}`);
@@ -53,7 +62,7 @@ const NotesTabPanel = ({ leadId }) => {
 
   useEffect(() => {
     fetchNotes();
-  }, [leadId]);
+  }, [referenceId, referenceType]);
 
   // 🚀 HANDLE CREATE NOTE (Triggered on Enter)
   const handleKeyDown = async (e) => {
@@ -65,13 +74,13 @@ const NotesTabPanel = ({ leadId }) => {
 
       setIsSubmitting(true);
       try {
-        const res = await fetch(`/api/lead-notes?lead_id=${leadId}`, {
+        const res = await fetch(getApiUrl(), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             content: newNote,
-            reference_doctype: 'Lead',
-            reference_name: leadId
+            reference_doctype: referenceType, // 🚀 Dynamically pass 'Lead' or 'Opportunity'
+            reference_name: referenceId       // 🚀 Dynamically pass the ID
           })
         });
 
@@ -100,7 +109,6 @@ const NotesTabPanel = ({ leadId }) => {
         disabled={isSubmitting}
         sx={{
           mb: 1,
-          // 🚀 Changed from hardcoded white to paper!
           bgcolor: isSubmitting ? 'action.hover' : 'background.paper',
           [`& .${inputBaseClasses.root}.${inputBaseClasses.multiline}`]: {
             py: 1.5,
@@ -121,7 +129,6 @@ const NotesTabPanel = ({ leadId }) => {
         ) : (
           <Stack
             direction="column"
-            // 🚀 Replaced 'dividerLight' with standard 'divider' for theme consistency
             divider={<Divider sx={{ borderColor: 'divider' }} />}
             sx={{ borderBottom: 1, borderColor: 'divider' }}
           >

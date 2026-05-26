@@ -455,6 +455,34 @@ const sitemap = [
       //   ],
       // },
       {
+        name: 'CRM-Q',
+        pathName: 'crm-q',
+        key: 'CRM-Q',
+        // Updated from mail icon to a handshake (standard for CRM/Deals)
+        icon: 'material-symbols:handshake-outline-rounded', 
+        active: true,
+        items: [
+          {
+            name: 'Lead',
+            key: 'Lead',
+            path: '/m/crmq/lead-list',
+            selectionPrefix: '/m/crmq/lead',
+            icon: 'material-symbols:person-search-outline-rounded', 
+            pathName: 'lead', 
+            active: true,
+          },
+          {
+            name: 'Opportunity',
+            key: 'Opportunity',
+            path: '/m/crmq/opportunity-list',
+            selectionPrefix: '/m/crmq/opportunity',
+            icon: 'material-symbols:lightbulb-outline-rounded', 
+            pathName: 'opportunity',
+            active: true,
+          },
+        ],
+      },
+      {
         name: 'Email',
         pathName: 'email',
         key: 'email',
