@@ -84,9 +84,9 @@ const OpportunityTable = ({ onOpportunityClick }) => {
             const matchesOrg = row.company?.toLowerCase().includes(searchOrgTerm.toLowerCase());
             const matchesStatusDropdown = activeStatus === 'All' || row.status === activeStatus;
 
-            // 🚀 NEW: Check the URL filters to match the Sidebar clicks perfectly
             let matchesSidebar = true;
             if (filtersParam) {
+                // 1. Status matching
                 if (filtersParam.includes('"value":"Open"')) {
                     matchesSidebar = row.status === 'Open';
                 } else if (filtersParam.includes('"field":"probability"')) {
@@ -95,6 +95,14 @@ const OpportunityTable = ({ onOpportunityClick }) => {
                     matchesSidebar = Number(row.opportunity_amount) >= 50000;
                 } else if (filtersParam.includes('Lost') || filtersParam.includes('Completed')) {
                     matchesSidebar = ['Lost', 'Completed', 'Hold', 'Closed'].includes(row.status);
+                }
+
+                const dateMatch = filtersParam.match(/"field":"creation","operator":"=","value":"([^"]+)"/);
+                if (dateMatch && dateMatch[1]) {
+                    const targetDate = dateMatch[1];
+                    if (row.creation !== targetDate) {
+                        matchesSidebar = false;
+                    }
                 }
             }
 

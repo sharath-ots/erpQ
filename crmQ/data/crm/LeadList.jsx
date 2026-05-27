@@ -69,6 +69,10 @@ const LeadsTable = ({ onLeadClick }) => {
     const [filterAnchorEl, setFilterAnchorEl] = useState(null);
     const [advancedFilters, setAdvancedFilters] = useState([]);
 
+    // 🚀 NEW: State for Conversion Dialog
+    const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
+    const [isConverting, setIsConverting] = useState(false);
+
     const getLeads = useCallback(async () => {
         setLoading(true);
         try {
@@ -76,7 +80,6 @@ const LeadsTable = ({ onLeadClick }) => {
             const safeData = Array.isArray(data) ? data : [];
 
             const formattedData = safeData.map((item, index) => {
-                // 🚀 FIX: Strip out the time, leaving only YYYY-MM-DD
                 const cleanCreation = item.creation ? String(item.creation).split(' ')[0].split('T')[0] : null;
                 const cleanModified = item.modified ? String(item.modified).split(' ')[0].split('T')[0] : null;
 
@@ -87,7 +90,7 @@ const LeadsTable = ({ onLeadClick }) => {
                     displayName: item.lead_name || item.name || 'Unknown',
                     company: item.company || item.company_name || 'N/A',
                     creation: cleanCreation,
-                    modified: cleanModified, // 🚀 Added clean modified date
+                    modified: cleanModified, 
                     source: item.source || ''
                 };
             });
@@ -166,13 +169,41 @@ const LeadsTable = ({ onLeadClick }) => {
         } catch (error) { console.error("Submission error", error); } finally { setIsSubmitting(false); }
     };
 
+    // 🚀 NEW: Handle Lead to Opportunity Conversion
+    const handleConvertToOpportunity = async () => {
+        if (!selectedDetailLeadId) return;
+        setIsConverting(true);
+
+        try {
+            const response = await fetch('/api/lead/convert', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lead_id: selectedDetailLeadId })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // Success! Redirect to the newly created opportunity
+                setIsConvertModalOpen(false);
+                navigateTo(`/m/crmq/view-opportunity/${data.new_opportunity_id}`);
+            } else {
+                throw new Error(data.error || 'Failed to convert Lead');
+            }
+        } catch (error) {
+            console.error("Conversion Error:", error);
+            alert(`Error: ${error.message}`);
+        } finally {
+            setIsConverting(false);
+        }
+    };
+
     const dynamicFilterFields = useMemo(() => {
         if (!rows || rows.length === 0) return [];
         const fakeReactFields = ['id', 'realId', 'displayName', 'company', 'avatar'];
         const keys = Object.keys(rows[0]).filter(key => !fakeReactFields.includes(key));
 
         let fields = keys.map(key => {
-            // Clean up names
             let label = key.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
             if (key === 'creation') label = 'Created On';
             if (key === 'modified') label = 'Last Updated On';
@@ -181,19 +212,16 @@ const LeadsTable = ({ onLeadClick }) => {
             if (key === 'lead_name') label = 'Lead Name';
             if (key === 'company_name') label = 'Organization';
             if (key === 'email_id') label = 'Email';
-            // 🚀 Ensure beautiful label for Source
             if (key === 'source') label = 'Lead Source';
 
             let fieldDef = { label, value: key };
 
-            // Apply specific dropdown options
             if (key === 'conversion_potential') {
                 fieldDef.options = ['0 - 25 %', '26 - 50%', '51 - 75%', '76 - 100%'];
             }
             if (key === 'potential_volume') {
                 fieldDef.options = ['1 vehicle', '2-5 vehicle', '6-10 vehicle', '11-25 vehicle', '25+ vehicle'];
             }
-            // 🚀 Extract actual sources dynamically from all your leads
             if (key === 'source') {
                 const uniqueSources = Array.from(new Set(rows.map(r => r.source).filter(Boolean)));
                 fieldDef.options = uniqueSources.length > 0 ? uniqueSources.sort() : ['Direct'];
@@ -202,7 +230,6 @@ const LeadsTable = ({ onLeadClick }) => {
             return fieldDef;
         });
 
-        // Ensure critical fields always show up even if data is totally empty
         const ensureFieldExists = (val, lab) => {
             if (!fields.find(f => f.value === val)) fields.push({ label: lab, value: val });
         };
@@ -252,7 +279,6 @@ const LeadsTable = ({ onLeadClick }) => {
 
             {/* --- LEFT PANEL: LIST --- */}
             <Box sx={{
-                // 🚀 RESPONSIVE FIX: This completely hides the List view on Mobile if a detail is selected
                 display: selectedDetailLeadId ? { xs: 'none', md: 'flex' } : 'flex',
                 flex: selectedDetailLeadId ? { xs: '1 1 auto', md: '0 0 350px' } : 1,
                 flexDirection: 'column',
@@ -395,6 +421,7 @@ const LeadsTable = ({ onLeadClick }) => {
                     )}
                 </Box>
 
+                {/* EMAIL GROUP DIALOG */}
                 <Dialog open={isGroupModalOpen} onClose={() => setIsGroupModalOpen(false)} maxWidth="sm" fullWidth>
                     <DialogTitle sx={{ fontWeight: 800, color: 'text.primary' }}>Select Email Group</DialogTitle>
                     <DialogContent>
@@ -405,12 +432,30 @@ const LeadsTable = ({ onLeadClick }) => {
                     </DialogContent>
                     <DialogActions sx={{ px: 3, pb: 3 }}><Button onClick={() => setIsGroupModalOpen(false)} color="inherit" sx={{ fontWeight: 700 }}>Cancel</Button><Button onClick={handleAddToGroup} variant="contained" color="primary" disabled={!selectedGroup || isSubmitting} sx={{ fontWeight: 700 }}>{isSubmitting ? 'Adding...' : 'Add Leads'}</Button></DialogActions>
                 </Dialog>
+
+                {/* 🚀 NEW: CONVERSION DIALOG */}
+                <Dialog open={isConvertModalOpen} onClose={() => !isConverting && setIsConvertModalOpen(false)} maxWidth="xs" fullWidth>
+                    <DialogTitle sx={{ fontWeight: 800, color: 'text.primary' }}>Convert to Opportunity</DialogTitle>
+                    <DialogContent>
+                        <Typography variant="body1" color="text.secondary">
+                            Are you sure you want to convert the lead <b>{selectedDetailLeadId}</b> into an Opportunity?
+                        </Typography>
+                    </DialogContent>
+                    <DialogActions sx={{ px: 3, pb: 3 }}>
+                        <Button onClick={() => setIsConvertModalOpen(false)} color="inherit" disabled={isConverting} sx={{ fontWeight: 700 }}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleConvertToOpportunity} variant="contained" color="primary" disabled={isConverting} sx={{ fontWeight: 700, minWidth: 100 }}>
+                            {isConverting ? <CircularProgress size={20} color="inherit" /> : 'Yes, Convert'}
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+
             </Box>
 
             {/* --- RIGHT PANEL: DETAILS --- */}
             {selectedDetailLeadId && (
                 <Box sx={{
-                    // 🚀 RESPONSIVE FIX: Makes the detail pane act as a full-screen view on mobile
                     display: 'flex',
                     flexDirection: 'column',
                     flex: 1,
@@ -434,11 +479,20 @@ const LeadsTable = ({ onLeadClick }) => {
 
                         <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: { xs: 1, sm: 0 }, width: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'space-between', sm: 'flex-start' } }}>
                             <Box>
-                                <Button variant="outlined" size="small" startIcon={<IconifyIcon icon="material-symbols:edit-outline" />} onClick={() => navigateTo(`/m/crmq/edit-lead/${selectedDetailLeadId}`)} sx={{ fontWeight: 600, borderRadius: 1.5, mr: 1 }}>Edit</Button>
-                                <Button variant="contained" size="small" color="primary" onClick={() => { if (onLeadClick) onLeadClick(selectedDetailLeadId); else navigateTo(`/m/crmq/view-lead/${selectedDetailLeadId}`); }} sx={{ fontWeight: 600, borderRadius: 1.5, boxShadow: 'none' }}>View Full Details</Button>
+                                {/* 🚀 NEW: Added the Convert Button */}
+                                <Button variant="contained" size="small" color="secondary" onClick={() => setIsConvertModalOpen(true)} sx={{ fontWeight: 600, borderRadius: 1.5, mr: 1, bgcolor: 'success.main', '&:hover': { bgcolor: 'success.dark' } }}>
+                                    Convert
+                                </Button>
+                                
+                                <Button variant="outlined" size="small" startIcon={<IconifyIcon icon="material-symbols:edit-outline" />} onClick={() => navigateTo(`/m/crmq/edit-lead/${selectedDetailLeadId}`)} sx={{ fontWeight: 600, borderRadius: 1.5, mr: 1 }}>
+                                    Edit
+                                </Button>
+                                
+                                <Button variant="contained" size="small" color="primary" onClick={() => { if (onLeadClick) onLeadClick(selectedDetailLeadId); else navigateTo(`/m/crmq/view-lead/${selectedDetailLeadId}`); }} sx={{ fontWeight: 600, borderRadius: 1.5, boxShadow: 'none' }}>
+                                    View Full Details
+                                </Button>
                             </Box>
 
-                            {/* 🚀 RESPONSIVE FIX: This close button now effectively acts as a 'Back' button on mobile since the list vanishes */}
                             <IconButton onClick={() => setSelectedDetailLeadId(null)} sx={{ bgcolor: 'action.hover' }}>
                                 <IconifyIcon icon="material-symbols:close" />
                             </IconButton>
