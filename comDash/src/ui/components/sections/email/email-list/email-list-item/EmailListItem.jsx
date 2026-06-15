@@ -1,4 +1,4 @@
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation'; // 🚀 Added useSearchParams
 import { Link, ListItem, ListItemButton, listItemButtonClasses } from '@mui/material';
 import { cssVarRgba } from 'lib/utils';
 import { useBulkSelect } from 'providers/BulkSelectProvider';
@@ -9,14 +9,13 @@ import ListItemFloatingActions from './ListItemFloatingActions';
 
 const EmailListItem = ({ mail }) => {
   const pathname = usePathname();
+  const searchParams = useSearchParams(); // 🚀 Grab current search params
   const pathParts = pathname.split('/').filter(Boolean);
 
-  // 🚀 FIXED: Changed 'const currentLabel' to 'let labelFromUrl'
   let labelFromUrl = pathname.includes('/details/')
     ? pathParts[pathParts.length - 2]
     : pathParts[pathParts.length - 1] || 'inbox';
 
-  // Now this if statement will work perfectly
   if (!labelFromUrl || labelFromUrl === 'undefined' || labelFromUrl === 'email') {
     labelFromUrl = 'inbox';
   }
@@ -27,12 +26,17 @@ const EmailListItem = ({ mail }) => {
   const { resizableWidth } = useEmailContext();
   const { selectedIds } = useBulkSelect();
 
+  // 🚀 Generate the suffix to preserve search state
+  const currentSearch = searchParams.toString();
+  const searchSuffix = currentSearch ? `?${currentSearch}` : '';
+
   return (
     <ListItem disablePadding>
       <ListItemButton
         component={Link}
         underline="none"
-        href={`/m/emailq/email/details/${folderToUse}/${mail.id}`}
+        // 🚀 Append the search context to the detail route!
+        href={`/m/emailq/email/details/${folderToUse}/${mail.id}${searchSuffix}`}
         sx={[
           {
             bgcolor: (theme) =>

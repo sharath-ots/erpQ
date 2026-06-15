@@ -1,52 +1,66 @@
-import { useEffect, useState } from 'react';
-import { usePathname } from 'next/navigation';
+'use client';
+
+import { useEffect, useState, useRef } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Box, Button, Stack, CircularProgress } from '@mui/material';
 import { useEmailContext } from 'providers/EmailProvider';
-import { SEARCH_EMAIL, INITIALIZE_EMAILS } from 'reducers/EmailReducer';
+import { INITIALIZE_EMAILS } from 'reducers/EmailReducer';
 import IconifyIcon from 'components/base/IconifyIcon';
 import EmailComposeDialog from 'components/sections/email/common/EmailComposeDialog';
 import EmailFilterDialog from 'components/sections/email/common/EmailFilterDialog';
 import StyledTextField from 'components/styled/StyledTextField';
 
 const EmailHeader = ({ toggleDrawer }) => {
-  const [searchText, setSearchText] = useState('');
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  
+  // 🚀 Start with the URL parameter if it exists
+  const [searchText, setSearchText] = useState(searchParams.get('search') || '');
   const [openFilterDialog, setOpenFilterDialog] = useState(false);
   const [openComposeDialog, setOpenComposeDialog] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  const debounceTimer = useRef(null);
 
   const context = useEmailContext() || {};
   const emailDispatch = context.emailDispatch;
   const resizableWidth = context.resizableWidth || 0;
 
-  const pathname = usePathname();
   const pathParts = pathname.split('/').filter(Boolean);
-
-  let id = null;
-  let label = 'inbox';
-
-  if (pathname.includes('/details/')) {
-    id = pathParts[pathParts.length - 1];
-    label = pathParts[pathParts.length - 2];
-  } else if (pathname.includes('/list/')) {
-    label = pathParts[pathParts.length - 1];
-  }
+  const id = pathname.includes('/details/') ? pathParts[pathParts.length - 1] : null;
 
   const toggleFilterDialog = () => setOpenFilterDialog((prev) => !prev);
   const toggleComposeDialog = () => setOpenComposeDialog(!openComposeDialog);
 
+  // Sync the input box if the URL changes (e.g. using back button)
+  useEffect(() => {
+    setSearchText(searchParams.get('search') || '');
+  }, [searchParams]);
+
   const handleSearch = (e) => {
     const val = e.target.value;
     setSearchText(val);
-    if (emailDispatch) {
-      emailDispatch({
-        type: SEARCH_EMAIL,
-        payload: { query: val, folder: label },
-      });
-    }
+
+    // 🚀 Debounce the URL update so we don't lag the router while typing
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (val) {
+        params.set('search', val);
+      } else {
+        params.delete('search');
+      }
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }, 300);
   };
 
   const handleRefresh = async () => {
     setSearchText('');
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('search');
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    
     setIsRefreshing(true);
     sessionStorage.removeItem('erp_global_emails');
 
@@ -61,11 +75,8 @@ const EmailHeader = ({ toggleDrawer }) => {
         } catch (e) {
           sessionStorage.setItem('erp_global_emails', JSON.stringify(data.slice(0, 40)));
         }
-
-        // 🚀 Triggers the newly-fixed Reducer case
         if (emailDispatch) {
           emailDispatch({ type: INITIALIZE_EMAILS, payload: data });
-          emailDispatch({ type: SEARCH_EMAIL, payload: { query: '', folder: label } });
         }
       } else {
         alert("Failed to refresh: " + data.error);
@@ -76,14 +87,6 @@ const EmailHeader = ({ toggleDrawer }) => {
       setIsRefreshing(false);
     }
   };
-
-  useEffect(() => {
-    setSearchText('');
-    if (emailDispatch) {
-      emailDispatch({ type: SEARCH_EMAIL, payload: { query: '', folder: label } });
-    }
-    return undefined;
-  }, [label, emailDispatch]);
 
   const isInvalidOrLargeWidth = !id || resizableWidth > 500;
 
@@ -108,12 +111,14 @@ const EmailHeader = ({ toggleDrawer }) => {
         >
           Compose
         </Button>
+        
+        {/* 🚀 Make sure ID is exactly "search-box" so the interceptor catches it */}
         <StyledTextField
           id="search-box"
           type="search"
           value={searchText}
           onChange={handleSearch}
-          placeholder="Search email"
+          placeholder="Search all emails..."
           sx={[
             { order: 1, width: 1 },
             isInvalidOrLargeWidth && {
@@ -132,7 +137,6 @@ const EmailHeader = ({ toggleDrawer }) => {
           {/* <Button sx={{ minWidth: 40, p: 0 }} color="neutral" onClick={toggleFilterDialog}>
             <IconifyIcon icon="material-symbols:filter-alt-outline" fontSize={20} />
           </Button> */}
-
           <Button
             color="neutral"
             sx={{ minWidth: 40, p: 0 }}

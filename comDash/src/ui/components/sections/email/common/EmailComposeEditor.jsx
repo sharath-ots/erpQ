@@ -6,17 +6,18 @@ import Editor, { editorDefaultToolbar } from 'components/base/Editor';
 const EmailComposeEditor = ({ onChange, content, isValid }) => {
   const rteRef = useRef(null);
 
-  // 🚀 EXPERT FIX: Force the Rich Text Editor to sync with external changes!
   useEffect(() => {
-    if (rteRef.current && rteRef.current.editor) {
-      const currentEditorHTML = rteRef.current.editor.getHTML();
+    const syncEditor = setTimeout(() => {
+      if (rteRef.current && rteRef.current.editor) {
+        const currentEditorHTML = rteRef.current.editor.getHTML();
 
-      // Only force an update if the incoming HTML is actually different,
-      // otherwise the cursor jumps to the end of the line while typing.
-      if (content !== currentEditorHTML) {
-        rteRef.current.editor.commands.setContent(content || '');
+        if (content !== currentEditorHTML) {
+          rteRef.current.editor.commands.setContent(content || '');
+        }
       }
-    }
+    }, 10);
+
+    return () => clearTimeout(syncEditor);
   }, [content]);
 
   return (

@@ -107,7 +107,7 @@ const Email = () => {
             <Typography variant="body2" color="text.secondary">Loading Inbox...</Typography>
           </Stack>
         ) : (
-          <BulkSelectProvider data={emailState?.emails || []}>
+          <BulkSelectProvider data={emailState?.initialEmails || emailState?.emails || []}>
             <EmailListContainer toggleDrawer={toggleDrawer} explicitEmailList={emailState?.emails || []} />
           </BulkSelectProvider>
         )}

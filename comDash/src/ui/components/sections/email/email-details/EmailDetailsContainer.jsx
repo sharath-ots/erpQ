@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 import { Stack, Typography, CircularProgress } from '@mui/material';
 import { useEmailContext } from 'providers/EmailProvider';
@@ -9,7 +9,6 @@ import EmailDetailsContent from './EmailDetailsContent';
 import EmailDetailsHeader from './EmailDetailsHeader';
 import EmailReply from './EmailReply';
 
-// 🚀 Accept explicitEmails as a prop so it doesn't wait for Context
 const EmailDetailsContainer = ({ explicitEmails = [] }) => {
   const { emailDispatch } = useEmailContext();
 
@@ -17,9 +16,11 @@ const EmailDetailsContainer = ({ explicitEmails = [] }) => {
   const pathParts = pathname.split('/').filter(Boolean);
   const extractedId = pathParts.pop();
 
-  const activeEmail = explicitEmails.find((e) => String(e.id) === String(extractedId));
+  // 🚀 FAST FIND: Resolves synchronously without waiting
+  const activeEmail = useMemo(() => {
+    return explicitEmails.find((e) => String(e.id) === String(extractedId));
+  }, [explicitEmails, extractedId]);
 
-  // Background task: Mark as read without blocking the UI rendering
   useEffect(() => {
     if (extractedId && activeEmail && emailDispatch) {
       emailDispatch({ type: 'GET_EMAIL', payload: extractedId });
@@ -35,7 +36,7 @@ const EmailDetailsContainer = ({ explicitEmails = [] }) => {
     }
   }, [extractedId, activeEmail, emailDispatch]);
 
-  // If there's literally 0 emails in the system
+  // If the ENTIRE system is still fetching emails from the database, show standard buffering
   if (explicitEmails.length === 0) {
     return (
       <Stack sx={{ alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
@@ -45,7 +46,7 @@ const EmailDetailsContainer = ({ explicitEmails = [] }) => {
     );
   }
 
-  // If data exists but the ID is invalid
+  // If database is ready but URL has a bad ID
   if (!activeEmail) {
     return (
       <Stack sx={{ alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
@@ -56,7 +57,7 @@ const EmailDetailsContainer = ({ explicitEmails = [] }) => {
     );
   }
 
-  // 🚀 Instant Render - No loaders!
+  // 🚀 INSTANT RENDER
   return (
     <SimpleBar sx={{ px: { xs: 3, md: 5 }, py: 5, height: '100%' }}>
       <EmailDetailsHeader email={activeEmail} />

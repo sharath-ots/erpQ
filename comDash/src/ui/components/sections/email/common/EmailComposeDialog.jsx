@@ -17,7 +17,8 @@ import {
   FormControlLabel,
   Checkbox,
   Box,
-  Button
+  Button,
+  CircularProgress // 🚀 Added
 } from '@mui/material';
 import * as yup from 'yup';
 import IconifyIcon from 'components/base/IconifyIcon';
@@ -46,8 +47,11 @@ const EmailComposeDialog = ({ open, handleClose, initialData }) => {
   const [leadEmailOptions, setLeadEmailOptions] = useState([]);
   const [allEmailOptions, setAllEmailOptions] = useState([]);
 
-  // 🚀 Local state to hold the selected template before we click the buttons
   const [selectedTemplate, setSelectedTemplate] = useState('');
+
+  // 🚀 AI State Variables
+  const [aiInstruction, setAiInstruction] = useState('');
+  const [isDrafting, setIsDrafting] = useState(false);
 
   const {
     control,
@@ -68,6 +72,8 @@ const EmailComposeDialog = ({ open, handleClose, initialData }) => {
       body: ''
     }
   });
+
+  const { enqueueSnackbar } = useSnackbar();
 
   // Fetch ERP Templates, Users, and Leads
   useEffect(() => {
@@ -114,11 +120,11 @@ const EmailComposeDialog = ({ open, handleClose, initialData }) => {
         subject: initialData?.subject || '',
         body: initialData?.body || ''
       });
-      setSelectedTemplate(''); // Clear template dropdown on open
+      setSelectedTemplate(''); 
+      setAiInstruction(''); // Clear AI box on open
     }
   }, [open, initialData, reset]);
 
-  // 🚀 EXPERT FIX: Appends template HTML to existing body
   const handleAddTemplate = () => {
     const template = emailTemplates.find(t => t.name === selectedTemplate);
     if (template) {
@@ -126,14 +132,11 @@ const EmailComposeDialog = ({ open, handleClose, initialData }) => {
       const currentBody = watch('body') || '';
 
       setValue('subject', template.subject ? template.subject : currentSubject);
-
-      // If there is already text, put a line break before adding the template
       const newBody = currentBody ? `${currentBody}<br><br>${template.response_html}` : template.response_html;
       setValue('body', newBody);
     }
   };
 
-  // 🚀 EXPERT FIX: Clears everything and inserts template HTML
   const handleClearAndAddTemplate = () => {
     const template = emailTemplates.find(t => t.name === selectedTemplate);
     if (template) {
@@ -142,21 +145,83 @@ const EmailComposeDialog = ({ open, handleClose, initialData }) => {
     }
   };
 
-  const { enqueueSnackbar } = useSnackbar();
+  // 🚀 EXPERT FIX: Streaming AI Draft logic injected straight into the editor
+  const handleGenerateDraft = async () => {
+    if (!aiInstruction.trim()) {
+      enqueueSnackbar('Please provide instructions for the AI.', { variant: 'warning' });
+      return;
+    }
+    
+    setIsDrafting(true);
+    const originalBody = watch('body') || ''; 
+    let currentDraft = ''; 
+
+    try {
+      const targetRecipient = watch('to') || 'Customer';
+      const senderEmail = watch('sender') || 'CityQ Representative';
+
+      const res = await fetch('/api/ai/draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emailThread: '', // Blank because it is a new email
+          instructions: aiInstruction,
+          senderEmail: senderEmail,
+          recipientEmail: targetRecipient
+        })
+      });
+
+      if (!res.ok) throw new Error('Failed to reach AI API');
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          
+          try {
+            const json = JSON.parse(line);
+            if (json.response) {
+              currentDraft += json.response;
+              const formattedDraft = currentDraft.replace(/\n/g, '<br>');
+              
+              // Streams the typing effect directly into the React Hook Form state
+              setValue('body', `${originalBody ? originalBody + '<br><br>' : ''}${formattedDraft}`);
+            }
+          } catch (e) {
+            console.debug('Streaming chunk parsing skip');
+          }
+        }
+      }
+      
+      setAiInstruction(''); 
+      enqueueSnackbar('AI Draft applied successfully!', { variant: 'success' });
+      
+    } catch (error) {
+      console.error('Draft Error:', error);
+      setValue('body', originalBody); 
+      enqueueSnackbar('Failed to generate AI draft', { variant: 'error' });
+    } finally {
+      setIsDrafting(false);
+    }
+  };
 
   const submitHandler = async (data) => {
-    console.log("Raw form data:", data);
-
-    // 🚀 EXPERT FIX: Extract actual email from "Name <email@id.com>" format for Frappe
     const extractEmail = (str) => {
       if (!str) return '';
       const match = str.match(/<(.+)>/);
       return match ? match[1].trim() : str.trim();
     };
 
-    // Prepare payload exactly how ERPNext/Frappe expects it
     const payload = {
-      lead_id: initialData?.leadId || '', // Make sure this is passed from the parent!
+      lead_id: initialData?.leadId || '', 
       from: data.sender,
       recipients: extractEmail(data.to),
       cc: data.cc ? data.cc.map(extractEmail).join(',') : '',
@@ -169,7 +234,6 @@ const EmailComposeDialog = ({ open, handleClose, initialData }) => {
     };
 
     try {
-      // 🚀 Make the API call to your backend
       const res = await fetch('/api/lead/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -225,7 +289,6 @@ const EmailComposeDialog = ({ open, handleClose, initialData }) => {
     >
       <DialogContent sx={{ p: 3 }}>
 
-        {/* --- Header --- */}
         <Stack direction="row" alignItems="center" sx={{ mb: 3 }}>
           <Typography variant="h6" sx={{ fontWeight: 400, flexGrow: 1 }}>
             {initialData?.subject ? 'Reply' : 'New message'}
@@ -241,7 +304,6 @@ const EmailComposeDialog = ({ open, handleClose, initialData }) => {
           </IconButton>
         </Stack>
 
-        {/* --- STRICT VERTICAL COLUMN --- */}
         <Stack direction="column" spacing={2.5} sx={{ mb: 3, width: '100%' }}>
 
           <TextField
@@ -314,7 +376,6 @@ const EmailComposeDialog = ({ open, handleClose, initialData }) => {
             )}
           />
 
-          {/* 🚀 EXPERT FIX: Email Template Selector with Action Buttons next to it */}
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
             <TextField
               select
@@ -351,6 +412,44 @@ const EmailComposeDialog = ({ open, handleClose, initialData }) => {
           </Stack>
 
           <TextField fullWidth label="Subject" {...register('subject')} InputLabelProps={{ shrink: watch('subject') ? true : false }} />
+
+          {/* 🚀 AI Instruction Block */}
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            <TextField
+              fullWidth
+              variant="outlined"
+              placeholder="Tell AI what to write (e.g., 'Introduce our new e-bike models')..."
+              value={aiInstruction}
+              onChange={(e) => setAiInstruction(e.target.value)}
+              disabled={isDrafting}
+              sx={{ bgcolor: 'background.paper', borderRadius: 1 }}
+            />
+            <Button
+              type="button" 
+              // 🚀 Disabled if no instructions are provided
+              disabled={isDrafting || !aiInstruction.trim()}
+              onClick={(e) => {
+                e.preventDefault(); 
+                e.stopPropagation();
+                handleGenerateDraft(); 
+              }}
+              sx={{
+                height: '56px',
+                bgcolor: '#EAF3FD',
+                color: '#3385F0',
+                whiteSpace: 'nowrap',
+                boxShadow: 'none',
+                '&:hover': { bgcolor: '#DBE6EB' },
+                '&.Mui-disabled': {
+                  bgcolor: 'action.disabledBackground',
+                  color: 'action.disabled'
+                }
+              }}
+              startIcon={isDrafting ? <CircularProgress size={16} /> : <IconifyIcon icon="material-symbols:auto-awesome" />}
+            >
+              {isDrafting ? 'Drafting...' : 'AI Draft'}
+            </Button>
+          </Stack>
 
           <TextField fullWidth type="datetime-local" label="Schedule Send" InputLabelProps={{ shrink: true }} {...register('schedule_send')} />
 

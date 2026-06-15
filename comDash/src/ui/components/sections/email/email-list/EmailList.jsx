@@ -1,9 +1,9 @@
-import { usePathname } from 'next/navigation';
+import { usePathname, useParams   } from 'next/navigation';
 import { List, Typography } from '@mui/material';
 import { useEmailContext } from 'providers/EmailProvider';
 import EmailListItem from './email-list-item/EmailListItem';
 
-const EmailList = ({ title, emails }) => {
+const EmailList = ({ title, emails, onEmailClick }) => {
   const { resizableWidth } = useEmailContext();
   const pathname = usePathname();
 

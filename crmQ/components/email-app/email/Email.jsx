@@ -74,8 +74,11 @@ const EmailContent = () => {
             <Typography variant="body2" color="text.secondary">Loading your emails...</Typography>
           </Stack>
         ) : (
-          <BulkSelectProvider data={emailState?.emails || []}>
-            <EmailListContainer toggleDrawer={toggleDrawer} explicitEmailList={emailState?.emails || []} />
+          <BulkSelectProvider data={emailState?.initialEmails || emailState?.emails || []}>
+            <EmailListContainer 
+              toggleDrawer={toggleDrawer} 
+              explicitEmailList={emailState?.initialEmails || emailState?.emails || []} 
+            />
           </BulkSelectProvider>
         )}
       </Paper>

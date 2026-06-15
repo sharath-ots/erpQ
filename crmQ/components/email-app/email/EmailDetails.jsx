@@ -14,7 +14,10 @@ import { INITIALIZE_EMAILS } from 'reducers/EmailReducer';
 const EmailDetails = () => {
   const context = useEmailContext();
   const emailState = context?.emailState;
-  const initialEmails = emailState?.initialEmails || [];
+  
+  // 🚀 THE FIX: Grab the Master Global List
+  const masterList = emailState?.initialEmails || [];
+  
   const [fallbackData, setFallbackData] = useState([]);
   const handleResize = context?.handleResize || [];
 
@@ -23,20 +26,21 @@ const EmailDetails = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(upXl);
   const toggleDrawer = () => setIsDrawerOpen((prev) => !prev);
 
-  const displayData = initialEmails.length > 0 ? emailState.emails : fallbackData;
+  // 🚀 THE FIX: Use the Master List for all children so it can ALWAYS find the searched email
+  const displayData = masterList.length > 0 ? masterList : fallbackData;
 
   useEffect(() => {
     setIsDrawerOpen(upXl);
   }, [upXl]);
 
   useEffect(() => {
-    // 🚀 SAFE CACHE LOAD
+    // Safe Cache Load
     try {
       const cached = sessionStorage.getItem('erp_global_emails');
       if (cached) {
         const parsedData = JSON.parse(cached);
         setFallbackData(parsedData);
-        if (context?.emailDispatch && initialEmails.length === 0) {
+        if (context?.emailDispatch && masterList.length === 0) {
           context.emailDispatch({ type: INITIALIZE_EMAILS, payload: parsedData });
         }
       }
@@ -44,7 +48,8 @@ const EmailDetails = () => {
       sessionStorage.removeItem('erp_global_emails');
     }
 
-    if (initialEmails.length === 0) {
+    // Fetch if missing
+    if (masterList.length === 0) {
       const timestamp = new Date().getTime();
       fetch(`/api/email-app?bypass=${timestamp}`, { cache: 'no-store' })
         .then(res => res.json())
@@ -62,7 +67,7 @@ const EmailDetails = () => {
           }
         }).catch(err => console.error("Background sync error:", err));
     }
-  }, [initialEmails.length, context?.emailDispatch]);
+  }, [masterList.length, context?.emailDispatch]);
 
   return (
     <>
@@ -101,11 +106,13 @@ const EmailDetails = () => {
         >
           <Paper sx={{ height: 1 }}>
             <BulkSelectProvider data={displayData}>
+              {/* Left pane list receives master data */}
               <EmailListContainer toggleDrawer={toggleDrawer} explicitEmailList={displayData} />
             </BulkSelectProvider>
           </Paper>
         </Resizable>
         <Box sx={{ flex: 1, minWidth: 0 }}>
+          {/* Right pane details receives master data */}
           <EmailDetailsContainer explicitEmails={displayData} />
         </Box>
       </Box>

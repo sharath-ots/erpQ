@@ -480,9 +480,11 @@ const LeadsTable = ({ onLeadClick }) => {
                         <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: { xs: 1, sm: 0 }, width: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'space-between', sm: 'flex-start' } }}>
                             <Box>
                                 {/* 🚀 NEW: Added the Convert Button */}
-                                <Button variant="contained" size="small" color="secondary" onClick={() => setIsConvertModalOpen(true)} sx={{ fontWeight: 600, borderRadius: 1.5, mr: 1, bgcolor: 'success.main', '&:hover': { bgcolor: 'success.dark' } }}>
-                                    Convert
-                                </Button>
+                                {rows.find(r => r.id === selectedDetailLeadId)?.status !== 'Opportunity' && (
+                                    <Button variant="contained" size="small" color="secondary" onClick={() => setIsConvertModalOpen(true)} sx={{ fontWeight: 600, borderRadius: 1.5, mr: 1, bgcolor: 'success.main', '&:hover': { bgcolor: 'success.dark' } }}>
+                                        Convert
+                                    </Button>
+                                )}
                                 
                                 <Button variant="outlined" size="small" startIcon={<IconifyIcon icon="material-symbols:edit-outline" />} onClick={() => navigateTo(`/m/crmq/edit-lead/${selectedDetailLeadId}`)} sx={{ fontWeight: 600, borderRadius: 1.5, mr: 1 }}>
                                     Edit

@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { useMemo, useState, useEffect, useRef } from 'react'; // 🚀 Added useRef
+import { usePathname, useSearchParams, useRouter } from 'next/navigation'; // 🚀 Added useRouter
 import { Stack, Typography, Dialog, DialogContent, IconButton, Box, Divider } from '@mui/material';
 import dayjs from 'dayjs';
 
@@ -14,20 +14,29 @@ import IconifyIcon from 'components/base/IconifyIcon';
 import EmailDetailsContainer from '../email-details/EmailDetailsContainer';
 
 const EmailListContainer = ({ toggleDrawer, explicitEmailList = [] }) => {
-  const [selectedEmailPopup, setSelectedEmailPopup] = useState(null);
   const searchParams = useSearchParams();
+  const router = useRouter(); // 🚀 Hook for updating URL
 
+  const [selectedEmailPopup, setSelectedEmailPopup] = useState(null);
   const [localEmails, setLocalEmails] = useState(explicitEmailList);
-
-  // 🚀 1. THE FAILSAFE SEARCH STATE
   const [liveSearchQuery, setLiveSearchQuery] = useState('');
 
-  // 🚀 2. EVENT BUBBLING INTERCEPTOR
-  // This catches every keystroke typed into the EmailHeader without needing global state!
+  // 🚀 1. Grab the page from the URL if it exists (Default to 0)
+  const initialPage = parseInt(searchParams.get('page') || '0', 10);
+  const [page, setPage] = useState(initialPage);
+  const rowsPerPage = 15;
+
+  useEffect(() => {
+    const query = searchParams.get('search');
+    if (query !== null) {
+      setLiveSearchQuery(query);
+    }
+  }, [searchParams]);
+
   const handleSearchIntercept = (e) => {
-    if (e.target && e.target.tagName === 'INPUT') {
+    if (e.target && e.target.tagName === 'INPUT' && e.target.id === 'search-box') {
       setLiveSearchQuery(e.target.value || '');
-      setPage(0); // Instantly reset to page 1 when they start typing
+      setPage(0); 
     }
   };
 
@@ -50,9 +59,6 @@ const EmailListContainer = ({ toggleDrawer, explicitEmailList = [] }) => {
     return () => window.removeEventListener('APP_BULK_EMAIL_UPDATE', handleBulkUpdate);
   }, []);
 
-  const [page, setPage] = useState(0);
-  const rowsPerPage = 15;
-
   const pathname = usePathname();
   const pathParts = pathname.split('/').filter(Boolean);
 
@@ -65,37 +71,47 @@ const EmailListContainer = ({ toggleDrawer, explicitEmailList = [] }) => {
     label = 'inbox';
   }
 
+  // 🚀 2. Only reset the page if the FOLDER changes (prevents resetting when opening an email)
+  const prevLabelRef = useRef(label);
   useEffect(() => {
-    setPage(0);
+    if (prevLabelRef.current !== label) {
+      setPage(0);
+      prevLabelRef.current = label;
+    }
   }, [label]);
 
-  // 🚀 3. THE MASTER FILTER (Now powered by live typing)
+  // 🚀 3. Automatically sync the URL when the page state changes
+  useEffect(() => {
+    const currentUrlPage = parseInt(searchParams.get('page') || '0', 10);
+    if (currentUrlPage !== page) {
+      const params = new URLSearchParams(searchParams.toString());
+      if (page > 0) {
+        params.set('page', page.toString());
+      } else {
+        params.delete('page');
+      }
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }
+  }, [page, pathname, router, searchParams]);
+
   const filteredEmails = useMemo(() => {
-    let filtered = localEmails.filter((email) => {
+    const searchQuery = liveSearchQuery.toLowerCase().trim();
+
+    return localEmails.filter((email) => {
+      if (searchQuery) {
+        return (
+          (email.subject?.toLowerCase().includes(searchQuery)) ||
+          (email.sender_email?.toLowerCase().includes(searchQuery)) ||
+          (email.user?.name?.toLowerCase().includes(searchQuery)) ||
+          (email.details?.toLowerCase().includes(searchQuery))
+        );
+      }
+
       if (label === 'starred') return email.starred === true;
       if (label === 'important') return email.important === true;
-      if (label === 'sent') return email.folder === 'sent' || email.label === 'sent';
-      if (label === 'inbox') return email.folder === 'inbox' || email.label === 'inbox';
-
       return email.folder === label || email.label === label;
     });
-
-    // Check our live typing interceptor first, fallback to URL parameters if they hit Enter
-    const activeSearch = liveSearchQuery || searchParams.get('search') || searchParams.get('q') || '';
-    const searchQuery = activeSearch.toLowerCase().trim();
-
-    if (searchQuery) {
-      filtered = filtered.filter((email) =>
-        (email.subject && email.subject.toLowerCase().includes(searchQuery)) ||
-        (email.sender_email && email.sender_email.toLowerCase().includes(searchQuery)) ||
-        (email.user?.name && email.user.name.toLowerCase().includes(searchQuery)) ||
-        (email.user?.email && email.user.email.toLowerCase().includes(searchQuery)) ||
-        (email.description && email.description.toLowerCase().includes(searchQuery))
-      );
-    }
-
-    return filtered;
-  }, [localEmails, label, liveSearchQuery, searchParams]);
+  }, [localEmails, label, liveSearchQuery]);
 
   const paginatedList = useMemo(() => {
     const start = page * rowsPerPage;
@@ -124,20 +140,16 @@ const EmailListContainer = ({ toggleDrawer, explicitEmailList = [] }) => {
   }, [paginatedList]);
 
   return (
-    < Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }
-    } onInput={handleSearchIntercept} >
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }} onInput={handleSearchIntercept}>
       <SimpleBar sx={{ flex: 1, py: 2 }}>
         <Stack direction="column">
-
           <EmailHeader toggleDrawer={toggleDrawer} />
-
           <EmailListHeader
             page={page}
             setPage={setPage}
             total={filteredEmails.length}
             rowsPerPage={rowsPerPage}
           />
-
           <Stack direction="column" gap={1} sx={{ flex: 1, mt: 2 }}>
             {Object.keys(emailData).map((key) =>
               emailData[key].length > 0 && (
@@ -196,7 +208,7 @@ const EmailListContainer = ({ toggleDrawer, explicitEmailList = [] }) => {
           {selectedEmailPopup && <EmailDetailsContainer explicitEmails={[selectedEmailPopup]} />}
         </DialogContent>
       </Dialog>
-    </Box >
+    </Box>
   );
 };
 

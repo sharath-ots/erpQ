@@ -299,6 +299,21 @@ services:
       retries: 5
       start_period: 40s
 
+  # An Ai service.
+  ollama:
+    image: ollama/ollama:latest
+    container_name: erpq-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - default
+    # NO 'command' here.
+    # Keep it simple so the official entrypoint runs correctly.
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_NUM_THREAD=4 # Optimized for your i5-1145G7 (4 threads out of 8 is the sweet spot)
+
   # Reverse proxy for ERPNext desk iframe.
   # Strips X-Frame-Options + rewrites cookies so the browser accepts the embedded desk.
   # Set ERPNEXT_PUBLIC_URL=http://192.168.1.100:13002 in .env to activate.
@@ -319,6 +334,7 @@ services:
 volumes:
   rabbitmq_data:
   docq_pg_data:
+  ollama_data:
 
 networks:
   # Default: create an internal "proxy" network automatically.

@@ -12,7 +12,6 @@
       "@cityq/crmq": [
         "../crmQ/src/index.js"
       ],
-      // 🚀 FIX: Add crmQ's data folder to the search paths
       "data/*": [
         "../crmQ/data/*",  
         "./src/aurora/data/*",

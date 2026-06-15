@@ -1,6 +1,7 @@
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation'; // 🚀 Added useSearchParams
 import { ButtonBase, IconButton, Stack, Tooltip } from '@mui/material';
 import { useEmailContext } from 'providers/EmailProvider';
+import React from 'react';
 import {
   ARCHIVE_EMAIL,
   DELETE_EMAIL,
@@ -13,19 +14,26 @@ import IconifyIcon from 'components/base/IconifyIcon';
 import CardHeaderAction from 'components/common/CardHeaderAction';
 import EmailDetailsActionMenu from './EmailDetailsActionMenu';
 
-// 🚀 Accept 'email' as a prop
 const EmailDetailsHeader = ({ email }) => {
   const { emailDispatch } = useEmailContext();
   const router = useRouter();
   const { label } = useParams();
+  const searchParams = useSearchParams(); // 🚀 Add this hook
 
   if (!email) return null;
+
+  // 🚀 FIXED: Ensure back button preserves pagination URL state
+  const handleCloseDetails = () => {
+    const query = searchParams.toString();
+    const suffix = query ? `?${query}` : '';
+    router.replace(`${paths.emailLabel(label || 'inbox')}${suffix}`);
+  };
 
   return (
     <CardHeaderAction>
       <Stack>
         <IconButton
-          onClick={() => router.replace(paths.emailLabel(label || 'inbox'))}
+          onClick={handleCloseDetails} // 🚀 Using the new function
           sx={{ ml: { lg: 'auto' }, order: { lg: 1 } }}
         >
           <IconifyIcon
@@ -124,4 +132,4 @@ const EmailDetailsHeader = ({ email }) => {
   );
 };
 
-export default EmailDetailsHeader;
+export default React.memo(EmailDetailsHeader);
