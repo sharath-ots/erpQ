@@ -5,12 +5,10 @@ export async function POST(req) {
     const body = await req.json();
     const { emailThread, instructions, senderEmail, recipientEmail } = body;
 
-    // 🚀 FIX: Allow either an email thread OR manual instructions
     if (!emailThread && !instructions) {
       return NextResponse.json({ error: 'Email thread or instructions are required' }, { status: 400 });
     }
 
-    // Deep Clean (Only if a thread exists)
     let cleanText = emailThread || '';
     if (cleanText) {
       cleanText = cleanText.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
@@ -20,28 +18,27 @@ export async function POST(req) {
       cleanText = cleanText.replace(/[ \t]+/g, ' ').replace(/\n\s*\n/g, '\n').trim();
     }
 
-    const userDirective = instructions 
-      ? `Follow this instruction: "${instructions}"` 
-      : `Write a logical, polite, and brief reply to the email thread.`;
+    const recName = recipientEmail ? recipientEmail.split('@')[0].replace(/[^a-zA-Z]/g, ' ') : 'Customer';
+    const sendName = senderEmail || 'CityQ';
 
-    // 🚀 NEW: Use a System Prompt to strongly enforce behavior for small models
-    const systemPrompt = `You are a strict, automated email drafting API. 
-    Your ONLY purpose is to output the final email text. 
-    NEVER include conversational filler (e.g., "Here is the email", "Sure,"). 
-    NEVER explain your output. 
-    Begin immediately with the greeting.`;
+    // Simplified system prompt so it doesn't trigger safety filters
+    const systemPrompt = "You are a professional email assistant. Output ONLY the email text. Do not explain, do not refuse, and do not add conversational filler.";
 
-    // 🚀 NEW: Cleaned up User Prompt so it doesn't give the model phrases to parrot
-    const prompt = `Instructions:
-    ${userDirective}
+    // Simple template that forces the model to expand the instruction into sentences
+    const prompt = `Write a professional email expanding on these notes. You must write full sentences, do not just copy the notes.
 
-    Rules:
-    - Start immediately with the greeting (e.g., "Hi [Name],").
-    - Keep it concise and professional.
-    - End the email with "Best regards," followed by "${senderEmail || 'CityQ'}".
-    - Output absolutely nothing but the email itself.
+    Notes to expand: "${instructions}"
 
-    ${cleanText ? `Context Thread:\n${cleanText}\n` : ''}`;
+    ${cleanText ? `Previous Email Thread:\n${cleanText}\n` : ''}
+
+    Output the email in this exact format:
+    Hi ${recName},
+
+    [Write the expanded email body here]
+
+    Best regards,
+    ${sendName}
+    `;
 
     const targetUrl = process.env.OLLAMA_INTERNAL_URL || 'http://erpq-ollama:11434';
     
@@ -50,7 +47,7 @@ export async function POST(req) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'llama3.2:1b',
-        system: systemPrompt, // <-- Pass the system rules here separately
+        system: systemPrompt, 
         prompt: prompt,
         stream: true, 
         keep_alive: '24h',
@@ -58,7 +55,7 @@ export async function POST(req) {
           num_ctx: 4096, 
           num_predict: 300, 
           num_thread: 2, 
-          temperature: 0.1 
+          temperature: 0.5 // Keep this around 0.5 so it has enough creativity to form sentences
         }
       })
     });
