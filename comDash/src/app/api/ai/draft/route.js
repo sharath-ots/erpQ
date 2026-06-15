@@ -24,25 +24,24 @@ export async function POST(req) {
       ? `Follow this instruction: "${instructions}"` 
       : `Write a logical, polite, and brief reply to the email thread.`;
 
-    // 🚀 NEW PROMPT: Adapts to whether it's a reply or a brand new email
-    const prompt = `Draft a direct, human-sounding professional email.
+    // 🚀 NEW: Use a System Prompt to strongly enforce behavior for small models
+    const systemPrompt = `You are a strict, automated email drafting API. 
+    Your ONLY purpose is to output the final email text. 
+    NEVER include conversational filler (e.g., "Here is the email", "Sure,"). 
+    NEVER explain your output. 
+    Begin immediately with the greeting.`;
 
-    <rules>
-    1. NO AI CHATTER. DO NOT write "Here is your draft", "Sure!", or "I am writing to...".
-    2. Start the very first line with "Hi [Name]," or "Dear [Name],".
-    3. Be concise, professional, and get straight to the point.
-    4. End the email with "Best regards," followed by "${senderEmail || 'CityQ'}".
-    5. Output ONLY the raw email text.
-    </rules>
-
-    <instructions>
+    // 🚀 NEW: Cleaned up User Prompt so it doesn't give the model phrases to parrot
+    const prompt = `Instructions:
     ${userDirective}
-    </instructions>
 
-    ${cleanText ? `<email_thread>\n${cleanText}\n</email_thread>` : ''}
+    Rules:
+    - Start immediately with the greeting (e.g., "Hi [Name],").
+    - Keep it concise and professional.
+    - End the email with "Best regards," followed by "${senderEmail || 'CityQ'}".
+    - Output absolutely nothing but the email itself.
 
-    DRAFT:
-    `;
+    ${cleanText ? `Context Thread:\n${cleanText}\n` : ''}`;
 
     const targetUrl = process.env.OLLAMA_INTERNAL_URL || 'http://erpq-ollama:11434';
     
@@ -51,6 +50,7 @@ export async function POST(req) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'llama3.2:1b',
+        system: systemPrompt, // <-- Pass the system rules here separately
         prompt: prompt,
         stream: true, 
         keep_alive: '24h',
