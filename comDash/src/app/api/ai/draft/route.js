@@ -21,10 +21,8 @@ export async function POST(req) {
     const recName = recipientEmail ? recipientEmail.split('@')[0].replace(/[^a-zA-Z]/g, ' ') : 'Customer';
     const sendName = senderEmail || 'CityQ';
 
-    // Simplified system prompt so it doesn't trigger safety filters
     const systemPrompt = "You are a professional email assistant. Output ONLY the email text. Do not explain, do not refuse, and do not add conversational filler.";
 
-    // Simple template that forces the model to expand the instruction into sentences
     const prompt = `Write a professional email expanding on these notes. You must write full sentences, do not just copy the notes.
 
     Notes to expand: "${instructions}"
@@ -55,7 +53,7 @@ export async function POST(req) {
           num_ctx: 4096, 
           num_predict: 300, 
           num_thread: 2, 
-          temperature: 0.5 // Keep this around 0.5 so it has enough creativity to form sentences
+          temperature: 0.5
         }
       })
     });

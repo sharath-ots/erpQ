@@ -5,7 +5,7 @@ import { Paper, Stack, CircularProgress, Typography } from '@mui/material';
 import EmailSidebar from 'layouts/email-layout/EmailSidebar';
 import { useBreakpoints } from 'providers/BreakpointsProvider';
 import BulkSelectProvider from 'providers/BulkSelectProvider';
-import EmailListContainer from 'components/sections/email/email-list/EmailListContainer';
+import EmailListContainer from 'components/email-app/email/email-list/EmailListContainer';
 
 // 🚀 1. Import BOTH the Provider and the Hook from your file
 import EmailProvider, { useEmailContext, emailSidebarWidth } from 'providers/EmailProvider';

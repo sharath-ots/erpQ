@@ -16,7 +16,6 @@ const EmailDetailsContainer = ({ explicitEmails = [] }) => {
   const pathParts = pathname.split('/').filter(Boolean);
   const extractedId = pathParts.pop();
 
-  // 🚀 FAST FIND: Resolves synchronously without waiting
   const activeEmail = useMemo(() => {
     return explicitEmails.find((e) => String(e.id) === String(extractedId));
   }, [explicitEmails, extractedId]);

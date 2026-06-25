@@ -30,7 +30,6 @@ const SendOptionInput = ({ setSendType, sendType, emailData, recipients, setReci
       let targetEmail = extractEmail(emailData?.sender_email || emailData?.user?.email || '');
       const cleanTo = extractEmail(emailData?.to || '');
 
-      // 🚀 THE SMART FIX: If the email was sent BY us (@cityq.biz), reply TO the customer!
       if (targetEmail.includes('@cityq.biz') && cleanTo) {
         targetEmail = cleanTo;
       }
@@ -44,7 +43,6 @@ const SendOptionInput = ({ setSendType, sendType, emailData, recipients, setReci
   }, [sendType, emailData, setRecipients]);
 
   return (
-    // 🚀 Reverted back to the side-by-side layout you had earlier
     <Stack sx={{ flexWrap: 'wrap', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
 
       <StyledFormControl>
@@ -120,7 +118,7 @@ const SendOptionInput = ({ setSendType, sendType, emailData, recipients, setReci
               [`& .${inputBaseClasses.root}`]: {
                 bgcolor: 'unset',
                 gap: 0.5,
-                height: 'auto', // Keeps the multi-email expansion working!
+                height: 'auto',
                 flexWrap: 'wrap',
                 ['&:hover']: { bgcolor: 'unset' },
                 [`&.${inputBaseClasses.focused}`]: {

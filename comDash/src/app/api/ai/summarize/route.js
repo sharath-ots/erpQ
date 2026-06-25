@@ -7,7 +7,6 @@ export async function POST(req) {
 
     if (!emailThread) return NextResponse.json({ error: 'Thread required' }, { status: 400 });
 
-    // 🚀 1. DEEP CLEANING (Keeps entire thread, removes code/bloat)
     let cleanText = emailThread;
     cleanText = cleanText.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
     cleanText = cleanText.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
@@ -38,14 +37,14 @@ export async function POST(req) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'llama3.2:1b', // 🚀 OPTIMIZATION 1: The "Goldilocks" 1 Billion parameter model
+        model: 'llama3.2:1b',
         prompt: prompt,
         stream: true, 
         keep_alive: '24h',
         options: {
-          num_ctx: 4096, // 🚀 High context to hold the full long email
-          num_predict: 150, // 🚀 OPTIMIZATION 2: Cap the output. 3 bullets won't exceed 150 tokens.
-          num_thread: 2, // 🚀 OPTIMIZATION 3: Locked exactly to your i5's 4 physical cores.
+          num_ctx: 4096,
+          num_predict: 150,
+          num_thread: 2,
           temperature: 0.1 
         }
       })

@@ -7,8 +7,8 @@ import { useBreakpoints } from 'providers/BreakpointsProvider';
 import BulkSelectProvider from 'providers/BulkSelectProvider';
 import { emailSidebarWidth, useEmailContext } from 'providers/EmailProvider';
 import Resizable from 'components/base/Resizable';
-import EmailDetailsContainer from 'components/sections/email/email-details/EmailDetailsContainer';
-import EmailListContainer from 'components/sections/email/email-list/EmailListContainer';
+import EmailDetailsContainer from 'components/email-app/email/email-details/EmailDetailsContainer';
+import EmailListContainer from 'components/email-app/email/email-list/EmailListContainer';
 import { INITIALIZE_EMAILS } from 'reducers/EmailReducer';
 
 const EmailDetails = () => {
