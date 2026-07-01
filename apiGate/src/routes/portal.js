@@ -49,6 +49,46 @@ function buildPurMenuChildren() {
 }
 
 /**
+ * Supplier portal sidebar. Paths must match supplierQ SupplierqShell + supplierListViews.js.
+ */
+function portalPathForSupplierDeskIframe(deskPath) {
+  const p = String(deskPath ?? "")
+    .replace(/^\//, "")
+    .replace(/\/+$/, "");
+  return p ? `/m/supplierq/iframe/${p}` : "/m/supplierq/iframe/app";
+}
+
+function buildSupplierMenuChildren() {
+  return [
+    { key: "dash", label: "DASHBOARD", path: "/m/supplierq" },
+    { key: "rfq", label: "RFQ", path: "/m/supplierq/rfqs" },
+    { key: "submit-quotation", label: "SUBMIT QUOTATION", path: "/m/supplierq/quotation/new" },
+    {
+      key: "sq",
+      label: "SUPPLIER QUOTATION",
+      path: "/m/supplierq/list/Supplier Quotation",
+    },
+    {
+      key: "po",
+      label: "PURCHASE ORDER",
+      path: "/m/supplierq/list/Purchase Order",
+    },
+    {
+      key: "pi",
+      label: "PURCHASE INVOICE",
+      path: "/m/supplierq/list/Purchase Invoice",
+    },
+    { key: "upload-invoice", label: "UPLOAD INVOICE", path: "/m/supplierq/invoice/upload" },
+    { key: "other", label: "OTHER DOCTYPES", path: "/m/supplierq/other" },
+    {
+      key: "embed-desk",
+      label: "ERPNEXT DESK",
+      path: portalPathForSupplierDeskIframe("/app"),
+    },
+  ];
+}
+
+/**
  * CRM sidebar (comDash is the only nav). Paths must match crmQ CrmqShell + crmListViews.js.
  */
 function buildCrmMenuChildren() {
@@ -150,6 +190,15 @@ export async function registerPortalRoutes(app) {
           label: "Purchasing",
           path: "/m/purq",
           children: buildPurMenuChildren(),
+        });
+      }
+
+      if (process.env.CITYQ_PORTAL_SUPPLIERQ !== "0" && (m.erp || erpConfigured)) {
+        items.push({
+          key: "supplierq-root",
+          label: "Supplier Portal",
+          path: "/m/supplierq",
+          children: buildSupplierMenuChildren(),
         });
       }
 

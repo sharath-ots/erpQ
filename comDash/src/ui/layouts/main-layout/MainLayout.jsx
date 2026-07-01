@@ -24,6 +24,8 @@ import { LeadProvider } from '../../../../../crmQ/src/contexts/LeadContext';
 import { OpportunityProvider } from '../../../../../crmQ/src/contexts/OpportunityContext';
 import LeadSideBar from '../../../../../crmQ/components/side-and-header/LeadSideAndHeaderLayout';
 import OpportunitySidebar from '../../../../../crmQ/components/side-and-header/OpportunitySideAndHeaderLayout';
+import ModulePortalSidenav from '@/components/portal/ModulePortalSidenav';
+import { isModulePortalRoute } from '@/components/portal/modulePortalNav';
 
 const GlobalWatermark = ({ isDark }) => (
   <Box
@@ -86,6 +88,8 @@ const MainLayout = ({ children }) => {
     pathname.includes('/opportunity-list') ||
     pathname.includes('/list/Opportunity');
 
+  const isModulePortal = isModulePortalRoute(pathname);
+
   useEffect(() => {
     if (!isLeadRoute && !isOpportunityRoute && sidenavType === 'collapsed') {
       setConfig({
@@ -138,6 +142,8 @@ const MainLayout = ({ children }) => {
               <LeadSideBar isCollapsed={isCollapsed} onToggleDesktop={toggleDesktopSidebar} />
             ) : isOpportunityRoute ? (
               <OpportunitySidebar isCollapsed={isCollapsed} onToggleDesktop={toggleDesktopSidebar} />
+            ) : isModulePortal ? (
+              <ModulePortalSidenav />
             ) : (
               <Sidenav />
             )}
@@ -169,6 +175,8 @@ const MainLayout = ({ children }) => {
             <LeadSideBar isCollapsed={false} onToggleDesktop={toggleNavbarDrawer} />
           ) : isOpportunityRoute ? (
             <OpportunitySidebar isCollapsed={false} onToggleDesktop={toggleNavbarDrawer} />
+          ) : isModulePortal ? (
+            <ModulePortalSidenav variant="temporary" />
           ) : (
             <SidenavDrawerContent variant="temporary" />
           )}

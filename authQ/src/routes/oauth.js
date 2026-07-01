@@ -214,9 +214,23 @@ export async function oauthRoutes(app) {
         undefined,
     }),
     onTokens: async ({ tokens, profile, claims, request }) => {
-      if (!env.docqInternalUrl) return;
-      if (!env.cityqServiceKey) return;
-      if (!tokens?.refresh_token) return;
+      if (!env.docqInternalUrl) {
+        request.log.warn("docQ token upsert skipped: AUTHQ_DOCQ_INTERNAL_URL not set");
+        return;
+      }
+      if (!env.cityqServiceKey) {
+        request.log.warn(
+          "docQ token upsert skipped: CITYQ_SERVICE_KEY not set (authQ and docQ must match)",
+        );
+        return;
+      }
+      if (!tokens?.refresh_token) {
+        request.log.warn(
+          { email: claims.email },
+          "docQ token upsert skipped: Zoho did not return refresh_token (revoke app in Zoho Account Security and sign in again)",
+        );
+        return;
+      }
 
       const url = `${env.docqInternalUrl.replace(/\/$/, "")}/internal/zoho/token/upsert`;
       const res = await fetch(url, {

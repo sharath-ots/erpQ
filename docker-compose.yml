@@ -56,22 +56,22 @@ services:
       retries: 5
       start_period: 40s
 
-  docq-db:
+  cityq-db:
     image: postgres:16-alpine
-    hostname: docq-db
+    hostname: cityq-db
     ports:
-      - "15432:5432"
+      - "${CITYQ_DB_PUBLISH_PORT:-15432}:5432"
     environment:
-      POSTGRES_DB: docq
-      POSTGRES_USER: docq
-      POSTGRES_PASSWORD: ${DOCQ_DB_PASSWORD:-docq_dev_change_me}
+      POSTGRES_DB: cityq
+      POSTGRES_USER: cityq
+      POSTGRES_PASSWORD: ${CITYQ_DB_PASSWORD:-cityq_dev_change_me}
     volumes:
-      - docq_pg_data:/var/lib/postgresql/data
+      - cityq_pg_data:/var/lib/postgresql/data
     restart: unless-stopped
     networks:
       - default
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U docq -d docq" ]
+      test: [ "CMD-SHELL", "pg_isready -U cityq -d cityq" ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -87,11 +87,20 @@ services:
     environment:
       DOCQ_HOST: "0.0.0.0"
       DOCQ_PORT: "14160"
-      DOCQ_DATABASE_URL: postgres://docq:${DOCQ_DB_PASSWORD:-docq_dev_change_me}@docq-db:5432/docq
+      CITYQ_DATABASE_URL: postgres://cityq:${CITYQ_DB_PASSWORD:-cityq_dev_change_me}@cityq-db:5432/cityq
+      # Legacy image compat until docq is rebuilt (older builds only read DOCQ_DATABASE_URL).
+      DOCQ_DATABASE_URL: postgres://cityq:${CITYQ_DB_PASSWORD:-cityq_dev_change_me}@cityq-db:5432/cityq
+      DOCQ_PG_SCHEMA: docq
+      # Must match auth + apiGate JWT_SECRET or docQ returns 401 and comDash logs you out.
+      JWT_SECRET: ${JWT_SECRET:-erpq-dev-jwt-change-me}
       CITYQ_SERVICE_KEY: ${CITYQ_SERVICE_KEY:-}
       DOCQ_TOKEN_ENC_KEY_B64: ${DOCQ_TOKEN_ENC_KEY_B64:-}
+      AUTHQ_ZOHO_CLIENT_ID: ${AUTHQ_ZOHO_CLIENT_ID:-}
+      AUTHQ_ZOHO_CLIENT_SECRET: ${AUTHQ_ZOHO_CLIENT_SECRET:-}
+      AUTHQ_ZOHO_ACCOUNTS_HOST: ${AUTHQ_ZOHO_ACCOUNTS_HOST:-accounts.zoho.com}
+      DOCQ_WORKDRIVE_API_BASE: ${DOCQ_WORKDRIVE_API_BASE:-https://www.zohoapis.com}
     depends_on:
-      docq-db:
+      cityq-db:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -145,8 +154,8 @@ services:
       CITYQ_INTERNAL_KEY: ${CITYQ_INTERNAL_KEY:-cityq-dev-internal-change-me}
       # OAuth (Google / Zoho): set client IDs & secrets in .env - never commit real values.
       AUTHQ_PUBLIC_BASE_URL: ${AUTHQ_PUBLIC_BASE_URL:-http://localhost:14100}
-      AUTHQ_OAUTH_RETURN_URL_PREFIXES: ${AUTHQ_OAUTH_RETURN_URL_PREFIXES:-http://localhost:13001,http://localhost:3000,http://127.0.0.1:13001}
-      AUTHQ_OAUTH_DEFAULT_RETURN_URL: ${AUTHQ_OAUTH_DEFAULT_RETURN_URL:-http://localhost:13001/}
+      AUTHQ_OAUTH_RETURN_URL_PREFIXES: ${AUTHQ_OAUTH_RETURN_URL_PREFIXES:-http://localhost:13000,http://localhost:3000,http://127.0.0.1:13000}
+      AUTHQ_OAUTH_DEFAULT_RETURN_URL: ${AUTHQ_OAUTH_DEFAULT_RETURN_URL:-http://localhost:13000/}
       AUTHQ_OAUTH_DEFAULT_ALLOWED_DOC_TYPES: ${AUTHQ_OAUTH_DEFAULT_ALLOWED_DOC_TYPES:-*}
       AUTHQ_GOOGLE_CLIENT_ID: ${AUTHQ_GOOGLE_CLIENT_ID:-}
       AUTHQ_GOOGLE_CLIENT_SECRET: ${AUTHQ_GOOGLE_CLIENT_SECRET:-}
@@ -177,7 +186,7 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_APIGATE_URL: ${NEXT_PUBLIC_APIGATE_URL:-http://localhost:18080}
-        NEXT_PUBLIC_COMDASH_URL: ${NEXT_PUBLIC_COMDASH_URL:-http://localhost:13001}
+        NEXT_PUBLIC_COMDASH_URL: ${NEXT_PUBLIC_COMDASH_URL:-http://localhost:13000}
         NEXT_PUBLIC_AUTHQ_URL: ${NEXT_PUBLIC_AUTHQ_URL:-http://localhost:14100}
         NEXT_PUBLIC_LOGIN_DEV_BYPASS: ${NEXT_PUBLIC_LOGIN_DEV_BYPASS:-false}
         NEXT_PUBLIC_ERPNEXT_SITE_LABEL: ${NEXT_PUBLIC_ERPNEXT_SITE_LABEL:-ERPNext}
@@ -190,11 +199,11 @@ services:
       HOSTNAME: "0.0.0.0"
       # These are browser-facing URLs. In production they come from .env.production.
       NEXT_PUBLIC_APIGATE_URL: ${NEXT_PUBLIC_APIGATE_URL:-http://localhost:18080}
-      NEXT_PUBLIC_COMDASH_URL: ${NEXT_PUBLIC_COMDASH_URL:-http://localhost:13001}
+      NEXT_PUBLIC_COMDASH_URL: ${NEXT_PUBLIC_COMDASH_URL:-http://localhost:13000}
       NEXT_PUBLIC_AUTHQ_URL: ${NEXT_PUBLIC_AUTHQ_URL:-http://localhost:14100}
       # Runtime values override baked NEXT_PUBLIC_* in the login UI.
       AUTH_WEB_RUNTIME_APIGATE: ${NEXT_PUBLIC_APIGATE_URL:-http://localhost:18080}
-      AUTH_WEB_RUNTIME_COMDASH: ${NEXT_PUBLIC_COMDASH_URL:-http://localhost:13001}
+      AUTH_WEB_RUNTIME_COMDASH: ${NEXT_PUBLIC_COMDASH_URL:-http://localhost:13000}
       AUTH_WEB_RUNTIME_AUTHQ: ${NEXT_PUBLIC_AUTHQ_URL:-http://localhost:14100}
       NEXT_PUBLIC_LOGIN_DEV_BYPASS: ${NEXT_PUBLIC_LOGIN_DEV_BYPASS:-false}
       NEXT_PUBLIC_ERPNEXT_SITE_LABEL: ${NEXT_PUBLIC_ERPNEXT_SITE_LABEL:-ERPNext}
@@ -237,19 +246,22 @@ services:
       # Set to 0 to hide from the portal sidebar without a rebuild
       CITYQ_PORTAL_HRQ: ${CITYQ_PORTAL_HRQ:-1}
       CITYQ_PORTAL_PURQ: ${CITYQ_PORTAL_PURQ:-1}
+      CITYQ_PORTAL_SUPPLIERQ: ${CITYQ_PORTAL_SUPPLIERQ:-1}
       # Optional: appended to ERPNext iframe URLs (Frappe route_options). Try full_page=1 for wider list views.
       ERPNEXT_IFRAME_QUERY: ${ERPNEXT_IFRAME_QUERY:-}
       ERP_ALLOW_DOCTYPE_DISCOVERY: ${ERP_ALLOW_DOCTYPE_DISCOVERY:-0}
       ERP_PARTNER_RATE_MAX: ${ERP_PARTNER_RATE_MAX:-600}
       PAYMENT_PARTNER_RATE_MAX: ${PAYMENT_PARTNER_RATE_MAX:-120}
       DOCQ_PARTNER_RATE_MAX: ${DOCQ_PARTNER_RATE_MAX:-300}
-      ERP_DEFAULT_DOCTYPES: ${ERP_DEFAULT_DOCTYPES:-Lead,Opportunity,Customer,Contact,DocType,Quotation}
+      ERP_DEFAULT_DOCTYPES: ${ERP_DEFAULT_DOCTYPES:-*,Lead,Opportunity,Customer,Contact,DocType,Quotation,Request for Quotation,Supplier Quotation,Purchase Order,Purchase Invoice,Supplier,Item}
       VIRTUAL_HOST: ${VIRTUAL_HOST_API}
       VIRTUAL_PORT: "8080"
     depends_on:
       auth:
         condition: service_started
       core:
+        condition: service_healthy
+      docq:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -268,7 +280,7 @@ services:
       dockerfile: comDash/Dockerfile
     image: erpq/comdash:latest
     ports:
-      - "${COMDASH_PUBLISH_PORT:-13001}:3000"
+      - "${COMDASH_PUBLISH_PORT:-13000}:3000"
     extra_hosts:
       - "${ERPNEXT_PUBLIC_HOSTNAME:-cityqerp.ortusolis.in}:${ERPNEXT_ROUTE_IP:-82.29.181.92}"
     environment:
@@ -333,7 +345,7 @@ services:
 
 volumes:
   rabbitmq_data:
-  docq_pg_data:
+  cityq_pg_data:
   ollama_data:
 
 networks:

@@ -184,6 +184,9 @@ const nextConfig = {
     /** purQ — Purchasing module sibling package */
     config.resolve.alias["@cityq/purq"] = path.resolve(__dirname, "../purQ/src/index.js");
 
+    /** supplierQ — external supplier portal sibling package */
+    config.resolve.alias["@cityq/supplierq"] = path.resolve(__dirname, "../supplierQ/src/index.js");
+
     aliasMuiPackages(config);
     aliasSharedUiBridgeComponents(config);
 

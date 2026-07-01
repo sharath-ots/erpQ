@@ -63,6 +63,22 @@ const sitemap = [
         icon: 'material-symbols:view-kanban-outline-rounded',
         active: true,
       },
+      {
+        name: 'Documents',
+        key: 'docq',
+        path: '/m/docq',
+        pathName: 'docq',
+        icon: 'material-symbols:folder-outline-rounded',
+        active: true,
+      },
+      {
+        name: 'Supplier Portal',
+        key: 'supplierq',
+        path: '/m/supplierq',
+        pathName: 'supplierq',
+        icon: 'material-symbols:local-shipping-outline',
+        active: true,
+      },
       // {
       //   name: 'Analytics',
       //   key: 'analytics',

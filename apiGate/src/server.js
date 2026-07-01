@@ -8,6 +8,7 @@ import { registerSessionRoutes } from "./routes/session.js";
 import { registerPortalRoutes } from "./routes/portal.js";
 import { registerMqRoutes } from "./routes/mq.js";
 import { registerCrmQRoutes } from "./routes/crmq.js";
+import { registerSupplierQRoutes } from "./routes/supplierq.js";
 import { env } from "./config.js";
 import { getCoreModulesCached } from "./services/coreSettings.js";
 import { startMqWorkflowConsumer } from "./services/mqWorkflowConsumer.js";
@@ -51,6 +52,7 @@ await registerSessionRoutes(app);
 await registerPortalRoutes(app);
 await registerMqRoutes(app);
 await registerCrmQRoutes(app);
+await registerSupplierQRoutes(app);
 startMqWorkflowConsumer({ logger: app.log });
 
 const { paymentPartnerPlugin } = await import("./partners/payment/plugin.js");
@@ -124,10 +126,22 @@ app.get("/health", async () => {
     authq = "down";
   }
 
+  let docq = env.docqUrl ? "down" : "disabled";
+  if (env.docqUrl) {
+    try {
+      const r = await fetch(`${env.docqUrl.replace(/\/$/, "")}/health`);
+      docq = r.ok ? "ok" : "degraded";
+    } catch {
+      docq = "down";
+    }
+  }
+
   return {
     status: "ok",
     service: "apigate",
     upstream_core: coreBackendUrl,
+    docq,
+    docq_url: env.docqUrl || null,
     erp: erpPluginEnabled ? "enabled" : "disabled",
     erp_partner_paths: erpPluginEnabled
       ? ["/api/v1/partners/erpnext", "/api/v1/erp"]

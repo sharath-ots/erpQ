@@ -14,7 +14,7 @@ export async function dashboardRoutes(app, { pool }) {
     const byState = await pool.query(
       `
         select state, count(*)::int as count
-        from docq_documents
+        from documents
         group by state
         order by state asc
       `,
@@ -22,7 +22,7 @@ export async function dashboardRoutes(app, { pool }) {
     const myDrafts = await pool.query(
       `
         select count(*)::int as count
-        from docq_documents
+        from documents
         where state = 'draft' and created_by_email = $1
       `,
       [actor.email],

@@ -1,0 +1,21 @@
+{
+  "name": "@cityq/supplierq",
+  "version": "0.1.0",
+  "private": true,
+  "description": "supplierQ — external supplier portal for comDash; RFQs, quotations, POs, invoices via apiGate",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@iconify/react": "^5.2.0",
+    "@mui/material": "^7.0.0",
+    "antd": "^5.22.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

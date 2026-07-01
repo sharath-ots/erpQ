@@ -125,7 +125,10 @@ export async function apiFetch(path, init) {
     credentials: "include",
   });
 
-  if (res.status === 401) {
+  // Partner/doc APIs may return 401 when upstream JWT is misconfigured; surface the error in UI instead of forcing logout.
+  const skipAuthRedirect =
+    path.includes("/partners/workdrive/") || path.includes("/partners/docq/");
+  if (res.status === 401 && !skipAuthRedirect) {
     await redirectToLogin();
   }
 

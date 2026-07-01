@@ -1,5 +1,7 @@
 # CI/CD with GitHub Actions and GHCR
 
+**Start here for all environments:** [DEPLOY.md](./DEPLOY.md) (local vs LAN build vs production GHCR).
+
 ## Overview
 
 ```mermaid
@@ -18,7 +20,9 @@ flowchart LR
 | Configure | Production server | `.env.production` (secrets, URLs, `GHCR_OWNER`, `APP_VERSION`) |
 | Deploy | GitHub Actions | SSH to server, `pull` + `up` (no build on server) |
 
-LAN VM continues to use **build on VM** (`docker-compose.lan.build-from-source.yml`) or **GHCR pull** (`lan-ghcr.sh`). Production uses **GHCR only**.
+LAN VM default: **build from PC** (`scripts/lan-deploy.ps1` + `docker-compose.lan.build-from-source.yml`).  
+LAN optional: **GHCR pull** (`scripts/lan-ghcr.sh`) after push to `main`.  
+Production: **GHCR only** (no build on server).
 
 ## Workflows
 

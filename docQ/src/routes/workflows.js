@@ -19,7 +19,7 @@ export async function workflowsRoutes(app, { pool }) {
   app.get("/api/v1/docs/workflows", async (request, reply) => {
     requireJwt(request);
     const { rows } = await pool.query(
-      "select doc_type, definition, updated_at, updated_by_email from docq_workflow_definitions order by doc_type asc",
+      "select doc_type, definition, updated_at, updated_by_email from workflow_definitions order by doc_type asc",
     );
     return reply.send({ workflows: rows });
   });
@@ -37,7 +37,7 @@ export async function workflowsRoutes(app, { pool }) {
     }
     await pool.query(
       `
-        insert into docq_workflow_definitions(doc_type, definition, updated_at, updated_by_email)
+        insert into workflow_definitions(doc_type, definition, updated_at, updated_by_email)
         values ($1,$2, now(), $3)
         on conflict (doc_type) do update set
           definition = excluded.definition,

@@ -12,6 +12,7 @@ COPY --from=deps /repo/comDash/node_modules ./comDash/node_modules
 COPY crmQ ./crmQ
 COPY hrQ ./hrQ
 COPY purQ ./purQ
+COPY supplierQ ./supplierQ
 COPY comDash ./comDash
 WORKDIR /repo/comDash
 ENV NEXT_TELEMETRY_DISABLED=1

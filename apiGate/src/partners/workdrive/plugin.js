@@ -7,7 +7,25 @@ import { env } from "../../config.js";
  * - Auth: CityQ JWT (same as other gateway routes)
  * - Authorization: enforced by docQ (workflow rules) + WorkDrive (native permissions)
  */
+function isDocqUnreachable(err) {
+  const code = err?.code || err?.cause?.code;
+  return code === "EAI_AGAIN" || code === "ENOTFOUND" || code === "ECONNREFUSED";
+}
+
 export async function workdrivePartnerPlugin(app) {
+  app.setErrorHandler((err, _request, reply) => {
+    if (isDocqUnreachable(err)) {
+      return reply.code(503).send({
+        error: "docq_unreachable",
+        message:
+          "Document service (docq) is not running or not on the Docker network. Start cityq-db and docq (see docs/DEPLOY.md).",
+      });
+    }
+    return reply.code(err.statusCode || 500).send({
+      error: err.message || "error",
+    });
+  });
+
   await app.register(rateLimit, {
     max: env.docqPartnerRateMax,
     timeWindow: "1 minute",

@@ -36,7 +36,7 @@ export async function docsRoutes(app, { pool }) {
 
     const { rows } = await pool.query(
       `
-        insert into docq_documents(
+        insert into documents(
           id, workdrive_file_id, workdrive_folder_id, workdrive_permalink,
           doc_type, title, state,
           created_by_email, created_at, updated_at
@@ -46,7 +46,7 @@ export async function docsRoutes(app, { pool }) {
           workdrive_folder_id = excluded.workdrive_folder_id,
           workdrive_permalink = excluded.workdrive_permalink,
           doc_type = excluded.doc_type,
-          title = coalesce(excluded.title, docq_documents.title),
+          title = coalesce(excluded.title, documents.title),
           updated_at = now()
         returning *
       `,
@@ -69,7 +69,7 @@ export async function docsRoutes(app, { pool }) {
     const fileId = String(request.params.fileId || "").trim();
     if (!fileId) return reply.code(400).send({ error: "fileId_required" });
     const { rows } = await pool.query(
-      "select * from docq_documents where workdrive_file_id = $1",
+      "select * from documents where workdrive_file_id = $1",
       [fileId],
     );
     if (!rows.length) return reply.code(404).send({ error: "not_registered" });
@@ -82,7 +82,7 @@ export async function docsRoutes(app, { pool }) {
     const { rows } = await pool.query(
       `
         select *
-        from docq_transition_history
+        from transition_history
         where document_id = $1
         order by created_at desc
         limit 200
@@ -109,7 +109,7 @@ export async function docsRoutes(app, { pool }) {
 
     const { rows } = await pool.query(
       `
-        insert into docq_erpnext_refs(document_id, erp_doctype, erp_docname, fieldname, url)
+        insert into erpnext_refs(document_id, erp_doctype, erp_docname, fieldname, url)
         values ($1,$2,$3,$4,$5)
         returning *
       `,

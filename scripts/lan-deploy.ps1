@@ -3,13 +3,19 @@
 #
 # Usage (repo root):
 #   powershell -ExecutionPolicy Bypass -File .\scripts\lan-deploy.ps1
-#   powershell -ExecutionPolicy Bypass -File .\scripts\lan-deploy.ps1 -Services comdash,apigate
+#   powershell -ExecutionPolicy Bypass -File .\scripts\lan-deploy.ps1 -Services cityq-db,docq,apigate
+#   (comma-separated works; or: -Services @('docq-db','docq','apigate'))
 
 param(
     [string[]]$Services = @(),
     [switch]$PullOnly,
     [switch]$NoBuild
 )
+
+# PowerShell often passes "docq-db,docq,apigate" as one argument — split it.
+if ($Services.Count -eq 1 -and $Services[0] -match ",") {
+    $Services = $Services[0] -split "," | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+}
 
 $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
@@ -57,4 +63,5 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host ""
-Write-Host "Deployed on LAN VM. Open: https://erpq.lan/ (after DNS/hosts and mkcert)"
+Write-Host "Mode B (LAN build). See docs/DEPLOY.md"
+Write-Host "Open: https://erpq.lan/ (hosts + mkcert on VM)"

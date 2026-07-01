@@ -8,3 +8,6 @@ export const pool = new Pool({
   max: Number(process.env.DOCQ_PG_POOL_MAX ?? 10),
 });
 
+pool.on("connect", (client) => {
+  client.query(`SET search_path TO ${env.pgSchema}, public`);
+});

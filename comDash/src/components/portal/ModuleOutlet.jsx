@@ -26,6 +26,7 @@ import AddOpportunityScreen from "../../../../crmQ/src/ui/AddOpportunityScreen";
 import EditOpportunityPage from "../../../../crmQ/pages/crm/opportunity/edit/[id]"
 import ViewOpportunityScreen from "../../../../crmQ/src/ui/ViewOpportunityScreen";
 //import { usePortalMenu } from "./shared-ui/PortalMenuContext";
+import { usePortalMenu } from "./PortalMenuProvider";
 
 // const CrmqShell = dynamic(
 //   () => import("@cityq/crmq").then((m) => ({ default: m.CrmqShell })),
@@ -42,8 +43,17 @@ const PurqShell = dynamic(
   { ssr: false, loading: () => <Spin style={{ display: "block", margin: "40px auto" }} /> },
 );
 
-export function ModuleOutlet({ menuItems = [], deskBaseUrl, deskIframeQuery }) {
+const SupplierqShell = dynamic(
+  () => import("@cityq/supplierq").then((m) => ({ default: m.SupplierqShell })),
+  { ssr: false, loading: () => <Spin style={{ display: "block", margin: "40px auto" }} /> },
+);
+
+export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskBaseUrlProp, deskIframeQuery: deskIframeQueryProp }) {
   const pathname = usePathname();
+  const portalMenu = usePortalMenu();
+  const menuItems = menuItemsProp.length ? menuItemsProp : (portalMenu.menuItems ?? []);
+  const deskBaseUrl = deskBaseUrlProp ?? portalMenu.deskBaseUrl;
+  const deskIframeQuery = deskIframeQueryProp ?? portalMenu.deskIframeQuery;
   const mod = findMenuItem(menuItems, pathname);
   const lastSentRef = useRef(null);
 
@@ -126,8 +136,8 @@ export function ModuleOutlet({ menuItems = [], deskBaseUrl, deskIframeQuery }) {
     );
   }
 
-  if (pathname.startsWith("/m/docq")) {
-    const normalized = pathname.replace(/\/$/, "");
+  if (/^\/m\/docq/i.test(pathname)) {
+    const normalized = pathname.replace(/^\/m\/docq/i, "/m/docq").replace(/\/$/, "");
     if (normalized === "/m/docq") return <DocDashboard />;
     if (normalized === "/m/docq/register") return <DocFileRegister />;
     if (normalized === "/m/docq/admin/workflows") return <DocWorkflowsAdmin />;
@@ -182,6 +192,18 @@ export function ModuleOutlet({ menuItems = [], deskBaseUrl, deskIframeQuery }) {
   if (pathname.startsWith("/m/purq")) {
     return (
       <PurqShell
+        pathname={pathname}
+        deskBaseUrl={deskBaseUrl ?? undefined}
+        deskIframeQuery={deskIframeQuery ?? undefined}
+        apiBase={apiBase}
+        getAccessToken={getAccessToken}
+      />
+    );
+  }
+
+  if (pathname.startsWith("/m/supplierq")) {
+    return (
+      <SupplierqShell
         pathname={pathname}
         deskBaseUrl={deskBaseUrl ?? undefined}
         deskIframeQuery={deskIframeQuery ?? undefined}

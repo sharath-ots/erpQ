@@ -65,7 +65,7 @@ export const env = {
     scope: trim(
       process.env.AUTHQ_ZOHO_SCOPE ??
         // Keep profile scopes for userinfo + add WorkDrive read scopes for docQ.
-        "openid email profile aaaserver.profile.READ WorkDrive.files.READ WorkDrive.team.READ",
+        "openid email profile aaaserver.profile.READ WorkDrive.files.READ WorkDrive.team.READ WorkDrive.workspace.READ WorkDrive.teamfolders.READ",
     ),
   },
 

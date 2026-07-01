@@ -52,6 +52,27 @@ function isLoginUrl(url) {
   return url.pathname === "/login" || url.pathname.startsWith("/login/");
 }
 
+/** OAuth return target: honor ?redirect=, never send token back to /login. */
+function resolvePostLoginDestination(redirectParam) {
+  const base = getComDashBase();
+  try {
+    const dest = new URL(
+      redirectParam || `${base.replace(/\/$/, "")}/`,
+      typeof window !== "undefined" ? window.location.href : undefined,
+    );
+    if (isLoginUrl(dest)) {
+      const fallback = new URL(base);
+      dest.protocol = fallback.protocol;
+      dest.host = fallback.host;
+      dest.pathname = fallback.pathname || "/";
+      dest.search = fallback.search;
+    }
+    return dest;
+  } catch {
+    return new URL(base);
+  }
+}
+
 function Brand() {
   return (
     <div className="flex items-center gap-2 select-none">
@@ -139,9 +160,27 @@ function LoginCard() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setRedirect(params.get("redirect") ?? "/");
+
+    // Zoho/Google callback may land on /login#cityq_token=… — forward to portal (not AuthGate).
+    if (!window.location.hash.includes("cityq_token=")) return;
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    const token = hashParams.get("cityq_token");
+    if (!token) return;
+    window.localStorage.setItem("cityq_access_token", token);
+    const dest = resolvePostLoginDestination(params.get("redirect"));
+    dest.hash = "";
+    window.location.replace(dest.toString());
   }, []);
 
-  const oauthReturn = useMemo(() => encodeURIComponent(`${getComDashBase()}/`), []);
+  const oauthReturn = useMemo(() => {
+    if (typeof window === "undefined") {
+      return encodeURIComponent(`${getComDashBase().replace(/\/$/, "")}/`);
+    }
+    const params = new URLSearchParams(window.location.search);
+    return encodeURIComponent(
+      resolvePostLoginDestination(params.get("redirect")).toString(),
+    );
+  }, [redirect]);
   const googleHref = `${getAuthQBase()}/oauth/google/start?return_url=${oauthReturn}`;
   const zohoHref = `${getAuthQBase()}/oauth/zoho/start?return_url=${oauthReturn}`;
 
@@ -157,18 +196,7 @@ function LoginCard() {
 
     try {
       const params = new URLSearchParams(window.location.search);
-      const target = params.get("redirect") ?? getComDashBase();
-      const dest = new URL(
-        target,
-        typeof window !== "undefined" ? window.location.href : undefined,
-      );
-      if (isLoginUrl(dest)) {
-        const fallback = new URL(getComDashBase());
-        dest.protocol = fallback.protocol;
-        dest.host = fallback.host;
-        dest.pathname = fallback.pathname || "/";
-        dest.search = fallback.search;
-      }
+      const dest = resolvePostLoginDestination(params.get("redirect"));
 
       const res = await fetch(`${getApiBase()}/api/v1/auth/login`, {
         method: "POST",

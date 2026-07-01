@@ -9,6 +9,7 @@ import { internalRoutes } from "./routes/internal.js";
 import { docsRoutes } from "./routes/docs.js";
 import { workflowsRoutes } from "./routes/workflows.js";
 import { dashboardRoutes } from "./routes/dashboard.js";
+import { workdriveBrowseRoutes } from "./routes/workdriveBrowse.js";
 
 const app = Fastify({ logger: true });
 
@@ -37,6 +38,7 @@ await internalRoutes(app, { pool });
 await docsRoutes(app, { pool });
 await workflowsRoutes(app, { pool });
 await dashboardRoutes(app, { pool });
+await workdriveBrowseRoutes(app, { pool });
 
 await app.listen({ port: env.port, host: env.host });
 

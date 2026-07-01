@@ -73,20 +73,20 @@ services:
       retries: 5
       start_period: 40s
 
-  docq-db:
+  cityq-db:
     image: postgres:16-alpine
-    hostname: docq-db
+    hostname: cityq-db
     environment:
-      POSTGRES_DB: docq
-      POSTGRES_USER: docq
-      POSTGRES_PASSWORD: ${DOCQ_DB_PASSWORD:-docq_lan_change_me}
+      POSTGRES_DB: cityq
+      POSTGRES_USER: cityq
+      POSTGRES_PASSWORD: ${CITYQ_DB_PASSWORD:-cityq_lan_change_me}
     volumes:
-      - docq_pg_data:/var/lib/postgresql/data
+      - cityq_pg_data:/var/lib/postgresql/data
     restart: unless-stopped
     networks:
       - default
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U docq -d docq"]
+      test: ["CMD-SHELL", "pg_isready -U cityq -d cityq"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -100,11 +100,17 @@ services:
     environment:
       DOCQ_HOST: "0.0.0.0"
       DOCQ_PORT: "14160"
-      DOCQ_DATABASE_URL: postgres://docq:${DOCQ_DB_PASSWORD:-docq_lan_change_me}@docq-db:5432/docq
+      CITYQ_DATABASE_URL: postgres://cityq:${CITYQ_DB_PASSWORD:-cityq_lan_change_me}@cityq-db:5432/cityq
+      DOCQ_PG_SCHEMA: docq
+      JWT_SECRET: ${JWT_SECRET:-change-me-lan-long-random}
       CITYQ_SERVICE_KEY: ${CITYQ_SERVICE_KEY:-change-me-lan-service-key}
       DOCQ_TOKEN_ENC_KEY_B64: ${DOCQ_TOKEN_ENC_KEY_B64:-}
+      AUTHQ_ZOHO_CLIENT_ID: ${AUTHQ_ZOHO_CLIENT_ID:-}
+      AUTHQ_ZOHO_CLIENT_SECRET: ${AUTHQ_ZOHO_CLIENT_SECRET:-}
+      AUTHQ_ZOHO_ACCOUNTS_HOST: ${AUTHQ_ZOHO_ACCOUNTS_HOST:-accounts.zoho.com}
+      DOCQ_WORKDRIVE_API_BASE: ${DOCQ_WORKDRIVE_API_BASE:-https://www.zohoapis.com}
     depends_on:
-      docq-db:
+      cityq-db:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -222,6 +228,12 @@ services:
       - traefik.http.routers.authweb-path.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
       - traefik.http.routers.authweb-path.service=authweb
       - traefik.http.routers.authweb-path.middlewares=authweb-normalize-double-login
+      - traefik.http.routers.authweb-runtime-config.rule=Host(`${PUBLIC_HOST}`) && Path(`/runtime-config`)
+      - traefik.http.routers.authweb-runtime-config.priority=1000
+      - traefik.http.routers.authweb-runtime-config.entrypoints=websecure
+      - traefik.http.routers.authweb-runtime-config.tls=true
+      - traefik.http.routers.authweb-runtime-config.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.routers.authweb-runtime-config.service=authweb
       - traefik.http.routers.authweb-assets.rule=Host(`${PUBLIC_HOST}`) && (PathPrefix(`/login/_next`) || PathPrefix(`/login/runtime-config`))
       - traefik.http.routers.authweb-assets.entrypoints=websecure
       - traefik.http.routers.authweb-assets.tls=true
@@ -261,6 +273,7 @@ services:
       ERPNEXT_CRM_PATH: ${ERPNEXT_CRM_PATH:-/app/crm}
       CITYQ_PORTAL_HRQ: ${CITYQ_PORTAL_HRQ:-1}
       CITYQ_PORTAL_PURQ: ${CITYQ_PORTAL_PURQ:-1}
+      CITYQ_PORTAL_SUPPLIERQ: ${CITYQ_PORTAL_SUPPLIERQ:-1}
       ERPNEXT_IFRAME_QUERY: ${ERPNEXT_IFRAME_QUERY:-}
       ERP_ALLOW_DOCTYPE_DISCOVERY: ${ERP_ALLOW_DOCTYPE_DISCOVERY:-0}
       ERP_PARTNER_RATE_MAX: ${ERP_PARTNER_RATE_MAX:-600}
@@ -271,6 +284,8 @@ services:
       auth:
         condition: service_started
       core:
+        condition: service_healthy
+      docq:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -285,6 +300,15 @@ services:
       - traefik.http.services.apigate.loadbalancer.server.port=8080
       - traefik.http.routers.apigate.middlewares=apigate-strip-api
       - traefik.http.middlewares.apigate-strip-api.stripprefix.prefixes=/api-gateway
+      # auth-web posts to /api/api/v1/*; strip the first /api before proxying.
+      - traefik.http.routers.apigate-login.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/api/api/v1`)
+      - traefik.http.routers.apigate-login.priority=200
+      - traefik.http.routers.apigate-login.entrypoints=websecure
+      - traefik.http.routers.apigate-login.tls=true
+      - traefik.http.routers.apigate-login.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.routers.apigate-login.service=apigate
+      - traefik.http.routers.apigate-login.middlewares=apigate-strip-login-api
+      - traefik.http.middlewares.apigate-strip-login-api.stripprefix.prefixes=/api
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
       interval: 10s
@@ -336,6 +360,13 @@ services:
       - traefik.http.routers.comdash-pur.tls=true
       - traefik.http.routers.comdash-pur.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
       - traefik.http.routers.comdash-pur.service=comdash
+      # Next.js /api/* (incl. /api/v1/* proxy to apiGate)
+      - traefik.http.routers.comdash-api.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/api`)
+      - traefik.http.routers.comdash-api.priority=100
+      - traefik.http.routers.comdash-api.entrypoints=websecure
+      - traefik.http.routers.comdash-api.tls=true
+      - traefik.http.routers.comdash-api.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.routers.comdash-api.service=comdash
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
       interval: 15s
@@ -354,17 +385,22 @@ services:
       - proxy
     labels:
       - traefik.enable=true
-      - traefik.http.routers.erpproxy.rule=Host(`${PUBLIC_HOST}`) && PathPrefix(`/erp`)
+      - traefik.http.routers.erpproxy.rule=Host(`${PUBLIC_HOST}`) && (Path(`/erp`) || PathPrefix(`/erp/`))
       - traefik.http.routers.erpproxy.entrypoints=websecure
       - traefik.http.routers.erpproxy.tls=true
       - traefik.http.routers.erpproxy.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
       - traefik.http.services.erpproxy.loadbalancer.server.port=80
       - traefik.http.routers.erpproxy.middlewares=erpproxy-strip-erp
       - traefik.http.middlewares.erpproxy-strip-erp.stripprefix.prefixes=/erp
+      - traefik.http.routers.erpproxy-assets.rule=Host(`${PUBLIC_HOST}`) && (PathPrefix(`/assets`) || PathPrefix(`/files`) || PathPrefix(`/private/files`) || Path(`/website_script.js`) || PathPrefix(`/socket.io`))
+      - traefik.http.routers.erpproxy-assets.entrypoints=websecure
+      - traefik.http.routers.erpproxy-assets.tls=true
+      - traefik.http.routers.erpproxy-assets.tls.certresolver=${TRAEFIK_CERTRESOLVER:-}
+      - traefik.http.routers.erpproxy-assets.service=erpproxy
 
 volumes:
   rabbitmq_data:
-  docq_pg_data:
+  cityq_pg_data:
 
 networks:
   proxy: {}

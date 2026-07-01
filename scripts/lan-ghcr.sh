@@ -1,6 +1,8 @@
 #!/usr/bin/env sh
-# Run from repo root on the LAN VM: pull GHCR images + Traefik path routing.
-# Usage:
+# Mode B-alt — LAN VM pull from GHCR (NO local build). Images come from CI after push to main.
+# See docs/DEPLOY.md. For code changes on your PC use scripts/lan-deploy.ps1 instead.
+#
+# Run on the LAN VM from repo root:
 #   chmod +x scripts/lan-ghcr.sh
 #   ./scripts/lan-ghcr.sh pull
 #   ./scripts/lan-ghcr.sh up -d

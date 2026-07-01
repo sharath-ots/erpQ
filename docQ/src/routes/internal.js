@@ -31,11 +31,17 @@ export async function internalRoutes(app, { pool }) {
     if (!refresh) {
       return reply.code(400).send({ error: "refresh_token_required" });
     }
+    if (!env.tokenEncKeyB64) {
+      return reply.code(503).send({
+        error: "token_encryption_not_configured",
+        message: "Set DOCQ_TOKEN_ENC_KEY_B64 in docQ environment (32-byte base64)",
+      });
+    }
 
     const enc = encryptString(refresh, env.tokenEncKeyB64);
     await pool.query(
       `
-        insert into docq_zoho_tokens(
+        insert into zoho_tokens(
           user_email, zoho_id,
           refresh_token_alg, refresh_token_iv_b64, refresh_token_tag_b64, refresh_token_ciphertext_b64,
           updated_at
