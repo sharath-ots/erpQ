@@ -9,6 +9,7 @@ dist/
 coverage/
 *.log
 .DS_Store
+.md
 
 # Accidental Next/webpack debug dumps at repo root
 _debug_*.js
