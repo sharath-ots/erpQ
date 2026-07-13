@@ -7,14 +7,23 @@ import Stack from '@mui/material/Stack';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
-import useNumberFormat from 'hooks/useNumberFormat';
 import { getPercentageStr } from 'lib/utils';
 import IconifyIcon from 'components/base/IconifyIcon';
 import StyledTextField from 'components/styled/StyledTextField';
 
+// 1. Added strict INR formatting function to guarantee Rupee display
+const formatINR = (amount) => {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 2
+  }).format(amount || 0);
+};
+
 const CreateOrderPaymentSummary = ({ items }) => {
-  const { currencyFormat } = useNumberFormat();
   const [discountType, setDiscountType] = useState('%');
+  
+  // Note: You can change these default amounts to suit INR values later (e.g. 400 instead of 4)
   const shippingCost = 4;
   const discountAmount = 50;
 
@@ -31,11 +40,11 @@ const CreateOrderPaymentSummary = ({ items }) => {
       }}
     >
       <PriceSummaryRow label="Subtotal" value={total} sx={{ mb: 2 }} />
-      <PriceSummaryEditableRow
+      {/* <PriceSummaryEditableRow
         label="Add Shipping cost"
         action={
           <StyledTextField
-            value={currencyFormat(shippingCost)}
+            value={formatINR(shippingCost)}
             sx={{
               width: 84,
               [`& .${inputBaseClasses.input}`]: {
@@ -46,7 +55,7 @@ const CreateOrderPaymentSummary = ({ items }) => {
         }
         labelStyles={{ lineClamp: 0, wordBreak: 'normal', mt: 0.25 }}
         sx={{ mb: 3, gap: 1, alignItems: 'flex-start' }}
-      />
+      /> */}
       <PriceSummaryEditableRow
         label="Add Discount"
         action={
@@ -70,9 +79,10 @@ const CreateOrderPaymentSummary = ({ items }) => {
                   sx={{ fontSize: 20, color: 'text.primary' }}
                 />
               </ToggleButton>
-              <ToggleButton value="$" sx={{ width: 40 }}>
+              {/* 2. Replaced '$' with '₹' and updated the icon */}
+              <ToggleButton value="₹" sx={{ width: 40 }}>
                 <IconifyIcon
-                  icon="material-symbols:attach-money-rounded"
+                  icon="material-symbols:currency-rupee-rounded"
                   sx={{ fontSize: 20, color: 'text.primary' }}
                 />
               </ToggleButton>
@@ -80,8 +90,8 @@ const CreateOrderPaymentSummary = ({ items }) => {
 
             <StyledTextField
               value={
-                discountType === '$'
-                  ? currencyFormat(discountAmount)
+                discountType === '₹'
+                  ? formatINR(discountAmount)
                   : getPercentageStr(discountAmount, 100)
               }
               sx={{
@@ -107,9 +117,10 @@ const CreateOrderPaymentSummary = ({ items }) => {
           Total
         </Typography>
         <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+          {/* 3. Fixed math to calculate the actual total, and formatted in INR */}
           {discountType === '%'
-            ? currencyFormat(((total + shippingCost) * discountAmount) / 100)
-            : currencyFormat(total + shippingCost - discountAmount)}
+            ? formatINR((total + shippingCost) - ((total + shippingCost) * discountAmount) / 100)
+            : formatINR(total + shippingCost - discountAmount)}
         </Typography>
       </Stack>
     </Box>
@@ -117,8 +128,6 @@ const CreateOrderPaymentSummary = ({ items }) => {
 };
 
 const PriceSummaryRow = ({ label, value, labelStyles, sx }) => {
-  const { currencyFormat } = useNumberFormat();
-
   return (
     <Stack
       sx={{ justifyContent: 'space-between', alignItems: 'center', color: 'text.secondary', ...sx }}
@@ -129,7 +138,8 @@ const PriceSummaryRow = ({ label, value, labelStyles, sx }) => {
       >
         {label}
       </Typography>
-      <Typography variant="subtitle1">{currencyFormat(value)}</Typography>
+      {/* 4. Applied INR format */}
+      <Typography variant="subtitle1">{formatINR(value)}</Typography>
     </Stack>
   );
 };

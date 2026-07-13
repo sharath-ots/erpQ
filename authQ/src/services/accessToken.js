@@ -7,6 +7,7 @@ import { parseOAuthAllowedDocTypes } from "../config.js";
  * @param {string} opts.sub
  * @param {string} opts.email
  * @param {string[]} [opts.allowedDocTypes] — if omitted, uses OAuth env defaults
+ * @param {string} [opts.roles]
  * @param {string} [opts.zohoId]
  * @param {string} [opts.googleSub]
  */
@@ -16,6 +17,7 @@ export async function mintCityQAccessToken(reply, {
   allowedDocTypes: allowedOverride,
   zohoId,
   googleSub,
+  roles,
 }) {
   const expiresIn = Number(process.env.JWT_EXPIRES_SEC ?? 3600);
   const allowedDocTypes = Array.isArray(allowedOverride)
@@ -28,6 +30,7 @@ export async function mintCityQAccessToken(reply, {
       allowedDocTypes,
       zohoId,
       googleSub,
+      roles,
       frappeUserEmail: email,
     },
     { expiresIn },

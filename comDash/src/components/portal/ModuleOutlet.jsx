@@ -57,6 +57,29 @@ export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskB
   const mod = findMenuItem(menuItems, pathname);
   const lastSentRef = useRef(null);
 
+  // const userProfile = typeof window !== 'undefined' ? window.localStorage.getItem("role_profile") : null;
+  // console.log("User Profile:", userProfile);
+  // const isSupplierUser = userProfile === "Portal - Supplier";
+  // const isSupplierPath = pathname.startsWith("/m/supplierq");
+
+  // if (isSupplierUser && !isSupplierPath) {
+  //   return (
+  //     <Card style={{ margin: '24px' }}>
+  //       <Typography.Title level={4}>Access Denied</Typography.Title>
+  //       <Typography.Paragraph>Your account profile only has access to the Supplier Portal.</Typography.Paragraph>
+  //     </Card>
+  //   );
+  // }
+
+  // if (!isSupplierUser && isSupplierPath) {
+  //   return (
+  //     <Card style={{ margin: '24px' }}>
+  //       <Typography.Title level={4}>Access Denied</Typography.Title>
+  //       <Typography.Paragraph>You do not have permission to access the Supplier Portal.</Typography.Paragraph>
+  //     </Card>
+  //   );
+  // }
+
   useEffect(() => {
     if (!mod?.key) return;
     if (lastSentRef.current === pathname) return;
@@ -72,7 +95,23 @@ export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskB
     });
   }, [pathname, mod?.key]);
 
+  // if (!pathname.startsWith("/m/supplierq")) {
+  //   const userProfile = typeof window !== 'undefined' ? window.localStorage.getItem("role_profile") : null;
+  
+  //   if (userProfile === "Portal - Supplier") {
+  //     return (
+  //         <Card style={{ margin: '24px' }}>
+  //           <Typography.Title level={4}>Access Denied</Typography.Title>
+  //           <Typography.Paragraph>
+  //             Your account profile only has access to the Supplier Portal.
+  //           </Typography.Paragraph> 
+  //         </Card>
+  //       );
+  //   }
+  // }
+
   if (pathname.startsWith("/m/crmq")) {
+
     const normalized = pathname.replace(/\/$/, ""); // Strip trailing slashes
 
     // EXACT MATCH: Main Dashboard

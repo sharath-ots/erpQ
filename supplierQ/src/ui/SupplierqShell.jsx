@@ -7,6 +7,9 @@ import { RfqListPage } from "./RfqListPage.jsx";
 import { QuotationFormPage } from "./QuotationFormPage.jsx";
 import { InvoiceUploadPage } from "./InvoiceUploadPage.jsx";
 import { SupplierOtherDocTypesPage } from "./SupplierOtherDocTypesPage.jsx";
+import { PurchaseOrderView } from "./PurchaseOrder.jsx";
+import { SupplierQuotationView } from "./SupplierQuotationView.jsx";
+import { PurchaseInvoiceView } from "./PurchaseInvoiceView.jsx";
 import { ErpDeskIframe } from "./ErpDeskIframe.jsx";
 import { supplierCuratedDocTypeSet, getSupplierListViewConfig } from "../constants/supplierListViews.js";
 
@@ -49,6 +52,18 @@ export function SupplierqShell({
 
   if (normalized === "/m/supplierq/other") {
     return <SupplierOtherDocTypesPage apiBase={apiBase} getAccessToken={getAccessToken} />;
+  }
+
+  if (normalized === "/m/supplierq/list/supplier-quotation") {
+    return <SupplierQuotationView apiBase={apiBase} getAccessToken={getAccessToken} />;
+  }
+
+  if (normalized === "/m/supplierq/list/purchase-order") {
+    return <PurchaseOrderView apiBase={apiBase} getAccessToken={getAccessToken} />;
+  }
+
+  if (normalized === "/m/supplierq/list/purchase-invoice") {
+    return <PurchaseInvoiceView apiBase={apiBase} getAccessToken={getAccessToken} />;
   }
 
   const listMatch = normalized.match(/^\/m\/supplierq\/list\/([^/]+)$/);

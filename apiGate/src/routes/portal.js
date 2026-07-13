@@ -66,25 +66,25 @@ function buildSupplierMenuChildren() {
     {
       key: "sq",
       label: "SUPPLIER QUOTATION",
-      path: "/m/supplierq/list/Supplier Quotation",
+      path: "/m/supplierq/list/supplier-quotation",
     },
     {
       key: "po",
       label: "PURCHASE ORDER",
-      path: "/m/supplierq/list/Purchase Order",
+      path: "/m/supplierq/list/purchase-order",
     },
     {
       key: "pi",
       label: "PURCHASE INVOICE",
-      path: "/m/supplierq/list/Purchase Invoice",
+      path: "/m/supplierq/list/purchase-invoice",
     },
     { key: "upload-invoice", label: "UPLOAD INVOICE", path: "/m/supplierq/invoice/upload" },
-    { key: "other", label: "OTHER DOCTYPES", path: "/m/supplierq/other" },
-    {
-      key: "embed-desk",
-      label: "ERPNEXT DESK",
-      path: portalPathForSupplierDeskIframe("/app"),
-    },
+    // { key: "other", label: "OTHER DOCTYPES", path: "/m/supplierq/other" },
+    // {
+    //   key: "embed-desk",
+    //   label: "ERPNEXT DESK",
+    //   path: portalPathForSupplierDeskIframe("/app"),
+    // },
   ];
 }
 

@@ -5,18 +5,18 @@ import { getFrappeSidForUser } from "../services/frappeSessionStore.js";
 let tokenClient = null;
 
 export function getFrappeClient() {
-  if (!env.erpnextUrl || !env.erpnextApiKey || !env.erpnextApiSecret) {
+  if (!env.versaqErpnextUrl || !env.versaqErpnextApiKey || !env.versaqErpnextApiSecret) {
     throw new Error(
-      "ERPNEXT_URL, ERPNEXT_API_KEY, ERPNEXT_API_SECRET must be set for ERP routes",
+      "VERSAQ_ERPNEXT_URL, VERSAQ_ERPNEXT_API_KEY, VERSAQ_ERPNEXT_API_SECRET must be set for ERP routes",
     );
   }
   if (!tokenClient) {
     tokenClient = new FrappeClient({
-      baseUrl: env.erpnextUrl,
+      baseUrl: env.versaqErpnextUrl,
       auth: {
         kind: "token",
-        apiKey: env.erpnextApiKey,
-        apiSecret: env.erpnextApiSecret,
+        apiKey: env.versaqErpnextApiKey,
+        apiSecret: env.versaqErpnextApiSecret,
       },
     });
   }
@@ -26,9 +26,9 @@ export function getFrappeClient() {
 /** Prefer per-user Frappe session cookie when present (native permissions); else integration user token. */
 export function getFrappeClientForGatewayUser(email) {
   const sid = email ? getFrappeSidForUser(email) : undefined;
-  if (sid && env.erpnextUrl) {
+  if (sid && env.versaqErpnextUrl) {
     return new FrappeClient({
-      baseUrl: env.erpnextUrl,
+      baseUrl: env.versaqErpnextUrl,
       auth: { kind: "cookie", cookieHeader: sid },
     });
   }

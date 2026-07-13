@@ -204,7 +204,9 @@ const MainLayout = ({ children }) => {
         >
           <Toolbar variant={toolbarVariant} sx={{ flexShrink: 0 }} />
 
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, '& > div': {
+                paddingTop: '1px !important', paddingBottom: '0px !important', paddingLeft: '0px !important', paddingRight: '0px !important'
+              }}}>
             <ConfigProvider theme={{ algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm }}>
               {/* <GlobalWatermark isDark={isDark} /> */}
               {children}
