@@ -237,7 +237,7 @@ export function RfqListPage({ apiBase, getAccessToken }) {
     return (
         <Box>
             <EnhancedTable 
-                title="Requests for Quotation"
+                title="Requests for Quotationsss"
                 headCells={rfqHeadCells} 
                 rows={rows} 
                 uniqueKey="name" 
