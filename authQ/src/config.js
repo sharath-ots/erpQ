@@ -15,6 +15,11 @@ function listCsv(v) {
 }
 
 export const env = {
+
+  VersaqERPNextUrl: trim(process.env.VERSAQ_ERPNEXT_URL ?? "https://cityqerp.ortusolis.in"),
+  VersaqERPNextApiKey: trim(process.env.VERSAQ_ERPNEXT_API_KEY),
+  VersaqERPNextApiSecret: trim(process.env.VERSAQ_ERPNEXT_API_SECRET),
+
   jwtExpiresSec: Number(process.env.JWT_EXPIRES_SEC ?? 3600),
 
   /** Public base URL of this auth API (browser redirects), e.g. http://localhost:14100 */

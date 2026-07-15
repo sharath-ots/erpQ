@@ -117,7 +117,6 @@ export function SupplierQuotationView({ apiBase, getAccessToken }) {
         setSelectedQuotation(row); 
         
         try {
-            // This will now hit the new backend route you added above
             const detailRes = await fetchSupplierQuotationDetail(row.name, { apiBase, getAccessToken });
             setSelectedQuotation(detailRes.data || row);
         } catch (error) {
@@ -143,8 +142,13 @@ export function SupplierQuotationView({ apiBase, getAccessToken }) {
                 anchor="right"
                 open={drawerOpen}
                 onClose={() => setDrawerOpen(false)}
-                PaperProps={{
-                    sx: { width: { xs: '100%', md: '70vw' } } // 70% width
+                sx={{
+                    // MATCHED RFQ ALIGNMENT: Aggressive width override
+                    '& .MuiDrawer-paper': { 
+                        width: '45vw', 
+                        minWidth: '600px', 
+                        maxWidth: '1200px'
+                    }
                 }}
             >
                 {selectedQuotation && (
@@ -171,63 +175,71 @@ export function SupplierQuotationView({ apiBase, getAccessToken }) {
                         <Divider sx={{ mb: 2, flexShrink: 0 }} />
 
                         {/* ================= SCROLLABLE BODY ================= */}
-                        <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 1 }}>
+                        <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 1, mb: 2 }}>
                             
-                            {/* Basic Metadata */}
-                            <Grid container spacing={3} sx={{ mb: 3 }}>
-                                <Grid item xs={12} sm={4}>
+                            {/* MATCHED RFQ ALIGNMENT: Flex Box metadata instead of Grid */}
+                            <Box sx={{ display: 'flex', gap: 6, mb: 3, flexDirection: 'row' }}>
+                                <Box>
                                     <Typography variant="caption" color="text.secondary" fontWeight={700} textTransform="uppercase">
                                         Supplier
                                     </Typography>
-                                    <Typography variant="body1" fontWeight={500}>
+                                    <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>
                                         {selectedQuotation.supplier || "—"}
                                     </Typography>
-                                </Grid>
-                                <Grid item xs={12} sm={4}>
+                                </Box>
+                                <Box>
                                     <Typography variant="caption" color="text.secondary" fontWeight={700} textTransform="uppercase">
                                         Date
                                     </Typography>
-                                    <Typography variant="body1" fontWeight={500}>
+                                    <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>
                                         {selectedQuotation.transaction_date || "—"}
                                     </Typography>
-                                </Grid>
-                                <Grid item xs={12} sm={4}>
+                                </Box>
+                                <Box>
                                     <Typography variant="caption" color="text.secondary" fontWeight={700} textTransform="uppercase">
                                         Valid Till
                                     </Typography>
-                                    <Typography variant="body1" fontWeight={500}>
+                                    <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>
                                         {selectedQuotation.valid_till || "—"}
                                     </Typography>
-                                </Grid>
-                            </Grid>
+                                </Box>
+                            </Box>
 
                             <Divider sx={{ mb: 3 }} />
 
-                            {/* Addresses */}
-                            <Grid container spacing={3} sx={{ mb: 3 }}>
-                                <Grid item xs={12} sm={6}>
-                                    <Typography variant="caption" color="text.secondary" fontWeight={700} textTransform="uppercase" display="block">
-                                        Company Billing Address
+                            {/* MATCHED RFQ ALIGNMENT: Side-by-Side Flex Layout for Address */}
+                            <Box sx={{ display: 'flex', gap: 4, flexDirection: { xs: 'column', md: 'row' }, mb: 3 }}>
+                                <Box sx={{ flex: 1 }}>
+                                    <Typography variant="caption" color="text.secondary" fontWeight={700} textTransform="uppercase" display="block" mb={1}>
+                                        Supplier Billing Address
                                     </Typography>
-                                    <Typography variant="body2" sx={{ fontWeight: 600, mt: 1 }}>
-                                        {selectedQuotation.billing_address || "—"}
+                                    <Typography variant="body2" sx={{ color: 'text.primary', lineHeight: 1.6 }}>
+                                        {selectedQuotation.billing_address && selectedQuotation.billing_address !== "—" && (
+                                            <span style={{ fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                                                {selectedQuotation.billing_address}
+                                            </span>
+                                        )}
+                                        <span style={{ color: 'text.secondary' }}>
+                                            {formatAddress(selectedQuotation.billing_address, selectedQuotation.billing_address_display)}
+                                        </span>
                                     </Typography>
-                                    <Typography variant="body2" sx={{ mt: 0.5, color: 'text.secondary' }}>
-                                        {formatAddress(selectedQuotation.billing_address, selectedQuotation.billing_address_display)}
-                                    </Typography>
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                    <Typography variant="caption" color="text.secondary" fontWeight={700} textTransform="uppercase" display="block">
+                                </Box>
+                                <Box sx={{ flex: 1 }}>
+                                    <Typography variant="caption" color="text.secondary" fontWeight={700} textTransform="uppercase" display="block" mb={1}>
                                         Shipping Address
                                     </Typography>
-                                    <Typography variant="body2" sx={{ fontWeight: 600, mt: 1 }}>
-                                        {selectedQuotation.shipping_address || "—"}
+                                    <Typography variant="body2" sx={{ color: 'text.primary', lineHeight: 1.6 }}>
+                                        {selectedQuotation.shipping_address && selectedQuotation.shipping_address !== "—" && (
+                                            <span style={{ fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                                                {selectedQuotation.shipping_address}
+                                            </span>
+                                        )}
+                                        <span style={{ color: 'text.secondary' }}>
+                                            {formatAddress(selectedQuotation.shipping_address, selectedQuotation.shipping_address_display)}
+                                        </span>
                                     </Typography>
-                                    <Typography variant="body2" sx={{ mt: 0.5, color: 'text.secondary' }}>
-                                        {formatAddress(selectedQuotation.shipping_address, selectedQuotation.shipping_address_display)}
-                                    </Typography>
-                                </Grid>
-                            </Grid>
+                                </Box>
+                            </Box>
 
                             <Divider sx={{ mb: 3 }} />
 
@@ -259,7 +271,7 @@ export function SupplierQuotationView({ apiBase, getAccessToken }) {
                                                     selectedQuotation.items.map((item, index) => (
                                                         <TableRow key={index} hover>
                                                             <TableCell>{item.idx || index + 1}</TableCell>
-                                                            <TableCell sx={{ fontWeight: 500 }}>{item.item_code}</TableCell>
+                                                            <TableCell sx={{ fontWeight: 500, color: 'primary.main' }}>{item.item_code}</TableCell>
                                                             <TableCell align="right" sx={{ fontWeight: 700 }}>{item.qty}</TableCell>
                                                             <TableCell>
                                                                 <Chip label={item.uom} size="small" variant="outlined" />
@@ -283,29 +295,31 @@ export function SupplierQuotationView({ apiBase, getAccessToken }) {
                                 )}
                             </Box>
 
+                            <Divider sx={{ mb: 3 }} />
+
                             {/* Taxes, Terms & Totals */}
                             {!drawerLoading && (
-                                <Grid container spacing={3} sx={{ mb: 2, p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+                                <Box sx={{ display: 'flex', gap: 4, flexDirection: { xs: 'column', md: 'row' }, p: 3, bgcolor: 'action.hover', borderRadius: 2 }}>
                                     
                                     {/* Taxes and Charges */}
-                                    <Grid item xs={12} sm={4}>
-                                        <Typography variant="subtitle2" fontWeight={700} mb={1}>Taxes and Charges</Typography>
+                                    <Box sx={{ flex: 1 }}>
+                                        <Typography variant="subtitle2" fontWeight={700} mb={1.5}>Taxes and Charges</Typography>
                                         <Typography variant="caption" color="text.secondary" display="block">Tax Category</Typography>
                                         <Typography variant="body2">{selectedQuotation.tax_category || "—"}</Typography>
-                                    </Grid>
+                                    </Box>
 
                                     {/* Incoterms */}
-                                    <Grid item xs={12} sm={4}>
-                                        <Typography variant="subtitle2" fontWeight={700} mb={1}>Shipping Terms</Typography>
+                                    <Box sx={{ flex: 1 }}>
+                                        <Typography variant="subtitle2" fontWeight={700} mb={1.5}>Shipping Terms</Typography>
                                         <Typography variant="caption" color="text.secondary" display="block">Incoterm</Typography>
                                         <Typography variant="body2" mb={1}>{selectedQuotation.incoterm || "—"}</Typography>
                                         <Typography variant="caption" color="text.secondary" display="block">Named Place</Typography>
                                         <Typography variant="body2">{selectedQuotation.named_place || "—"}</Typography>
-                                    </Grid>
+                                    </Box>
 
                                     {/* Totals */}
-                                    <Grid item xs={12} sm={4}>
-                                        <Typography variant="subtitle2" fontWeight={700} mb={1}>Totals</Typography>
+                                    <Box sx={{ flex: 1.5 }}>
+                                        <Typography variant="subtitle2" fontWeight={700} mb={1.5}>Totals</Typography>
                                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                                             <Typography variant="body2" color="text.secondary">Total Quantity</Typography>
                                             <Typography variant="body2" fontWeight={700}>{selectedQuotation.total_qty ?? "—"}</Typography>
@@ -318,23 +332,23 @@ export function SupplierQuotationView({ apiBase, getAccessToken }) {
                                             <Typography variant="body2" color="text.secondary">Total (INR)</Typography>
                                             <Typography variant="body2" fontWeight={700}>{formatINR(selectedQuotation.total)}</Typography>
                                         </Box>
-                                        <Divider sx={{ my: 1 }} />
+                                        <Divider sx={{ my: 1.5 }} />
                                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <Typography variant="body1" fontWeight={700}>Grand Total</Typography>
                                             <Typography variant="h6" fontWeight={700} color="primary.main">
                                                 {formatINR(selectedQuotation.grand_total)}
                                             </Typography>
                                         </Box>
-                                    </Grid>
+                                    </Box>
 
-                                </Grid>
+                                </Box>
                             )}
                         </Box> {/* End Scrollable Body */}
 
                         {/* ================= FIXED FOOTER ================= */}
-                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 2, mt: 1, borderTop: '1px solid', borderColor: 'divider', flexShrink: 0 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 2, borderTop: '1px solid', borderColor: 'divider', flexShrink: 0 }}>
                             <Button 
-                                variant="outlined" 
+                                variant="contained" 
                                 color="primary" 
                                 size="large"
                                 onClick={() => router.push(`/m/supplierq/quotation/edit?id=${selectedQuotation.name}`)}

@@ -42,6 +42,23 @@ async function supplierFetch(path, { apiBase, getAccessToken, method = "GET", bo
 
 }
 
+// Add to supplierMetrics.js
+export async function submitSupplierQuotation(payload, opts = {}) {
+  return supplierFetch("/api/v1/supplierq/quotations/create", {
+    ...opts,
+    method: "POST",
+    body: payload
+  });
+}
+
+export async function updateSupplierQuotation(name, payload, opts = {}) {
+  return supplierFetch(`/api/v1/supplierq/quotations/${encodeURIComponent(name)}`, {
+    ...opts,
+    method: "PUT",
+    body: payload
+  });
+}
+
 export async function fetchOptions(doctype, opts = {}) {
   try {
     const res = await supplierFetch(`/api/v1/supplierq/options/${encodeURIComponent(doctype)}`, {
@@ -208,11 +225,11 @@ export async function fetchSupplierPurchaseOrdersDetail(name, opts) {
 }
 
 
-export async function submitSupplierQuotation(body, opts) {
+// export async function submitSupplierQuotation(body, opts) {
 
-  return supplierFetch("/api/v1/supplierq/quotations", { ...opts, method: "POST", body });
+//   return supplierFetch("/api/v1/supplierq/quotations", { ...opts, method: "POST", body });
 
-}
+// }
 
 export async function fetchPurchaseInvoices(opts) {
 

@@ -1,26 +1,29 @@
 import { NextResponse } from 'next/server';
 // Using the same imports from your previous example
-import { ERPNEXT_API_KEY, ERPNEXT_API_SECRET, CITYQ_ERPNEXT_URL } from '../../../../secrets';
+import { VersaqERPNextUrl, VersaqERPNextApiKey, VersaqERPNextApiSecret } from '../../../../secrets';
 
 export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const email = searchParams.get('email');
 
-    console.log("Fetching roles for email:", email);
+    if (!VersaqERPNextUrl || !VersaqERPNextApiKey || !VersaqERPNextApiSecret) {
+        console.error("Missing ERPNext credentials in comDash environment variables.");
+        return NextResponse.json({ error: "Server Configuration Error" }, { status: 500 });
+    }
 
     if (!email) {
         return NextResponse.json({ error: "Email parameter is required" }, { status: 400 });
     }
 
     const headers = {
-        'Authorization': `token ${ERPNEXT_API_KEY}:${ERPNEXT_API_SECRET}`,
+        'Authorization': `token ${VersaqERPNextApiKey}:${VersaqERPNextApiSecret}`,
         'Content-Type': 'application/json',
     };
 
     try {
         // 2. Fetch the specific User document from ERPNext
-        const response = await fetch(`${CITYQ_ERPNEXT_URL}/api/resource/User/${email}`, {
+        const response = await fetch(`${VersaqERPNextUrl}/api/resource/User/${email}`, {
             method: 'GET',
             headers,
         });

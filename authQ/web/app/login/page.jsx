@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+// 1. Import the server action directly from the local file
 import { fetchUserRoles } from "./action";
 
 const erpSiteLabel = process.env.NEXT_PUBLIC_ERPNEXT_SITE_LABEL ?? "ERPNext";
-
 const devBypass =
   process.env.NEXT_PUBLIC_LOGIN_DEV_BYPASS === "true" ||
   process.env.NEXT_PUBLIC_LOGIN_DEV_BYPASS === "1";
@@ -72,10 +72,6 @@ function resolvePostLoginDestination(redirectParam) {
   }
 }
 
-// ============================================================================
-// GLOBAL ROUTING HANDLERS
-// ============================================================================
-
 // Extracts the email from SSO tokens locally
 function getEmailFromToken(token) {
   try {
@@ -88,28 +84,24 @@ function getEmailFromToken(token) {
   }
 }
 
-// The core router: Gets live roles from the server action, then navigates
+// 2. The core router uses the Server Action
 async function handleLiveRouting(email, token, defaultDestUrl) {
   try {
-    // 1. Fetch live roles securely via Server Action
+    // This securely calls the Node.js server inside the auth-web container
     const { roles } = await fetchUserRoles(email);
-
-    console.log("Fetched roles for", email, ":", roles);
     
-    // 2. Determine destination
     const base = getComDashBase().replace(/\/$/, "");
     let finalUrl = new URL(defaultDestUrl);
 
+    // If they have the supplier role, reroute them
     if (roles.includes("Supplier Portal User")) {
       finalUrl = new URL(`${base}/m/supplierq`);
     }
 
-    // 3. Attach token and navigate
     finalUrl.hash = `cityq_token=${encodeURIComponent(token)}`;
     window.location.replace(finalUrl.toString());
 
   } catch (error) {
-    console.error("Routing failed, falling back to default:", error);
     const fallbackUrl = new URL(defaultDestUrl);
     fallbackUrl.hash = `cityq_token=${encodeURIComponent(token)}`;
     window.location.replace(fallbackUrl.toString());

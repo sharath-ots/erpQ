@@ -19,6 +19,7 @@ import SidenavDrawerContent from './sidenav/SidenavDrawerContent';
 import { mainDrawerWidth } from '../../lib/constants';
 import { useSettingsContext } from '../../providers/SettingsProvider';
 import { useThemeMode } from '../../hooks/useThemeMode';
+import { useERPUser } from '../../providers/ERPUserProvider'; // 🚀 ADDED
 
 import { LeadProvider } from '../../../../../crmQ/src/contexts/LeadContext';
 import { OpportunityProvider } from '../../../../../crmQ/src/contexts/OpportunityContext';
@@ -27,42 +28,14 @@ import OpportunitySidebar from '../../../../../crmQ/components/side-and-header/O
 import ModulePortalSidenav from '@/components/portal/ModulePortalSidenav';
 import { isModulePortalRoute } from '@/components/portal/modulePortalNav';
 
-const GlobalWatermark = ({ isDark }) => (
-  <Box
-    sx={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '100vw',
-      height: '100vh',
-      pointerEvents: 'none',
-      zIndex: 50,
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center'
-    }}
-  >
-    <Box
-      component="img"
-      src="/logoq.png"
-      alt="Watermark"
-      sx={{
-        width: '50%',
-        maxWidth: '600px',
-        filter: isDark
-          ? 'grayscale(100%) brightness(0) invert(1) opacity(4%)'
-          : 'grayscale(100%) brightness(0) opacity(6%)',
-        transition: 'filter 0.3s ease-in-out'
-      }}
-    />
-  </Box>
-);
-
 const MainLayout = ({ children }) => {
   const pathname = usePathname();
   const theme = useTheme();
   const { isDark } = useThemeMode();
   const { config, setConfig } = useSettingsContext();
+  
+  // 🚀 Grab roles AND loading state
+  const { roles, loading } = useERPUser(); 
 
   const {
     sidenavType,
@@ -72,13 +45,21 @@ const MainLayout = ({ children }) => {
     navColor
   } = config;
 
+  const isSupplierUser = roles?.includes('Supplier Portal User');
+  const isSupplierPath = pathname.startsWith('/m/supplierq');
+  
+  // 🚀 Prevents the layout from breaking/flashing before roles are loaded
+  const isAccessDenied = !loading && ((isSupplierUser && !isSupplierPath) || (!isSupplierUser && isSupplierPath));
+
   const isNoLayoutRoute =
+    isAccessDenied || 
     pathname.includes('/add-lead') ||
     pathname.includes('/view-lead') ||
     pathname.includes('/edit-lead') ||
     pathname.includes('/add-opportunity') ||
     pathname.includes('/view-opportunity') ||
-    pathname.includes('/edit-opportunity');
+    pathname.includes('/edit-opportunity') ||
+    pathname.includes('/m/supplierq/quotation/new');
 
   const isLeadRoute =
     pathname.includes('/lead-list') ||
@@ -205,7 +186,7 @@ const MainLayout = ({ children }) => {
           <Toolbar variant={toolbarVariant} sx={{ flexShrink: 0 }} />
 
           <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, '& > div': {
-                paddingTop: '1px !important', paddingBottom: '0px !important', paddingLeft: '0px !important', paddingRight: '0px !important'
+                paddingTop: '0px !important', paddingBottom: '0px !important', paddingLeft: '0px !important', paddingRight: '0px !important'
               }}}>
             <ConfigProvider theme={{ algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm }}>
               {/* <GlobalWatermark isDark={isDark} /> */}

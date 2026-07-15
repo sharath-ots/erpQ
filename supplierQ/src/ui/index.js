@@ -18,6 +18,8 @@ export { DocTypeExplorer } from "./DocTypeExplorer.jsx";
 
 export { QuotationFormPage } from "./QuotationFormPage.jsx";
 
+export { QuotationEditPage } from "./QuotationEditPage.jsx";
+
 export { InvoiceUploadPage } from "./InvoiceUploadPage.jsx";
 
 

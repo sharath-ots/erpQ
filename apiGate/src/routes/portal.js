@@ -62,7 +62,8 @@ function buildSupplierMenuChildren() {
   return [
     { key: "dash", label: "DASHBOARD", path: "/m/supplierq" },
     { key: "rfq", label: "RFQ", path: "/m/supplierq/rfqs" },
-    { key: "submit-quotation", label: "SUBMIT QUOTATION", path: "/m/supplierq/quotation/new" },
+    // { key: "submit-quotation", label: "SUBMIT QUOTATION", path: "/m/supplierq/quotation/new" },
+    // { key: "edit-quotation", label: "EDIT QUOTATION", path: "/m/supplierq/quotation/edit" },
     {
       key: "sq",
       label: "SUPPLIER QUOTATION",

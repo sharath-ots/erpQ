@@ -5,11 +5,10 @@ import { useRouter } from "next/navigation";
 import { 
     Chip, Button, Drawer, Box, Typography, IconButton, Divider, 
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    CircularProgress, Grid 
+    CircularProgress 
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { EnhancedTable } from "../components/sections/table/table_skeleton";
-// FIXED IMPORT: Added the 's' to match your supplierMetrics.js exactly
 import { fetchSupplierPurchaseOrders, fetchSupplierPurchaseOrdersDetail } from "../services/supplierMetrics.js";
 
 const PAGE_SIZE = 100;
@@ -18,7 +17,7 @@ const PAGE_SIZE = 100;
 const formatINR = (value) => value != null ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(value) : "—";
 
 const formatAddress = (address, details) => {
-    const fullAddress = details || address || "—";
+    const fullAddress = details && details !== "—" ? details : (address || "—");
     return fullAddress === "—" ? fullAddress : fullAddress.split(/<br\s*\/?>/i).map((line, i) => <span key={i}>{line}<br /></span>);
 };
 
@@ -79,10 +78,9 @@ export function PurchaseOrderView({ apiBase, getAccessToken }) {
     const handleRowClick = async (row) => {
         setDrawerOpen(true);
         setDrawerLoading(true);
-        setSelectedPo(row); // Pre-fill with list data
+        setSelectedPo(row); 
         
         try {
-            // FIXED API CALL: Using the correct function name
             const detailRes = await fetchSupplierPurchaseOrdersDetail(row.name, { apiBase, getAccessToken });
             setSelectedPo(detailRes.data || row);
         } catch (error) { 
@@ -103,8 +101,19 @@ export function PurchaseOrderView({ apiBase, getAccessToken }) {
                 onRowClick={handleRowClick}
             />
 
-            {/* Exactly 50vw for half-screen drawer */}
-            <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)} PaperProps={{ sx: { width: { xs: '100%', md: '50vw' } } }}>
+            <Drawer 
+                anchor="right" 
+                open={drawerOpen} 
+                onClose={() => setDrawerOpen(false)} 
+                sx={{
+                    // Aggressive width override matching RFQ and SQ
+                    '& .MuiDrawer-paper': { 
+                        width: '55vw', 
+                        minWidth: '600px', 
+                        maxWidth: '1200px'
+                    }
+                }}
+            >
                 {selectedPo && (
                     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 3 }}>
                         
@@ -116,110 +125,139 @@ export function PurchaseOrderView({ apiBase, getAccessToken }) {
                             </Box>
                             <IconButton onClick={() => setDrawerOpen(false)}><CloseIcon /></IconButton>
                         </Box>
+                        
                         <Divider sx={{ mb: 2 }} />
 
                         {/* ================= SCROLLABLE BODY ================= */}
-                        <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 1 }}>
+                        <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 1, mb: 2 }}>
                             
-                            {/* Metadata Grid (Adjusted for 50vw space) */}
-                            <Grid container spacing={2} sx={{ mb: 3 }}>
-                                <Grid item xs={12} sm={4}>
-                                    <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">SUPPLIER</Typography>
-                                    <Typography variant="body2">{selectedPo.supplier || "—"}</Typography>
-                                </Grid>
-                                <Grid item xs={12} sm={4}>
-                                    <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">ORDER CONFIRMATION NO</Typography>
-                                    <Typography variant="body2">{selectedPo.order_confirmation_no || "—"}</Typography>
-                                </Grid>
-                                <Grid item xs={12} sm={4}>
-                                    <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">DATE</Typography>
-                                    <Typography variant="body2">{selectedPo.transaction_date || "—"}</Typography>
-                                </Grid>
-                                <Grid item xs={12} sm={4}>
-                                    <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">REQUIRED BY</Typography>
-                                    <Typography variant="body2">{selectedPo.schedule_date || "—"}</Typography>
-                                </Grid>
-                                <Grid item xs={12} sm={4}>
-                                    <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">TAX WITHHOLDING (TDS)</Typography>
-                                    <Typography variant="body2">{renderBoolean(selectedPo.apply_tds)}</Typography>
-                                </Grid>
-                                <Grid item xs={12} sm={4}>
-                                    <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">IS SUBCONTRACTED</Typography>
-                                    <Typography variant="body2">{renderBoolean(selectedPo.is_subcontracted)}</Typography>
-                                </Grid>
-                            </Grid>
+                            {/* METADATA: Row 1 (Forced 3-column perfect alignment) */}
+                            <Box sx={{ display: 'flex', gap: 4, mb: 3, flexDirection: { xs: 'column', sm: 'row' } }}>
+                                <Box sx={{ flex: 1 }}>
+                                    <Typography variant="caption" color="text.secondary" fontWeight={700} textTransform="uppercase">Supplier</Typography>
+                                    <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>{selectedPo.supplier || "—"}</Typography>
+                                </Box>
+                                <Box sx={{ flex: 1 }}>
+                                    <Typography variant="caption" color="text.secondary" fontWeight={700} textTransform="uppercase">Order Confirmation No</Typography>
+                                    <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>{selectedPo.order_confirmation_no || "—"}</Typography>
+                                </Box>
+                                <Box sx={{ flex: 1 }}>
+                                    <Typography variant="caption" color="text.secondary" fontWeight={700} textTransform="uppercase">Date</Typography>
+                                    <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>{selectedPo.transaction_date || "—"}</Typography>
+                                </Box>
+                            </Box>
+
+                            {/* METADATA: Row 2 (Forced 3-column perfect alignment) */}
+                            <Box sx={{ display: 'flex', gap: 4, mb: 3, flexDirection: { xs: 'column', sm: 'row' } }}>
+                                <Box sx={{ flex: 1 }}>
+                                    <Typography variant="caption" color="text.secondary" fontWeight={700} textTransform="uppercase">Required By</Typography>
+                                    <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>{selectedPo.schedule_date || "—"}</Typography>
+                                </Box>
+                                <Box sx={{ flex: 1 }}>
+                                    <Typography variant="caption" color="text.secondary" fontWeight={700} textTransform="uppercase">Tax Withholding (TDS)</Typography>
+                                    <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>{renderBoolean(selectedPo.apply_tds)}</Typography>
+                                </Box>
+                                <Box sx={{ flex: 1 }}>
+                                    <Typography variant="caption" color="text.secondary" fontWeight={700} textTransform="uppercase">Is Subcontracted</Typography>
+                                    <Typography variant="body1" fontWeight={500} sx={{ mt: 0.5 }}>{renderBoolean(selectedPo.is_subcontracted)}</Typography>
+                                </Box>
+                            </Box>
                             
                             <Divider sx={{ mb: 3 }} />
 
-                            {/* Addresses Grid */}
-                            <Grid container spacing={3} sx={{ mb: 3 }}>
-                                <Grid item xs={12} md={6}>
-                                    <Typography variant="caption" color="text.secondary" fontWeight={700}>COMPANY BILLING ADDRESS</Typography>
-                                    <Typography variant="body2" sx={{ fontWeight: 600, mt: 1 }}>{selectedPo.billing_address || "—"}</Typography>
-                                    <Typography variant="body2" sx={{ mt: 0.5, color: 'text.secondary' }}>
-                                        {formatAddress(selectedPo.billing_address, selectedPo.billing_address_display)}
+                            {/* ADDRESSES: Side-by-Side with ERPNext fallbacks */}
+                            <Box sx={{ display: 'flex', gap: 4, flexDirection: { xs: 'column', md: 'row' }, mb: 3 }}>
+                                <Box sx={{ flex: 1 }}>
+                                    <Typography variant="caption" color="text.secondary" fontWeight={700} textTransform="uppercase" display="block" mb={1}>
+                                        Supplier Billing Address
                                     </Typography>
-                                </Grid>
-                                <Grid item xs={12} md={6}>
-                                    <Typography variant="caption" color="text.secondary" fontWeight={700}>SHIPPING ADDRESS</Typography>
-                                    <Typography variant="body2" sx={{ fontWeight: 600, mt: 1 }}>{selectedPo.shipping_address || "—"}</Typography>
-                                    <Typography variant="body2" sx={{ mt: 0.5, color: 'text.secondary' }}>
-                                        {formatAddress(selectedPo.shipping_address, selectedPo.shipping_address_display)}
+                                    <Typography variant="body2" sx={{ color: 'text.primary', lineHeight: 1.6 }}>
+                                        {/* Added fallback to company_address */}
+                                        {(selectedPo.billing_address || selectedPo.company_address) && (selectedPo.billing_address || selectedPo.company_address) !== "—" && (
+                                            <span style={{ fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                                                {selectedPo.billing_address || selectedPo.company_address}
+                                            </span>
+                                        )}
+                                        <span style={{ color: 'text.secondary' }}>
+                                            {formatAddress(
+                                                selectedPo.billing_address || selectedPo.company_address, 
+                                                selectedPo.billing_address_display || selectedPo.company_address_display || selectedPo.address_display
+                                            )}
+                                        </span>
                                     </Typography>
-                                </Grid>
-                            </Grid>
+                                </Box>
+                                <Box sx={{ flex: 1 }}>
+                                    <Typography variant="caption" color="text.secondary" fontWeight={700} textTransform="uppercase" display="block" mb={1}>
+                                        Shipping Address
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ color: 'text.primary', lineHeight: 1.6 }}>
+                                        {selectedPo.shipping_address && selectedPo.shipping_address !== "—" && (
+                                            <span style={{ fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                                                {selectedPo.shipping_address}
+                                            </span>
+                                        )}
+                                        <span style={{ color: 'text.secondary' }}>
+                                            {formatAddress(selectedPo.shipping_address, selectedPo.shipping_address_display)}
+                                        </span>
+                                    </Typography>
+                                </Box>
+                            </Box>
+
+                            <Divider sx={{ mb: 3 }} />
 
                             {/* Items Table */}
-                            <Typography variant="subtitle1" fontWeight={700} mb={2}>Items</Typography>
-                            {drawerLoading ? (
-                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}><CircularProgress size={30} /></Box>
-                            ) : (
-                                <TableContainer sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, mb: 4 }}>
-                                    <Table size="small">
-                                        <TableHead sx={{ bgcolor: 'action.hover' }}>
-                                            <TableRow>
-                                                <TableCell>No.</TableCell>
-                                                <TableCell>Item Code</TableCell>
-                                                <TableCell>Required By</TableCell>
-                                                <TableCell align="right">Qty</TableCell>
-                                                <TableCell>UOM</TableCell>
-                                                <TableCell align="right">Rate (INR)</TableCell>
-                                                <TableCell align="right">Amount (INR)</TableCell>
-                                            </TableRow>
-                                        </TableHead>
-                                        <TableBody>
-                                            {selectedPo.items?.length > 0 ? (
-                                                selectedPo.items.map((item, i) => (
-                                                    <TableRow key={i} hover>
-                                                        <TableCell>{item.idx || i + 1}</TableCell>
-                                                        <TableCell sx={{ fontWeight: 500 }}>
-                                                            {item.item_code}
-                                                            {item.item_name && item.item_name !== item.item_code ? `: ${item.item_name}` : ""}
-                                                        </TableCell>
-                                                        <TableCell>{item.schedule_date || selectedPo.schedule_date || "—"}</TableCell>
-                                                        <TableCell align="right" sx={{ fontWeight: 700 }}>{item.qty}</TableCell>
-                                                        <TableCell><Chip label={item.uom} size="small" variant="outlined" /></TableCell>
-                                                        <TableCell align="right">{formatINR(item.rate)}</TableCell>
-                                                        <TableCell align="right" sx={{ fontWeight: 700 }}>{formatINR(item.amount)}</TableCell>
-                                                    </TableRow>
-                                                ))
-                                            ) : (
+                            <Box sx={{ mb: 4 }}>
+                                <Typography variant="subtitle1" fontWeight={700} mb={2}>Items</Typography>
+                                {drawerLoading ? (
+                                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}><CircularProgress size={30} /></Box>
+                                ) : (
+                                    <TableContainer sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                                        <Table size="small">
+                                            <TableHead sx={{ bgcolor: 'action.hover' }}>
                                                 <TableRow>
-                                                    <TableCell colSpan={7} align="center" sx={{ py: 3, color: 'text.secondary' }}>No items found in this PO.</TableCell>
+                                                    <TableCell>No.</TableCell>
+                                                    <TableCell>Item Code</TableCell>
+                                                    <TableCell>Required By</TableCell>
+                                                    <TableCell align="right">Qty</TableCell>
+                                                    <TableCell>UOM</TableCell>
+                                                    <TableCell align="right">Rate (INR)</TableCell>
+                                                    <TableCell align="right">Amount (INR)</TableCell>
                                                 </TableRow>
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                </TableContainer>
-                            )}
+                                            </TableHead>
+                                            <TableBody>
+                                                {selectedPo.items?.length > 0 ? (
+                                                    selectedPo.items.map((item, i) => (
+                                                        <TableRow key={i} hover>
+                                                            <TableCell>{item.idx || i + 1}</TableCell>
+                                                            <TableCell sx={{ fontWeight: 500, color: 'primary.main' }}>
+                                                                {item.item_code}
+                                                                {item.item_name && item.item_name !== item.item_code ? `: ${item.item_name}` : ""}
+                                                            </TableCell>
+                                                            <TableCell>{item.schedule_date || selectedPo.schedule_date || "—"}</TableCell>
+                                                            <TableCell align="right" sx={{ fontWeight: 700 }}>{item.qty}</TableCell>
+                                                            <TableCell><Chip label={item.uom} size="small" variant="outlined" /></TableCell>
+                                                            <TableCell align="right">{formatINR(item.rate)}</TableCell>
+                                                            <TableCell align="right" sx={{ fontWeight: 700 }}>{formatINR(item.amount)}</TableCell>
+                                                        </TableRow>
+                                                    ))
+                                                ) : (
+                                                    <TableRow>
+                                                        <TableCell colSpan={7} align="center" sx={{ py: 3, color: 'text.secondary' }}>No items found in this PO.</TableCell>
+                                                    </TableRow>
+                                                )}
+                                            </TableBody>
+                                        </Table>
+                                    </TableContainer>
+                                )}
+                            </Box>
 
-                            {/* Taxes, Discounts, Totals Blocks */}
+                            {/* TAXES, DISCOUNTS & TOTALS */}
                             {!drawerLoading && (
-                                <Grid container spacing={3} sx={{ mb: 3, p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+                                <Box sx={{ display: 'flex', gap: 4, flexDirection: { xs: 'column', md: 'row' }, p: 3, bgcolor: 'action.hover', borderRadius: 2, mb: 3 }}>
                                     
                                     {/* Column 1: Taxes & Terms */}
-                                    <Grid item xs={12} md={4}>
-                                        <Typography variant="subtitle2" fontWeight={700} mb={1}>Taxes and Charges</Typography>
+                                    <Box sx={{ flex: 1 }}>
+                                        <Typography variant="subtitle2" fontWeight={700} mb={1.5}>Taxes and Charges</Typography>
                                         <Typography variant="caption" color="text.secondary" display="block">Tax Category</Typography>
                                         <Typography variant="body2" mb={1}>{selectedPo.tax_category || "—"}</Typography>
                                         <Typography variant="caption" color="text.secondary" display="block">Incoterm</Typography>
@@ -228,22 +266,22 @@ export function PurchaseOrderView({ apiBase, getAccessToken }) {
                                         <Typography variant="body2" mb={1}>{selectedPo.named_place || "—"}</Typography>
                                         <Typography variant="caption" color="text.secondary" display="block">Total Taxes (INR)</Typography>
                                         <Typography variant="body2" fontWeight={700}>{formatINR(selectedPo.total_taxes_and_charges)}</Typography>
-                                    </Grid>
+                                    </Box>
 
                                     {/* Column 2: Discounts */}
-                                    <Grid item xs={12} md={4}>
-                                        <Typography variant="subtitle2" fontWeight={700} mb={1}>Additional Discount</Typography>
+                                    <Box sx={{ flex: 1 }}>
+                                        <Typography variant="subtitle2" fontWeight={700} mb={1.5}>Additional Discount</Typography>
                                         <Typography variant="caption" color="text.secondary" display="block">Apply Discount On</Typography>
                                         <Typography variant="body2" mb={1}>{selectedPo.apply_discount_on || "—"}</Typography>
                                         <Typography variant="caption" color="text.secondary" display="block">Discount Percentage</Typography>
                                         <Typography variant="body2" mb={1}>{selectedPo.additional_discount_percentage ? `${selectedPo.additional_discount_percentage}%` : "0%"}</Typography>
                                         <Typography variant="caption" color="text.secondary" display="block">Discount Amount (INR)</Typography>
                                         <Typography variant="body2" fontWeight={700}>{formatINR(selectedPo.discount_amount)}</Typography>
-                                    </Grid>
+                                    </Box>
 
                                     {/* Column 3: Totals */}
-                                    <Grid item xs={12} md={4}>
-                                        <Typography variant="subtitle2" fontWeight={700} mb={1}>Totals</Typography>
+                                    <Box sx={{ flex: 1.5 }}>
+                                        <Typography variant="subtitle2" fontWeight={700} mb={1.5}>Totals</Typography>
                                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                                             <Typography variant="body2" color="text.secondary">Advance Paid</Typography>
                                             <Typography variant="body2">{formatINR(selectedPo.advance_paid)}</Typography>
@@ -257,7 +295,7 @@ export function PurchaseOrderView({ apiBase, getAccessToken }) {
                                             <Typography variant="body2">{renderBoolean(selectedPo.disable_rounded_total)}</Typography>
                                         </Box>
                                         
-                                        <Divider sx={{ my: 1 }} />
+                                        <Divider sx={{ my: 1.5 }} />
                                         
                                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
                                             <Typography variant="body1" fontWeight={700}>Rounded Total</Typography>
@@ -265,13 +303,13 @@ export function PurchaseOrderView({ apiBase, getAccessToken }) {
                                         </Box>
                                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                                             <Typography variant="body1" fontWeight={700}>Grand Total</Typography>
-                                            <Typography variant="subtitle1" fontWeight={700} color="primary.main">{formatINR(selectedPo.grand_total)}</Typography>
+                                            <Typography variant="h6" fontWeight={700} color="primary.main">{formatINR(selectedPo.grand_total)}</Typography>
                                         </Box>
                                         <Typography variant="caption" color="text.secondary" fontStyle="italic" sx={{ lineHeight: 1.2, display: 'block' }}>
                                             {selectedPo.in_words || "—"}
                                         </Typography>
-                                    </Grid>
-                                </Grid>
+                                    </Box>
+                                </Box>
                             )}
 
                             {/* Comments Section */}
@@ -286,7 +324,7 @@ export function PurchaseOrderView({ apiBase, getAccessToken }) {
                                 </Box>
                             )}
                             
-                        </Box> {/* End Scrollable Body */}
+                        </Box> 
                     </Box>
                 )}
             </Drawer>

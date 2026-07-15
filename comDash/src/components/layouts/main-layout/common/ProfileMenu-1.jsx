@@ -233,7 +233,7 @@ const ProfileMenuItem = ({ icon, onClick, children, href, sx }) => {
           [`&.${listItemIconClasses.root}`]: { minWidth: 'unset !important' },
         }}
       >
-        <IconifyIcon icon={icon} sx={{ color: 'text.secondary' }} />
+        <IconifyIcon icon={icon} sx={{ color: iconColor }} />
       </ListItemIcon>
       {children}
     </MenuItem>

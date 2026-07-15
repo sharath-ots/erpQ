@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Box,
   Button,
@@ -15,12 +16,14 @@ import { Divider } from '@mui/material';
 import IconifyIcon from 'components/base/IconifyIcon';
 import CreateOrderItem from './CreateOrderItem';
 import CreateOrderPaymentSummary from './CreateOrderPaymentSummary';
-import { fetchOptions } from '../../../../services/supplierMetrics.js'; // Ensure path is correct
+import { fetchOptions, submitSupplierQuotation } from '../../../../services/supplierMetrics.js'; 
 
-const CreateOrderContainer = ({ order, loading }) => {
+const CreateOrderContainer = ({ order, loading, isEditMode, onSave }) => {
+  const router = useRouter();
   const [createOrderItems, setCreateOrderItems] = useState([]);
   const [options, setOptions] = useState({ taxCategories: [], shippingRules: [], incoterms: [] });
-  
+  const [submitting, setSubmitting] = useState(false);
+
   const [formFields, setFormFields] = useState({
     quotationNumber: '',
     date: new Date().toISOString().split('T')[0],
@@ -34,7 +37,6 @@ const CreateOrderContainer = ({ order, loading }) => {
   });
 
   useEffect(() => {
-    // Load dropdown options
     const loadOptions = async () => {
       const [tax, ship, inc] = await Promise.all([
         fetchOptions("Tax Category"),
@@ -55,6 +57,7 @@ const CreateOrderContainer = ({ order, loading }) => {
         validTill: order.validTill || '',
         companyAddress: order.companyAddress || '',
         incoterm: order.incoterm || '',
+        incotermPlace: order.incotermPlace || ''
       }));
     }
   }, [order]);
@@ -63,8 +66,37 @@ const CreateOrderContainer = ({ order, loading }) => {
     setFormFields(prev => ({ ...prev, [field]: newValue ?? event.target.value }));
   };
 
+  const handleSubmit = async () => {
+        setSubmitting(true);
+        try {
+            const payload = { ...formFields, items: createOrderItems };
+            if (isEditMode) {
+                await onSave(payload); 
+            } else {
+                await submitSupplierQuotation(payload); 
+            }
+            router.push('/m/supplierq/list/supplier-quotation');
+        } catch (e) {
+            alert("Error: " + e.message);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
   return (
-    <Paper elevation={0} sx={{ height: 1, flex: 1, p: { xs: 3, md: 5 }, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
+    <Paper 
+      elevation={0} 
+      sx={{ 
+        height: 1, 
+        flex: 1, 
+        p: { xs: 3, md: 5 }, 
+        borderRadius: 4, 
+        // HIGHLIGHT FIX: Made the border thicker and colored it with primary.main
+        border: '2px solid', 
+        borderColor: 'primary.main',
+        boxShadow: '0px 4px 20px rgba(0,0,0,0.05)'
+      }}
+    >
       <Box sx={{ width: '100%' }}>
         <Stack direction="column" spacing={5}>
           <Box>
@@ -182,7 +214,6 @@ const CreateOrderContainer = ({ order, loading }) => {
               />
             </Stack>
 
-            {/* Conditional Place Field */}
             {formFields.incoterm && (
               <Box sx={{ mt: 3 }}>
                 <TextField 
@@ -237,6 +268,19 @@ const CreateOrderContainer = ({ order, loading }) => {
               label="Terms and Conditions" 
               placeholder="Enter payment terms, delivery conditions, or special notes..." 
             />
+          </Box>
+
+          <Divider />
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+            <Button variant="outlined" color="neutral">Cancel</Button>
+            <Button 
+              variant="contained" 
+              color="primary" 
+              onClick={handleSubmit} 
+              disabled={submitting}
+            >
+              {submitting ? 'Creating...' : 'Create Order'}
+            </Button>
           </Box>
 
         </Stack>

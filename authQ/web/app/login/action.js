@@ -1,23 +1,30 @@
+// app/login/action.js
 "use server";
 
 export async function fetchUserRoles(email) {
   if (!email) return { roles: [] };
 
   try {
-    // Falls back to your specific URL if the env variable isn't set
-    const erpUrl = process.env.ERPNEXT_URL ?? "https://cityqerp.ortusolis.in";
-    
-    // Ensure these are set in your .env.local file
-    const apiKey = process.env.ERPNEXT_API_KEY;
-    const apiSecret = process.env.ERPNEXT_API_SECRET;
+    // 1. Read directly from standard Node.js environment variables!
+    // Since this is a "use server" file, these are read dynamically at RUNTIME
+    // inside your Docker container. No external config.js needed.
+    const erpUrl = process.env.VERSAQ_ERPNEXT_URL;
+    const apiKey = process.env.VERSAQ_ERPNEXT_API_KEY;
+    const apiSecret = process.env.VERSAQ_ERPNEXT_API_SECRET;
 
+    if (!erpUrl || !apiKey || !apiSecret) {
+      console.error("Missing ERPNext credentials in environment variables.");
+      return { roles: [] };
+    }
+
+    // 2. Fetch from ERPNext securely
     const response = await fetch(`${erpUrl}/api/resource/User/${encodeURIComponent(email)}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `token ${apiKey}:${apiSecret}`
       },
-      // Ensure Next.js doesn't cache this so we always get live roles
+      // cache: "no-store" forces Next.js to run this live, never caching the roles
       cache: "no-store" 
     });
 
@@ -28,7 +35,7 @@ export async function fetchUserRoles(email) {
 
     const data = await response.json();
     
-    // Map Frappe's child table array into a simple string array: ["System Manager", "Supplier Portal User"]
+    // 3. Map the roles and return them to the client
     const roles = data.data?.roles?.map(r => r.role) || [];
     
     return { roles };

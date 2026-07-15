@@ -5,6 +5,7 @@ import { SupplierHome } from "./SupplierHome.jsx";
 import { SupplierEntityList } from "./SupplierEntityList.jsx";
 import { RfqListPage } from "./RfqListPage.jsx";
 import { QuotationFormPage } from "./QuotationFormPage.jsx";
+import { QuotationEditPage } from "./QuotationEditPage.jsx";
 import { InvoiceUploadPage } from "./InvoiceUploadPage.jsx";
 import { SupplierOtherDocTypesPage } from "./SupplierOtherDocTypesPage.jsx";
 import { PurchaseOrderView } from "./PurchaseOrder.jsx";
@@ -44,6 +45,10 @@ export function SupplierqShell({
 
   if (normalized === "/m/supplierq/quotation/new") {
     return <QuotationFormPage apiBase={apiBase} getAccessToken={getAccessToken} />;
+  }
+
+  if (normalized === "/m/supplierq/quotation/edit") {
+    return <QuotationEditPage apiBase={apiBase} getAccessToken={getAccessToken} />;
   }
 
   if (normalized === "/m/supplierq/invoice/upload") {
