@@ -70,47 +70,114 @@ const RFQ_FIELDS = [
   "modified",
 ];
 
-/**
- * Supplier portal routes — scoped lists, dashboard, quotation & invoice submission.
- */
+// --- HELPER FUNCTIONS ---
+// Link the Address to BOTH the Company and Supplier
+async function getOrCreateAddress(client, rawText, companyName, supplierId) {
+  if (!rawText || !rawText.trim()) return null;
+
+  const lines = rawText.split('\n').map(l => l.trim()).filter(l => l);
+  const line1 = lines[0]?.substring(0, 140) || "Address Line 1";
+  const line2 = lines.slice(1).join(', ').substring(0, 140) || null;
+
+  const addressDoc = {
+    doctype: "Address",
+    address_title: `${companyName} - Shipping`,
+    address_type: "Shipping",
+    address_line1: line1,
+    address_line2: line2,
+    city: "Not Provided",   
+    country: "India",
+    is_shipping_address: 1,      
+    is_your_company_address: 1,  
+    links: [
+      {
+        doctype: "Dynamic Link",
+        link_doctype: "Company",
+        link_name: companyName
+      },
+      {
+        doctype: "Dynamic Link",
+        link_doctype: "Supplier",
+        link_name: supplierId
+      }
+    ]
+  };
+
+  try {
+    const created = await client.createDocument("Address", addressDoc);
+    return created.name;
+  } catch (e) {
+    console.error("Failed to create Address:", e.body?._server_messages || e.message);
+    return null; 
+  }
+}
+
+async function getOrCreateTerms(client, rawText, supplierId) {
+  if (!rawText || !rawText.trim()) return null;
+
+  const tcDoc = {
+    doctype: "Terms and Conditions",
+    title: `TC-${supplierId}-${Date.now()}`.substring(0, 140), 
+    terms: rawText
+  };
+
+  try {
+    const created = await client.createDocument("Terms and Conditions", tcDoc);
+    return created.name; 
+  } catch (e) {
+    console.error("Failed to create Terms:", e.body?._server_messages || e.message);
+    return null; // Return null gracefully
+  }
+}
+
+
 export async function registerSupplierQRoutes(app) {
 
+  // Create New Supplier Quotation
   app.post("/api/v1/supplierq/quotations/create", { preHandler: jwtPre }, async (request, reply) => {
     if (!env.versaqErpnextUrl) return reply.code(503).send({ error: "erp_not_configured" });
 
     const { client, scope } = await getScopedClient(request);
     const body = request.body;
+    //const supplierId = scope.supplier || "SUP-TES-001"; 
+    const companyName = body.company || "VersaQ";
+    const supplierId = "SUP-TES-001";
+
+    const shippingAddressId = await getOrCreateAddress(client, body.shippingAddress, supplierId);
+    const tcNameId = await getOrCreateTerms(client, body.terms, supplierId);
 
     const sanitize = (val) => (val && typeof val === 'string' && val.trim() !== "" ? val : null);
 
     const newDoc = {
       doctype: "Supplier Quotation",
       naming_series: "PUR-SQTN-.YYYY.-",
-      supplier: "SUP-TES-001",
-      company: "VersaQ", 
+      supplier: supplierId,
+      company: companyName, 
       currency: "INR",
       transaction_date: body.date,
       valid_till: body.validTill,
       quotation_number: body.quotationNumber,
       
-      // Links (keep null if not linking to a specific existing document ID)
       tax_category: sanitize(body.taxCategory),
       shipping_rule: sanitize(body.shippingRule),
       incoterm: sanitize(body.incoterm),
       named_place: sanitize(body.incotermPlace),
 
-      // ADDRESSES: Use "_display" fields for raw text addresses
+      // Address mapping fixed
+      supplier_address: shippingAddressId,   
+      shipping_address: shippingAddressId,       
+      company_address_display: body.companyAddress,
       billing_address_display: body.companyAddress,
-      shipping_address_display: body.shippingAddress,
       
-      // TERMS: Use "terms" for raw text content
-      terms: body.terms, 
+      // Terms mapping
+      tc_name: tcNameId,
+      terms: body.terms,                         
 
       items: (body.items || []).map(item => ({
-        doctype: "Supplier Quotation Item",
+        doctype: "Supplier Quotation Item", // FIX 1: MUST BE 'Item'
         item_code: item.id,
         item_name: item.name.split(' — ')[1] || item.name,
-        qty: Number(item.quantity) || 0,
+        qty: Math.max(Number(item.quantity) || 1, 1), // FIX 2: Prevent QTY 0 crash
         rate: Number(item.price?.regular) || 0,
         uom: item.variants?.find(v => v.label === 'UOM')?.value || "Nos"
       }))
@@ -120,25 +187,34 @@ export async function registerSupplierQRoutes(app) {
       const created = await client.createDocument("Supplier Quotation", newDoc);
       return { data: created };
     } catch (e) {
-      console.error("ERPNEXT FULL ERROR:", JSON.stringify(e.body, null, 2));
-      return reply.code(500).send({ 
-        error: "failed_to_save", 
-        detail: e.body?.exc || e.message || "Check server logs" 
-      });
+      let readableError = e.message;
+      if (e.body && e.body._server_messages) {
+        try {
+          const messages = JSON.parse(e.body._server_messages);
+          readableError = messages.map(m => JSON.parse(m).message).join(" | ");
+        } catch (err) {}
+      }
+      return reply.code(500).send({ error: "failed_to_save", detail: readableError });
     }
   });
 
-  // Backend Route: Update Existing Supplier Quotation
+
+  // Update Existing Supplier Quotation
   app.put("/api/v1/supplierq/quotations/:name", { preHandler: jwtPre }, async (request, reply) => {
     if (!env.versaqErpnextUrl) return reply.code(503).send({ error: "erp_not_configured" });
 
-    const { client } = await getScopedClient(request);
+    const { client, scope } = await getScopedClient(request);
     const name = decodeURIComponent(request.params.name);
     const body = request.body;
+    //const supplierId = scope.supplier || "SUP-TES-001";
+    const companyName = body.company || "VersaQ";
+    const supplierId = "SUP-TES-001";
+
+    const shippingAddressId = await getOrCreateAddress(client, body.shippingAddress, supplierId);
+    const tcNameId = await getOrCreateTerms(client, body.terms, supplierId);
     
     const sanitize = (val) => (val && typeof val === 'string' && val.trim() !== "" ? val : null);
 
-    // Prepare the update object
     const updateDoc = {
       transaction_date: body.date,
       valid_till: body.validTill,
@@ -147,31 +223,40 @@ export async function registerSupplierQRoutes(app) {
       shipping_rule: sanitize(body.shippingRule),
       incoterm: sanitize(body.incoterm),
       named_place: sanitize(body.incotermPlace),
+      
+      supplier_address: shippingAddressId,
+      shipping_address: shippingAddressId,
+      company_address_display: body.companyAddress,
       billing_address_display: body.companyAddress,
-      shipping_address_display: body.shippingAddress,
+      tc_name: tcNameId,
       terms: body.terms,
+
       items: (body.items || []).map(item => ({
-        doctype: "Supplier Quotation Item",
+        doctype: "Supplier Quotation Item", // FIX 1: MUST BE 'Item'
         item_code: item.id,
         item_name: item.name.split(' — ')[1] || item.name,
-        qty: Number(item.quantity) || 0,
+        qty: Math.max(Number(item.quantity) || 1, 1), // FIX 2: Prevent QTY 0 crash
         rate: Number(item.price?.regular) || 0,
         uom: item.variants?.find(v => v.label === 'UOM')?.value || "Nos"
       }))
     };
 
     try {
-      // client.updateDocument usually takes (doctype, name, data)
       const updated = await client.updateDocument("Supplier Quotation", name, updateDoc);
       return { data: updated };
     } catch (e) {
-      console.error("ERPNEXT UPDATE ERROR:", JSON.stringify(e.body, null, 2));
-      return reply.code(500).send({ 
-        error: "failed_to_update", 
-        detail: e.body?.exc_type || e.message 
-      });
+      let readableError = e.message;
+      if (e.body && e.body._server_messages) {
+        try {
+          const messages = JSON.parse(e.body._server_messages);
+          readableError = messages.map(m => JSON.parse(m).message).join(" | ");
+        } catch (err) {}
+      }
+      return reply.code(500).send({ error: "failed_to_update", detail: readableError });
     }
   });
+
+  // ... (rest of your routes remain unchanged)
 
   // Add to registerSupplierQRoutes in supplierq.js
   app.get("/api/v1/supplierq/options/:doctype", { preHandler: jwtPre }, async (request, reply) => {
@@ -414,17 +499,24 @@ export async function registerSupplierQRoutes(app) {
         }
       }
 
-      // --- NEW FIX: Fetch default Item Prices & Item Names from ERPNext ---
+      // --- NEW FIX: Fetch default Item Prices, Names, & Images from ERPNext in PARALLEL ---
       if (doc.items && doc.items.length > 0) {
         try {
           const itemCodes = doc.items.map(item => item.item_code);
           
-          // 1. Fetch Prices
-          const prices = await safeList(client, "Item Price", {
-            fields: ["item_code", "price_list_rate"],
-            filters: [["item_code", "in", itemCodes]],
-            limit_page_length: 500, 
-          });
+          // 1. Fetch Prices & Item Master Data at the EXACT SAME TIME
+          const [prices, itemMaster] = await Promise.all([
+            safeList(client, "Item Price", {
+              fields: ["item_code", "price_list_rate"],
+              filters: [["item_code", "in", itemCodes]],
+              limit_page_length: 500, 
+            }),
+            safeList(client, "Item", {
+              fields: ["item_code", "item_name", "image"], 
+              filters: [["item_code", "in", itemCodes]],
+              limit_page_length: 500,
+            })
+          ]);
 
           const priceMap = {};
           prices.forEach(p => {
@@ -433,31 +525,22 @@ export async function registerSupplierQRoutes(app) {
             }
           });
 
-          // 2. Fetch Item Names from Item Master
-          const itemMaster = await safeList(client, "Item", {
-            fields: ["item_code", "item_name"],
-            filters: [["item_code", "in", itemCodes]],
-            limit_page_length: 500,
-          });
-
-          const nameMap = {};
+          const itemDataMap = {};
           itemMaster.forEach(i => {
-            nameMap[i.item_code] = i.item_name;
+            itemDataMap[i.item_code] = { name: i.item_name, image: i.image };
           });
 
-          // Attach default_item_price and fallback item_name to each item
+          // Attach data to each item
           doc.items = doc.items.map(item => ({
             ...item,
             default_item_price: priceMap[item.item_code] || 0,
-            // Uses the existing item_name if it exists, otherwise falls back to the Item Master name
-            item_name: item.item_name || nameMap[item.item_code] || ""
+            item_name: item.item_name || (itemDataMap[item.item_code]?.name) || "",
+            image: item.image || (itemDataMap[item.item_code]?.image) || null 
           }));
         } catch (err) {
-          console.error("Failed to fetch Item Prices or Names:", err);
+          console.error("Failed to fetch Item Prices, Names, or Images:", err);
         }
       }
-      // -------------------------------------------------------
-
       return { data: doc, scope: { mode: scope.mode, supplier: scope.supplier } };
     } catch (e) {
       if (e instanceof FrappeApiError) {

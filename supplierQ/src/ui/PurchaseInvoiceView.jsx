@@ -4,8 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { 
     Chip, Drawer, Box, Typography, IconButton, Divider, 
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    CircularProgress 
+    CircularProgress, Button 
 } from '@mui/material';
+import { styled } from '@mui/material/styles';
+import { Icon as IconifyIcon } from '@iconify/react';
 import CloseIcon from '@mui/icons-material/Close';
 import { EnhancedTable } from "../components/sections/table/table_skeleton";
 import { fetchPurchaseInvoices, fetchPurchaseInvoiceDetail } from "../services/supplierMetrics.js";
@@ -17,6 +19,18 @@ const formatINR = (value) => value != null ? new Intl.NumberFormat('en-IN', { st
 
 // Helper for Yes/No fields
 const renderBoolean = (val) => val === 1 || val === true || val === "Yes" ? "Yes" : "No";
+
+const VisuallyHiddenInput = styled('input')({
+    clip: 'rect(0 0 0 0)',
+    clipPath: 'inset(50%)',
+    height: 1,
+    overflow: 'hidden',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    whiteSpace: 'nowrap',
+    width: 1,
+});
 
 // Semantic status colors adapted for ERPNext Purchase Invoices and Aurora theme
 const getStatusColor = (status) => {
@@ -107,6 +121,24 @@ export function PurchaseInvoiceView({ apiBase, getAccessToken }) {
         }
     };
 
+    const uploadButton = (
+        <Button
+            component="label"
+            role={undefined}
+            variant="contained"
+            tabIndex={-1}
+            startIcon={
+                <IconifyIcon 
+                    icon="material-symbols:cloud-upload" 
+                    sx={{ fontSize: 20 }} 
+                />
+            }
+        >
+            Upload Invoice
+            <VisuallyHiddenInput type="file" />
+        </Button>
+    );
+
     return (
         <Box>
             <EnhancedTable 
@@ -116,6 +148,8 @@ export function PurchaseInvoiceView({ apiBase, getAccessToken }) {
                 uniqueKey="name" 
                 defaultSort="posting_date"
                 onRowClick={handleRowClick}
+                loading={loading}
+                actionNode={uploadButton}
             />
 
             <Drawer 

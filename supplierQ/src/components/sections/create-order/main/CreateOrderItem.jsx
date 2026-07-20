@@ -215,11 +215,11 @@ const CreateOrderItem = ({ orderItem, setOrderItems }) => {
               </Stack>
             </Stack>
 
-            <Stack spacing={1}>
+            {/* <Stack spacing={1}>
               {variants?.map((variant) => (
                 <ItemVariant key={variant.label} variant={variant} />
               ))}
-            </Stack>
+            </Stack> */}
           </Stack>
         </Stack>
 

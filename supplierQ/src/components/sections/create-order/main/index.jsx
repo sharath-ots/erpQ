@@ -3,16 +3,15 @@ import { useRouter } from 'next/navigation';
 import {
   Box,
   Button,
-  Container,
-  InputAdornment,
   Paper,
   Stack,
   TextField,
   Typography,
   Skeleton,
-  Autocomplete
+  Autocomplete,
+  InputAdornment,
+  Divider
 } from '@mui/material';
-import { Divider } from '@mui/material';
 import IconifyIcon from 'components/base/IconifyIcon';
 import CreateOrderItem from './CreateOrderItem';
 import CreateOrderPaymentSummary from './CreateOrderPaymentSummary';
@@ -21,7 +20,15 @@ import { fetchOptions, submitSupplierQuotation } from '../../../../services/supp
 const CreateOrderContainer = ({ order, loading, isEditMode, onSave }) => {
   const router = useRouter();
   const [createOrderItems, setCreateOrderItems] = useState([]);
-  const [options, setOptions] = useState({ taxCategories: [], shippingRules: [], incoterms: [] });
+  
+  // FIX 1: Added addresses and termsOptions to state
+  const [options, setOptions] = useState({ 
+    taxCategories: [], 
+    shippingRules: [], 
+    incoterms: [],
+    addresses: [],
+    termsOptions: []
+  });
   const [submitting, setSubmitting] = useState(false);
 
   const [formFields, setFormFields] = useState({
@@ -33,17 +40,28 @@ const CreateOrderContainer = ({ order, loading, isEditMode, onSave }) => {
     taxCategory: '',
     shippingRule: '',
     incoterm: '',
-    incotermPlace: ''
+    incotermPlace: '',
+    tcName: '', // FIX 2: Added state for Terms and Conditions Doctype Link
+    terms: '' 
   });
 
   useEffect(() => {
     const loadOptions = async () => {
-      const [tax, ship, inc] = await Promise.all([
+      // FIX 3: Fetch Address and Terms and Conditions doctypes from ERPNext
+      const [tax, ship, inc, addr, terms] = await Promise.all([
         fetchOptions("Tax Category"),
         fetchOptions("Shipping Rule"),
-        fetchOptions("Incoterm")
+        fetchOptions("Incoterm"),
+        fetchOptions("Address"), 
+        fetchOptions("Terms and Conditions")
       ]);
-      setOptions({ taxCategories: tax, shippingRules: ship, incoterms: inc });
+      setOptions({ 
+        taxCategories: tax, 
+        shippingRules: ship, 
+        incoterms: inc,
+        addresses: addr,
+        termsOptions: terms 
+      });
     };
     loadOptions();
   }, []);
@@ -52,13 +70,19 @@ const CreateOrderContainer = ({ order, loading, isEditMode, onSave }) => {
     if (order) {
       if (order.items) setCreateOrderItems(order.items);
       
-      setFormFields(prev => ({
-        ...prev,
+      setFormFields({
+        quotationNumber: order.quotationNumber || '',
+        date: order.date || new Date().toISOString().split('T')[0],
         validTill: order.validTill || '',
         companyAddress: order.companyAddress || '',
+        shippingAddress: order.shippingAddress || '',
+        taxCategory: order.taxCategory || '',
+        shippingRule: order.shippingRule || '',
         incoterm: order.incoterm || '',
-        incotermPlace: order.incotermPlace || ''
-      }));
+        incotermPlace: order.incotermPlace || '',
+        tcName: order.tcName || '', // Map tcName on edit
+        terms: order.terms || ''
+      });
     }
   }, [order]);
 
@@ -267,19 +291,21 @@ const CreateOrderContainer = ({ order, loading, isEditMode, onSave }) => {
               rows={4} 
               label="Terms and Conditions" 
               placeholder="Enter payment terms, delivery conditions, or special notes..." 
+              value={formFields.terms}
+              onChange={handleChange('terms')}
             />
           </Box>
 
           <Divider />
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-            <Button variant="outlined" color="neutral">Cancel</Button>
+            <Button variant="outlined" color="neutral" onClick={() => router.back()}>Cancel</Button>
             <Button 
               variant="contained" 
               color="primary" 
               onClick={handleSubmit} 
               disabled={submitting}
             >
-              {submitting ? 'Creating...' : 'Create Order'}
+              {submitting ? (isEditMode ? 'Saving...' : 'Creating...') : (isEditMode ? 'Save Changes' : 'Create Quotation')}
             </Button>
           </Box>
 

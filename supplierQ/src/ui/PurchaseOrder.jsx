@@ -7,9 +7,24 @@ import {
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     CircularProgress 
 } from '@mui/material';
+import { styled } from '@mui/material/styles';
+import { Icon as IconifyIcon } from '@iconify/react';
 import CloseIcon from '@mui/icons-material/Close';
 import { EnhancedTable } from "../components/sections/table/table_skeleton";
 import { fetchSupplierPurchaseOrders, fetchSupplierPurchaseOrdersDetail } from "../services/supplierMetrics.js";
+
+// Styled component for the file upload input
+const VisuallyHiddenInput = styled('input')({
+    clip: 'rect(0 0 0 0)',
+    clipPath: 'inset(50%)',
+    height: 1,
+    overflow: 'hidden',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    whiteSpace: 'nowrap',
+    width: 1,
+});
 
 const PAGE_SIZE = 100;
 
@@ -44,6 +59,55 @@ export function PurchaseOrderView({ apiBase, getAccessToken }) {
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selectedPo, setSelectedPo] = useState(null);
     const [drawerLoading, setDrawerLoading] = useState(false);
+    
+    // ==========================================
+    // MISSING STATE ADDED HERE
+    // ==========================================
+    const [isUploading, setIsUploading] = useState(false);
+
+    const handleFileUpload = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("po_name", selectedPo.name);
+            formData.append("supplier", selectedPo.supplier);
+
+            const response = await fetch('/api/ai/process-invoice', {
+                method: 'POST',
+                body: formData,
+            });
+
+            // 🐛 FIX: Capture the exact error message from the backend
+            if (!response.ok) {
+                let errorMsg = "Unknown Server Error";
+                try {
+                    const errData = await response.json();
+                    errorMsg = errData.error || errorMsg;
+                } catch (e) {
+                    errorMsg = `Server returned status: ${response.status}`;
+                }
+                throw new Error(errorMsg);
+            }
+
+            const data = await response.json();
+            alert(`Successfully created Purchase Invoice: ${data.invoice.name}`);
+            
+            load();
+            setDrawerOpen(false);
+        } catch (error) {
+            console.error("Upload error:", error);
+            // This alert will now tell us EXACTLY what is breaking in the backend!
+            alert(`Upload Failed: \n\n${error.message}`); 
+        } finally {
+            setIsUploading(false);
+            event.target.value = null;
+        }
+    };
 
     const poHeadCells = [
         { id: 'name', numeric: false, disablePadding: false, label: 'PO Number' },
@@ -99,6 +163,7 @@ export function PurchaseOrderView({ apiBase, getAccessToken }) {
                 uniqueKey="name" 
                 defaultSort="transaction_date"
                 onRowClick={handleRowClick}
+                loading={loading}
             />
 
             <Drawer 
@@ -325,6 +390,29 @@ export function PurchaseOrderView({ apiBase, getAccessToken }) {
                             )}
                             
                         </Box> 
+
+                        {/* ================= FOOTER / ACTIONS ================= */}
+                        <Divider sx={{ mb: 2 }} />
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
+                            <Button
+                                component="label"
+                                role={undefined}
+                                variant="contained"
+                                disabled={isUploading}
+                                tabIndex={-1}
+                                startIcon={
+                                    isUploading ? <CircularProgress size={20} color="inherit" /> : <IconifyIcon icon="material-symbols:cloud-upload" sx={{ fontSize: 20 }} />
+                                }
+                            >
+                                {isUploading ? "Processing AI..." : "Upload file"}
+                                <VisuallyHiddenInput 
+                                    type="file" 
+                                    accept="application/pdf,image/*"
+                                    onChange={handleFileUpload} 
+                                />
+                            </Button>
+                        </Box>
+
                     </Box>
                 )}
             </Drawer>

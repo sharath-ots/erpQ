@@ -15,6 +15,7 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Switch from '@mui/material/Switch';
+import LinearProgress from '@mui/material/LinearProgress';
 import { visuallyHidden } from '@mui/utils';
 import { alpha } from '@mui/material/styles';
 import CustomTablePaginationAction from '../../common/CustomTablePaginationAction';
@@ -88,7 +89,7 @@ const EnhancedTableHead = (props) => {
 };
 
 const EnhancedTableToolbar = (props) => {
-    const { numSelected, title } = props;
+    const { numSelected, title, actionNode } = props; // <-- Extracted actionNode here
 
     return (
         <Toolbar
@@ -110,7 +111,14 @@ const EnhancedTableToolbar = (props) => {
                 </Typography>
             )}
 
-            {numSelected > 0 ? (
+            {/* Custom Node rendering container aligned to right edge */}
+            {actionNode && (
+                <Box sx={{ flexShrink: 0, ml: 2 }}>
+                    {actionNode}
+                </Box>
+            )}
+
+            {/* {numSelected > 0 ? (
                 <Tooltip title="Delete">
                     <IconButton><DeleteIcon /></IconButton>
                 </Tooltip>
@@ -118,7 +126,7 @@ const EnhancedTableToolbar = (props) => {
                 <Tooltip title="Filter list">
                     <IconButton><FilterListIcon /></IconButton>
                 </Tooltip>
-            )}
+            )} */}
         </Toolbar>
     );
 };
@@ -132,7 +140,9 @@ export function EnhancedTable({
     rows = [], 
     uniqueKey = "id", 
     defaultSort = "id", 
-    onRowClick
+    onRowClick,
+    loading = false,
+    actionNode // <-- Added to props here
 }) {
     const [order, setOrder] = useState('asc');
     const [orderBy, setOrderBy] = useState(defaultSort);
@@ -196,8 +206,17 @@ export function EnhancedTable({
     return (
         <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, py: { xs: 2, md: 3 } }}>
             <Box sx={{ width: '100%', mb: 2 }}>
-                <EnhancedTableToolbar numSelected={selected.length} title={title} />
+                
+                {/* Passed down down to Toolbar */}
+                <EnhancedTableToolbar 
+                    numSelected={selected.length} 
+                    title={title} 
+                    actionNode={actionNode} 
+                />
+                
+                {loading && <LinearProgress color="primary" />}
                 <TableContainer>
+                    {/* The rest of your EnhancedTable component exactly as it was... */}
                     <Table sx={{ minWidth: 750 }} size={dense ? 'small' : 'medium'}>
                         <EnhancedTableHead
                             numSelected={selected.length}

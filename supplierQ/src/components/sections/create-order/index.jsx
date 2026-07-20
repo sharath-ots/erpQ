@@ -43,7 +43,7 @@ const CreateOrder = ({ orders, loading, isEditMode, onSave }) => {
             <IconifyIcon icon="material-symbols:arrow-back-rounded" />
           </IconButton>
           <Typography variant="h5" sx={{ fontWeight: 700 }}>
-            New Quotation
+            {isEditMode ? 'Edit Quotation' : 'New Quotation'}
           </Typography>
         </Stack>
 

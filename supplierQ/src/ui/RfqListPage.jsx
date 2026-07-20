@@ -237,12 +237,13 @@ export function RfqListPage({ apiBase, getAccessToken }) {
     return (
         <Box>
             <EnhancedTable 
-                title="Requests for Quotationsss"
+                title="Requests for Quotation"
                 headCells={rfqHeadCells} 
                 rows={rows} 
                 uniqueKey="name" 
                 defaultSort="transaction_date"
                 onRowClick={handleRowClick} 
+                loading={loading}
             />
 
             {/* SIDE LAYOUT / DRAWER */}
@@ -324,7 +325,7 @@ export function RfqListPage({ apiBase, getAccessToken }) {
                                                     <TableCell>Item Code</TableCell>
                                                     <TableCell>Item Name</TableCell>
                                                     <TableCell align="right">Quantity</TableCell>
-                                                    <TableCell align="right">Price</TableCell>
+                                                    <TableCell align="right">Price (INR)</TableCell>
                                                     <TableCell>Unit</TableCell>
                                                 </TableRow>
                                             </TableHead>
@@ -343,7 +344,7 @@ export function RfqListPage({ apiBase, getAccessToken }) {
                                                             <TableCell>{item.item_name || item.description || "—"}</TableCell>
                                                             <TableCell align="right" sx={{ fontWeight: 700 }}>{item.qty}</TableCell>
                                                             <TableCell align="right" sx={{ fontWeight: 500 }}>
-                                                                {item.default_item_price ?? item.rate ?? item.price ?? "—"}
+                                                                {formatINR(item.default_item_price) ?? formatINR(item.rate) ?? formatINR(item.price) ?? "—"}
                                                             </TableCell>
                                                             <TableCell>
                                                                 <Chip label={item.uom} size="small" variant="outlined" />

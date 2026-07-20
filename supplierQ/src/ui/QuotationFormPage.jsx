@@ -12,7 +12,7 @@ import {
   fetchPrivateImageBlob,
   fetchItemDetails
 } from "../services/supplierMetrics.js"; 
-
+                                                                                          
 const resolveImageUrl = (imagePath, apiBase) => {
   if (!imagePath) return 'https://placehold.co/150x150?text=No+Image';
   if (imagePath.startsWith("http")) return imagePath;
@@ -69,31 +69,13 @@ export function QuotationFormPage({ apiBase, getAccessToken }) {
       const rawAddress = details.billing_address_display || details.billing_address || "";
       const formattedAddress = rawAddress.replace(/<br\s*\/?>/gi, '\n');
 
-      const mappedItems = await Promise.all((details.items || []).map(async (item) => {
+      // FIX: Removed "await Promise.all" and "async (item)". We do this synchronously now.
+      const mappedItems = (details.items || []).map((item) => {
         let imagePath = item.image;
-
-        // Fetch image path if missing
-        if (!imagePath) {
-          imagePath = await fetchItemImage(item.item_code, { apiBase, getAccessToken });
-        }
-
         const resolvedImage = resolveImageUrl(imagePath, apiBase);
-        let finalImageSrc = resolvedImage;
+        const isPrivate = imagePath && imagePath.includes('/private/files/');
 
-        // Fetch Private Blob if required
-        if (imagePath && imagePath.includes('/private/files/')) {
-          const secureBlobUrl = await fetchPrivateImageBlob(imagePath, { apiBase, getAccessToken });
-          if (secureBlobUrl) {
-            finalImageSrc = secureBlobUrl;
-          }
-        }
-
-        // FIX: Fetch the actual Item Master document to get the 100% correct name
-        const masterItemDetails = await fetchItemDetails(item.item_code, { apiBase, getAccessToken });
-        
-        // Use the master name, fallback to RFQ item_name, but NEVER fallback to item.name (the hash)
-        const itemName = masterItemDetails?.item_name || item.item_name || item.description || "";
-        
+        const itemName = item.item_name || item.description || "";
         const displayName = itemName && itemName !== item.item_code
           ? `${item.item_code} — ${itemName}`
           : item.item_code;
@@ -106,7 +88,9 @@ export function QuotationFormPage({ apiBase, getAccessToken }) {
           price: {
             regular: Number(item.rate) || Number(item.default_item_price) || 0,
           },
-          images: [{ src: finalImageSrc }],
+          // If private, show a placeholder temporarily. If public, show immediately.
+          images: [{ src: isPrivate ? 'https://placehold.co/150x150?text=Loading...' : resolvedImage }],
+          _privateImagePath: isPrivate ? imagePath : null, // Hidden field to trigger background load
           variants: [
             { label: 'UOM', value: item.uom || 'Nos' },
             ...(item.item_group ? [{ label: 'Group', value: item.item_group }] : [])
@@ -115,7 +99,7 @@ export function QuotationFormPage({ apiBase, getAccessToken }) {
           shopSku: item.item_code,
           sellerSku: item.item_code,
         };
-      }));
+      });
 
       const mappedOrder = {
         id: details.name,
@@ -136,13 +120,44 @@ export function QuotationFormPage({ apiBase, getAccessToken }) {
         items: mappedItems 
       };
 
+      // 1. RENDER UI IMMEDIATELY 
       setOrderDetailsList([mappedOrder]);
+      setLoading(false); 
+
+      // 2. BACKGROUND FETCH PRIVATE IMAGES
+      mappedItems.forEach(async (item, index) => {
+        if (item._privateImagePath) {
+          try {
+            const secureBlobUrl = await fetchPrivateImageBlob(item._privateImagePath, { apiBase, getAccessToken });
+            if (secureBlobUrl) {
+              setOrderDetailsList(prevList => {
+                if (!prevList || prevList.length === 0) return prevList;
+                const newList = [...prevList];
+                const order = { ...newList[0] };
+                const newItems = [...order.items];
+                
+                // Swap the placeholder with the real blob URL once it finishes downloading
+                newItems[index] = {
+                  ...newItems[index],
+                  images: [{ src: secureBlobUrl }]
+                };
+                
+                order.items = newItems;
+                newList[0] = order;
+                return newList;
+              });
+            }
+          } catch (e) {
+            console.error("Failed to load background image for", item.id);
+          }
+        }
+      });
+
     } catch (error) {
       console.error("Failed to fetch dynamic order data:", error);
-    } finally {
       setLoading(false);
     }
-  }, [apiBase, getAccessToken, rfqId]); 
+  }, [apiBase, getAccessToken, rfqId]);
 
   useEffect(() => {
     loadDynamicData();

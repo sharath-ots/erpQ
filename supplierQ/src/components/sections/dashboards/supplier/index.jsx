@@ -1,34 +1,53 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme, alpha } from "@mui/material/styles";
-import Grid from "@mui/material/Grid"; // or Grid2 depending on your setup
+import Grid from "@mui/material/Grid"; // MUI v6 standard
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
 import Skeleton from "@mui/material/Skeleton";
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
-import LinearProgress from "@mui/material/LinearProgress";
+import Divider from "@mui/material/Divider";
+import Avatar from "@mui/material/Avatar";
+import List from "@mui/material/List";
+import ListItemButton from "@mui/material/ListItemButton";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import Chip from "@mui/material/Chip";
+import Button from "@mui/material/Button";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
 
 // Icons
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
-import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
-import PaymentsIcon from "@mui/icons-material/Payments";
+import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import IconButton from "@mui/material/IconButton";
 
-import useNumberFormat from "../../../../hooks/useNumberFormat.js";
+// ECharts - Standard Imports
+import ReactEcharts from 'echarts-for-react';
+import * as echarts from 'echarts/core';
+import { LineChart, BarChart, PieChart } from 'echarts/charts';
+import { GridComponent, TooltipComponent, LegendComponent, TitleComponent } from 'echarts/components';
+import { CanvasRenderer } from 'echarts/renderers';
+
 import { fetchSupplierMetrics } from "../../../../services/supplierMetrics.js";
-import { fallbackKpis } from "../../../../data/supplier/dashboard.js";
 
-// --- Helpers & Mappings ---
+// Initialize ECharts
+echarts.use([TooltipComponent, GridComponent, LegendComponent, TitleComponent, LineChart, BarChart, PieChart, CanvasRenderer]);
 
-// Hardcoded INR formatter for strict Indian Rupees enforcement
+// --- Helpers & Formats ---
+
 const formatINR = (amount) => {
   return new Intl.NumberFormat('en-IN', { 
     style: 'currency', 
@@ -37,251 +56,538 @@ const formatINR = (amount) => {
   }).format(amount || 0);
 };
 
-const getKpiConfig = (index, theme) => {
-  const configs = [
-    { icon: <AssessmentIcon />, color: theme.palette.primary.main },
-    { icon: <ReceiptLongIcon />, color: theme.palette.secondary.main },
-    { icon: <LocalShippingIcon />, color: theme.palette.warning.main },
-    { icon: <AccountBalanceWalletIcon />, color: theme.palette.success.main },
-  ];
-  return configs[index % configs.length];
+const formatDate = (dateStr, short = false) => {
+  if (!dateStr || dateStr === 'Start' || dateStr === 'Prev' || dateStr === 'Now') return dateStr;
+  const dateObj = new Date(dateStr);
+  if (isNaN(dateObj.getTime())) return dateStr; // Failsafe against React crashes
+  return new Intl.DateTimeFormat('en-GB', { 
+    day: '2-digit', 
+    month: 'short', 
+    year: short ? undefined : 'numeric' 
+  }).format(dateObj);
 };
 
-// --- Sub-components ---
+const getThemeStatusColor = (status) => {
+  const normalized = status?.toLowerCase();
+  switch (normalized) {
+      case "submitted":
+      case "open": return "primary";
+      case "draft": return "warning";
+      case "completed":
+      case "awarded": return "success";
+      case "cancelled":
+      case "rejected": return "error";
+      default: return "info"; 
+  }
+};
 
-function KpiCard({ label, value, index }) {
+// --- Aurora Sub-Components (Seamless / No Borders internally) ---
+
+const SectionHeader = ({ title, subTitle, actionComponent }) => (
+  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+    <Box>
+      <Typography variant="h6" fontWeight={700} mb={0.5} sx={{ letterSpacing: '-0.02em' }}>{title}</Typography>
+      {subTitle && <Typography variant="body2" color="text.secondary">{subTitle}</Typography>}
+    </Box>
+    {actionComponent && <Box>{actionComponent}</Box>}
+  </Box>
+);
+
+// 1. Aurora Greeting Component (Left Column)
+function AuroraGreeting({ kpis, router }) {
   const theme = useTheme();
-  const { numberFormat } = useNumberFormat();
-  const display = value == null ? "\u2014" : numberFormat(value);
-  const { icon, color } = getKpiConfig(index, theme);
+  
+  const stats = [
+    { icon: <AssessmentIcon />, subtitle: 'Open RFQs', value: kpis?.openRfqs || 0, path: '/m/supplierq/rfqs' },
+    { icon: <ReceiptLongIcon />, subtitle: 'Pending Quotes', value: kpis?.pendingQuotations || 0, path: '/m/supplierq/supplier-quotation' },
+    { icon: <LocalShippingIcon />, subtitle: 'Open Orders', value: kpis?.openPurchaseOrders || 0, path: '/m/supplierq/purchase-order' },
+    { icon: <AccountBalanceWalletIcon />, subtitle: 'Invoices', value: kpis?.pendingInvoices || 0, path: '/m/supplierq/purchase-invoice' },
+  ];
+
+  const today = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: '2-digit', year: 'numeric' }).format(new Date());
 
   return (
-    <Paper
-      elevation={0}
+    <Stack
+      direction="column"
+      divider={<Divider flexItem />}
       sx={{
-        p: 3,
+        gap: 4,
+        p: { xs: 3, md: 5 },
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'space-between',
-        borderRadius: 4,
-        border: '1px solid',
-        borderColor: 'divider',
-        transition: 'transform 0.2s, box-shadow 0.2s',
-        '&:hover': {
-          transform: 'translateY(-2px)',
-          boxShadow: theme.shadows[4],
-        },
+        justifyContent: 'center', 
       }}
     >
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+      <Stack direction="column" spacing={1}>
         <Typography 
           variant="subtitle2" 
-          color="text.secondary" 
-          sx={{ fontWeight: 600, letterSpacing: 0.5 }}
-        >
-          {label}
-        </Typography>
-        <Box 
           sx={{ 
-            p: 1, 
-            borderRadius: 2, 
-            bgcolor: alpha(color, 0.1), 
-            color: color,
-            display: 'flex' 
+            color: 'text.secondary', 
+            fontWeight: 600, 
+            textTransform: 'uppercase' 
           }}
         >
-          {icon}
-        </Box>
-      </Box>
-      <Stack direction="row" alignItems="flex-end" justifyContent="space-between">
-        <Typography variant="h4" sx={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
-          {display}
+          {today}
+        </Typography>
+        
+        <Typography 
+          variant="h4" 
+          sx={{ 
+            fontWeight: 700, 
+            letterSpacing: '-0.02em' 
+          }}
+        >
+          Portal unlocked. Proceed with awesomeness.
         </Typography>
       </Stack>
-    </Paper>
+
+      <Box>
+        <Typography variant="subtitle2" color="text.secondary" fontWeight={500} mb={3}>
+          Your live business metrics.
+        </Typography>
+        <Stack direction="column" sx={{ gap: 2 }}>
+          {stats.map(({ icon, subtitle, value, path }) => (
+            <Stack
+              key={subtitle}
+              onClick={() => router.push(path)}
+              direction="row"
+              sx={{
+                gap: 2.5,
+                alignItems: 'center',
+                p: 2,
+                mx: -2,
+                borderRadius: 3,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease-in-out',
+                '&:hover': { bgcolor: 'action.hover', transform: 'translateX(6px)' }
+              }}
+            >
+              <Avatar sx={{ width: 48, height: 48, color: 'primary.main', bgcolor: alpha(theme.palette.primary.main, 0.1), flexShrink: 0 }}>
+                {icon}
+              </Avatar>
+              <Stack direction="row" sx={{ gap: 1, flexWrap: 'wrap', alignItems: 'baseline' }}>
+                <Typography variant="h4" sx={{ fontWeight: 700 }}>{value}</Typography>
+                <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.secondary' }}>{subtitle}</Typography>
+              </Stack>
+            </Stack>
+          ))}
+        </Stack>
+      </Box>
+    </Stack>
   );
 }
 
-function ActivityChart({ purchaseOrders = [] }) {
+// 2. Aurora Mini-Stat Card
+function AuroraStatCard({ title, subtitle, amount, percentage, chartType = 'line', data = [], color = "primary", router }) {
   const theme = useTheme();
-  const chartData = [...purchaseOrders].reverse();
-  const maxTotal = Math.max(...chartData.map(po => po.grand_total || 0), 1); 
-  
+  const paletteColor = theme.palette[color].main;
+  const isPositive = percentage >= 0;
+
+  // Add dummy start point so lines draw upward nicely if there's only 1 real point
+  let chartData = [...data].reverse();
+  if (chartData.length === 1) chartData = [{ transaction_date: 'Start', grand_total: 0 }, ...chartData];
+  if (chartData.length === 0) chartData = [{ transaction_date: 'Start', grand_total: 0 }, { transaction_date: 'Now', grand_total: 0 }];
+
+  const dates = chartData.map((d, i) => formatDate(d.transaction_date, true) || `Day ${i}`);
+  const values = chartData.map(d => d.grand_total || 0);
+
+  const getOptions = useMemo(() => ({
+    tooltip: { trigger: 'axis', confine: true },
+    xAxis: { type: 'category', data: dates, show: false, boundaryGap: chartType === 'bar' },
+    yAxis: { show: false, type: 'value', boundaryGap: false, min: 'dataMin' },
+    series: [{
+      data: values,
+      type: chartType,
+      smooth: false,
+      showSymbol: false,
+      symbol: 'circle',
+      barMaxWidth: 12, 
+      itemStyle: { 
+        color: paletteColor,
+        borderRadius: chartType === 'bar' ? [4, 4, 0, 0] : 0 
+      },
+      lineStyle: { width: 3, color: paletteColor },
+      areaStyle: chartType === 'line' ? {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: alpha(paletteColor, 0.3) },
+          { offset: 1, color: alpha(paletteColor, 0) }
+        ])
+      } : undefined
+    }],
+    grid: { left: 5, right: 5, top: 10, bottom: 5 },
+  }), [chartType, dates, values, paletteColor]);
+
   return (
-    <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4 }}>
-        <Box>
-          <Typography variant="h6" fontWeight={700}>Order Volume (INR)</Typography>
-          <Typography variant="body2" color="text.secondary">Financial breakdown of recent purchase orders</Typography>
+    <Box 
+      onClick={() => router.push("/m/supplierq/purchase-order")}
+      sx={{ 
+        p: { xs: 3, md: 4 }, 
+        flex: 1, 
+        height: 1, 
+        display: 'flex', 
+        flexDirection: 'column',
+        cursor: 'pointer',
+        transition: 'background-color 0.2s',
+        '&:hover': { bgcolor: 'action.hover' } 
+      }}
+    >
+      <SectionHeader title={title} subTitle={subtitle} actionComponent={<IconButton size="small"><MoreVertIcon /></IconButton>} />
+      <Stack direction="row" sx={{ flexGrow: 1, justifyContent: 'space-between', alignItems: 'flex-end', gap: 2 }}>
+        
+        <Box sx={{ pb: 0.5, flex: 1, minWidth: 0 }}>
+          <Typography variant="h4" fontWeight={700} color="text.primary" sx={{ mb: 1, letterSpacing: '-0.02em' }} noWrap>
+            {formatINR(amount)}
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Chip 
+              label={`${isPositive ? '+' : ''}${percentage}%`} 
+              size="small" 
+              color={isPositive ? 'success' : 'error'} 
+              variant="soft" 
+              sx={{ fontWeight: 700, fontSize: '0.7rem', height: 22 }} 
+            />
+            <Typography variant="caption" color="text.secondary" noWrap>vs last period</Typography>
+          </Box>
         </Box>
-      </Box>
-      
-      <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 1, minHeight: 200 }}>
-        {chartData.length === 0 ? (
-           <Typography variant="body2" color="text.secondary" sx={{ margin: 'auto' }}>
-             No recent activity to display.
-           </Typography>
-        ) : (
-          chartData.map((po) => {
-            const heightPct = Math.max(((po.grand_total || 0) / maxTotal) * 100, 2);
-            return (
-              <Tooltip title={`${po.name} — ${formatINR(po.grand_total)}`} key={po.name}>
-                <Box
-                  sx={{
-                    width: '100%',
-                    height: `${heightPct}%`,
-                    bgcolor: alpha(theme.palette.primary.main, 0.4),
-                    borderRadius: '4px 4px 0 0',
-                    transition: 'background-color 0.2s, height 0.5s ease-out',
-                    cursor: 'pointer',
-                    '&:hover': {
-                      bgcolor: theme.palette.primary.main,
-                    }
-                  }}
-                />
-              </Tooltip>
-            );
-          })
-        )}
-      </Box>
-    </Paper>
-  );
-}
 
-function PerformanceMetrics({ metrics }) {
-  const theme = useTheme();
-  const data = {
-    onTimeDelivery: metrics?.onTimeDelivery ?? 94,
-    qualityAcceptance: metrics?.qualityAcceptance ?? 98,
-    rfqResponseRate: metrics?.rfqResponseRate ?? 85,
-  };
+        <Box sx={{ width: 120, height: 70, flexShrink: 0, position: 'relative' }}>
+          <ReactEcharts echarts={echarts} option={getOptions} style={{ position: 'absolute', inset: 0, height: '100%', width: '100%' }} />
+        </Box>
 
-  const MetricRow = ({ label, value, color }) => (
-    <Box sx={{ mb: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-        <Typography variant="body2" fontWeight={600}>{label}</Typography>
-        <Typography variant="body2" fontWeight={700} color={color}>{value}%</Typography>
-      </Box>
-      <LinearProgress 
-        variant="determinate" 
-        value={value} 
-        sx={{ 
-          height: 8, 
-          borderRadius: 4, 
-          bgcolor: alpha(theme.palette[color].main, 0.1),
-          '& .MuiLinearProgress-bar': {
-            borderRadius: 4,
-            bgcolor: theme.palette[color].main
-          }
-        }} 
-      />
+      </Stack>
     </Box>
   );
-
-  return (
-    <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider', height: '100%' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 4 }}>
-        <Box sx={{ p: 1, borderRadius: 2, bgcolor: alpha(theme.palette.success.main, 0.1), color: theme.palette.success.main, display: 'flex' }}>
-          <EmojiEventsIcon />
-        </Box>
-        <Box>
-          <Typography variant="h6" fontWeight={700}>Supplier Rating</Typography>
-          <Typography variant="body2" color="text.secondary">Your current performance metrics</Typography>
-        </Box>
-      </Box>
-      
-      <Box sx={{ mt: 2 }}>
-        <MetricRow label="On-Time Delivery" value={data.onTimeDelivery} color="primary" />
-        <MetricRow label="Quality Acceptance" value={data.qualityAcceptance} color="success" />
-        <MetricRow label="RFQ Response Rate" value={data.rfqResponseRate} color="warning" />
-      </Box>
-    </Paper>
-  );
 }
 
-function FinancialPipeline({ financials }) {
+// 3. Main Chart
+function AuroraMainChart({ orders = [], router }) {
   const theme = useTheme();
-  const data = {
-    totalBilled: financials?.totalBilled ?? 1250000,
-    paid: financials?.paid ?? 850000,
-    pending: financials?.pending ?? 400000,
-  };
+  
+  let chartData = [...orders].reverse();
+  if (chartData.length === 1) chartData = [{ transaction_date: 'Start', grand_total: 0 }, ...chartData];
 
-  const paidPct = (data.paid / data.totalBilled) * 100;
-  const pendingPct = (data.pending / data.totalBilled) * 100;
+  const dates = chartData.map((d, i) => formatDate(d.transaction_date, true) || `Day ${i}`);
+  const values = chartData.map(d => d.grand_total || 0);
+
+  const getOptions = useMemo(() => ({
+    tooltip: { 
+      trigger: 'axis',
+      axisPointer: { type: 'line', lineStyle: { color: theme.palette.divider, type: 'solid' } }
+    },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      boundaryGap: true,
+      axisLine: { show: false },
+      splitLine: { show: true, lineStyle: { color: theme.palette.divider, type: 'dashed' } },
+      axisTick: { show: false },
+      axisLabel: { color: theme.palette.text.secondary, margin: 16 }
+    },
+    yAxis: {
+      type: 'value',
+      show: false,
+    },
+    series: [{
+      name: 'Order Value',
+      type: 'line',
+      data: values.length ? values : [0],
+      showSymbol: true,
+      symbolSize: 8,
+      symbol: 'circle',
+      itemStyle: { color: theme.palette.primary.main },
+      lineStyle: { width: 3, color: theme.palette.primary.main },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: alpha(theme.palette.primary.main, 0.4) },
+          { offset: 1, color: alpha(theme.palette.primary.main, 0) }
+        ])
+      },
+      emphasis: {
+        itemStyle: {
+          color: theme.palette.primary.main,
+          borderColor: alpha(theme.palette.primary.main, 0.3),
+          borderWidth: 10
+        }
+      }
+    }],
+    // FIX APPLIED HERE: Added containLabel: true and adjusted bottom padding
+    grid: { left: 10, right: 10, top: 20, bottom: 10, containLabel: true },
+  }), [dates, values, theme]);
 
   return (
-    <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider', height: '100%' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 4 }}>
-        <Box sx={{ p: 1, borderRadius: 2, bgcolor: alpha(theme.palette.secondary.main, 0.1), color: theme.palette.secondary.main, display: 'flex' }}>
-          <PaymentsIcon />
-        </Box>
-        <Box>
-          <Typography variant="h6" fontWeight={700}>Payment Pipeline</Typography>
-          <Typography variant="body2" color="text.secondary">Overview of your billing and payments</Typography>
-        </Box>
+    <Box 
+      onClick={() => router.push("/m/supplierq/purchase-order")}
+      sx={{ 
+        p: { xs: 3, md: 4 }, 
+        height: 1, 
+        display: 'flex', 
+        flexDirection: 'column',
+        cursor: 'pointer',
+        transition: 'background-color 0.2s',
+        '&:hover': { bgcolor: 'action.hover' } 
+      }}
+    >
+      <Grid container spacing={2} sx={{ alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <Grid size={{ xs: 'grow', lg: 'auto' }}>
+          <Typography variant="h6" fontWeight={700} mb={0.5} sx={{ letterSpacing: '-0.02em' }}>Financial Trajectory</Typography>
+          <Typography variant="body2" color="text.secondary">Amount of revenue generated from recent purchase orders</Typography>
+        </Grid>
+        <Grid size={{ xs: 12, lg: 'auto' }}>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box sx={{ width: 12, height: 12, borderRadius: 1, bgcolor: 'primary.main' }} />
+              <Typography variant="body2" color="text.secondary" fontWeight={500}>Order Value</Typography>
+            </Box>
+            <Chip label="Real-Time Data" color="primary" variant="soft" size="small" sx={{ fontWeight: 600 }} />
+          </Box>
+        </Grid>
+      </Grid>
+      <Box sx={{ flex: 1, minHeight: 280, position: 'relative', mt: 4 }}>
+        {chartData.length > 0 ? (
+          <ReactEcharts echarts={echarts} option={getOptions} style={{ position: 'absolute', inset: 0, height: '100%', width: '100%' }} />
+        ) : (
+          <Box sx={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+            <Typography variant="body2" color="text.secondary">No recent data available.</Typography>
+          </Box>
+        )}
       </Box>
-
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} sx={{ mb: 4 }}>
-        <Box>
-          <Typography variant="caption" color="text.secondary" fontWeight={600} textTransform="uppercase">Total Billed YTD</Typography>
-          <Typography variant="h5" fontWeight={700}>{formatINR(data.totalBilled)}</Typography>
-        </Box>
-        <Box>
-          <Typography variant="caption" color="text.secondary" fontWeight={600} textTransform="uppercase">Pending Clearance</Typography>
-          <Typography variant="h5" fontWeight={700} color="warning.main">{formatINR(data.pending)}</Typography>
-        </Box>
-      </Stack>
-
-      <Box sx={{ position: 'relative', width: '100%', height: 24, borderRadius: 12, overflow: 'hidden', display: 'flex', bgcolor: theme.palette.action.hover }}>
-        <Tooltip title={`Paid: ${formatINR(data.paid)}`}>
-          <Box sx={{ width: `${paidPct}%`, bgcolor: theme.palette.success.main, transition: 'width 0.5s' }} />
-        </Tooltip>
-        <Tooltip title={`Pending: ${formatINR(data.pending)}`}>
-          <Box sx={{ width: `${pendingPct}%`, bgcolor: theme.palette.warning.main, transition: 'width 0.5s' }} />
-        </Tooltip>
-      </Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-        <Typography variant="caption" fontWeight={600} color="success.main">Paid ({paidPct.toFixed(0)}%)</Typography>
-        <Typography variant="caption" fontWeight={600} color="warning.main">Pending ({pendingPct.toFixed(0)}%)</Typography>
-      </Box>
-    </Paper>
+    </Box>
   );
 }
+
+// 4. Market Share Equivalent (Fixed Alignment via ECharts Title)
+function AuroraStatusDonut({ orders = [], router }) {
+  const theme = useTheme();
+
+  const statusCounts = useMemo(() => {
+    const counts = {};
+    orders.forEach(po => {
+      const status = po.status || "Unknown";
+      counts[status] = (counts[status] || 0) + 1;
+    });
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  }, [orders]);
+
+  const getOptions = useMemo(() => ({
+    title: {
+      text: '{val|' + orders.length + '}\n{lbl|Total POs}',
+      left: 'center',
+      top: 'center',
+      textStyle: {
+        rich: {
+          val: { fontSize: 36, fontWeight: 700, color: theme.palette.text.primary, lineHeight: 42, align: 'center' },
+          lbl: { fontSize: 13, fontWeight: 500, color: theme.palette.text.secondary, align: 'center' }
+        }
+      }
+    },
+    tooltip: { trigger: 'item' },
+    legend: { show: false },
+    color: [theme.palette.primary.main, theme.palette.success.main, theme.palette.warning.main, theme.palette.info.main, theme.palette.grey[400]],
+    series: [
+      {
+        name: 'Order Status',
+        type: 'pie',
+        padAngle: 3,
+        radius: ['60%', '85%'],
+        center: ['50%', '50%'],
+        avoidLabelOverlap: false,
+        itemStyle: { borderColor: 'transparent' },
+        label: { show: false },
+        data: statusCounts.length > 0 ? statusCounts : [{ name: 'No Data', value: 1, itemStyle: { color: theme.palette.divider } }],
+      }
+    ],
+    grid: { outerBoundsMode: 'same' },
+  }), [statusCounts, theme, orders.length]);
+
+  return (
+    <Box 
+      onClick={() => router.push("/m/supplierq/purchase-order")}
+      sx={{ 
+        p: { xs: 3, md: 4 }, 
+        height: 1, 
+        display: 'flex', 
+        flexDirection: 'column',
+        cursor: 'pointer',
+        transition: 'background-color 0.2s',
+        '&:hover': { bgcolor: 'action.hover' } 
+      }}
+    >
+      <SectionHeader title="Order Status" subTitle="Distribution of your recent POs" actionComponent={<IconButton size="small"><MoreVertIcon /></IconButton>} />
+      <Box sx={{ flexGrow: 1, position: 'relative', minHeight: 250 }}>
+        <ReactEcharts echarts={echarts} option={getOptions} style={{ position: 'absolute', inset: 0, height: '100%', width: '100%' }} />
+      </Box>
+    </Box>
+  );
+}
+
+// 5. Aurora Table (Recent Orders)
+function AuroraRecentOrdersTable({ orders = [], router }) {
+  return (
+    <Box sx={{ p: { xs: 3, md: 4 }, height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <SectionHeader 
+        title="Recent Orders" 
+        subTitle="Detailed information about your awarded POs" 
+        actionComponent={<IconButton size="small"><MoreVertIcon /></IconButton>}
+      />
+      <TableContainer sx={{ margin: 0, padding: 0, boxShadow: 'none', flex: 1 }}>
+        <Table sx={{ minWidth: 500 }}>
+          <TableHead sx={{ '& th': { borderBottom: '1px solid', borderColor: 'divider', color: 'text.secondary', fontWeight: 600, py: 1.5, px: 1, bgcolor: 'action.hover' } }}>
+            <TableRow>
+              <TableCell>Order Number</TableCell>
+              <TableCell>Date</TableCell>
+              <TableCell align="right">Amount</TableCell>
+              <TableCell align="center">Status</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {orders.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} align="center" sx={{ py: 4, color: 'text.secondary', border: 0 }}>No recent Purchase Orders available.</TableCell>
+              </TableRow>
+            ) : (
+              orders.slice(0, 6).map((po) => (
+                <TableRow 
+                  key={po.name} 
+                  hover 
+                  onClick={() => router.push(`/m/supplierq/purchase-order?id=${po.name}`)}
+                  sx={{ 
+                    cursor: 'pointer',
+                    '& td': { py: 2, px: 1, borderBottom: '1px solid', borderColor: 'divider' }, 
+                    '&:last-child td': { border: 0 } 
+                  }}
+                >
+                  <TableCell>
+                    <Stack direction="row" alignItems="center" gap={1.5}>
+                      <Avatar variant="rounded" sx={{ width: 36, height: 36, bgcolor: 'background.default', color: 'primary.main', border: '1px solid', borderColor: 'divider', flexShrink: 0 }}>
+                        <LocalShippingIcon fontSize="small" />
+                      </Avatar>
+                      <Typography variant="subtitle2" fontWeight={600} color="primary.main" noWrap>
+                        {po.name}
+                      </Typography>
+                    </Stack>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary" fontWeight={500} noWrap>
+                      {formatDate(po.transaction_date)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography variant="body2" fontWeight={700} noWrap>
+                      {formatINR(po.grand_total)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="center">
+                    <Chip label={po.status ?? "UNKNOWN"} color={getThemeStatusColor(po.status)} variant="soft" size="small" sx={{ fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.7rem' }} />
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
+  );
+}
+
+// 6. Aurora Table (Recent RFQs)
+function AuroraRecentRfqsTable({ rfqs = [], router }) {
+  return (
+    <Box sx={{ p: { xs: 3, md: 4 }, height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <SectionHeader 
+        title="Recent RFQs" 
+        subTitle="Latest Requests for Quotation" 
+        actionComponent={<IconButton size="small"><MoreVertIcon /></IconButton>}
+      />
+      <TableContainer sx={{ margin: 0, padding: 0, boxShadow: 'none', flex: 1 }}>
+        <Table sx={{ minWidth: 500 }}>
+          <TableHead sx={{ '& th': { borderBottom: '1px solid', borderColor: 'divider', color: 'text.secondary', fontWeight: 600, py: 1.5, px: 1, bgcolor: 'action.hover' } }}>
+            <TableRow>
+              <TableCell>RFQ Number</TableCell>
+              <TableCell>Issued Date</TableCell>
+              <TableCell>Required By</TableCell>
+              <TableCell align="center">Status</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {rfqs.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} align="center" sx={{ py: 4, color: 'text.secondary', border: 0 }}>No recent RFQs available.</TableCell>
+              </TableRow>
+            ) : (
+              rfqs.slice(0, 6).map((rfq) => (
+                <TableRow 
+                  key={rfq.name} 
+                  hover 
+                  onClick={() => router.push(`/m/supplierq/rfq?id=${rfq.name}`)}
+                  sx={{ 
+                    cursor: 'pointer',
+                    '& td': { py: 2, px: 1, borderBottom: '1px solid', borderColor: 'divider' }, 
+                    '&:last-child td': { border: 0 } 
+                  }}
+                >
+                  <TableCell>
+                    <Stack direction="row" alignItems="center" gap={1.5}>
+                      <Avatar variant="rounded" sx={{ width: 36, height: 36, bgcolor: 'background.default', color: 'primary.main', border: '1px solid', borderColor: 'divider', flexShrink: 0 }}>
+                        <AssessmentIcon fontSize="small" />
+                      </Avatar>
+                      <Typography variant="subtitle2" fontWeight={600} color="primary.main" noWrap>
+                        {rfq.name}
+                      </Typography>
+                    </Stack>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary" fontWeight={500} noWrap>
+                      {formatDate(rfq.transaction_date)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary" fontWeight={500} noWrap>
+                      {formatDate(rfq.schedule_date) || "—"}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="center">
+                    <Chip label={rfq.status ?? "UNKNOWN"} color={getThemeStatusColor(rfq.status)} variant="soft" size="small" sx={{ fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.7rem' }} />
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
+  );
+}
+
 
 function DashboardSkeleton() {
   return (
-    <Grid container spacing={3}>
-      {[1, 2, 3, 4].map((i) => (
-        <Grid size={{ xs: 12, sm: 6, md: 3 }} key={i}>
-          <Skeleton variant="rounded" height={140} sx={{ borderRadius: 4 }} />
+    <Grid container spacing={0}>
+      <Grid size={{ xs: 12, lg: 4, xl: 3 }}>
+        <Skeleton variant="rectangular" height={800} sx={{ borderRadius: 0 }} />
+      </Grid>
+      <Grid size={{ xs: 12, lg: 8, xl: 9 }}>
+        <Grid container spacing={0}>
+          <Grid size={{ xs: 12, sm: 6 }}><Skeleton variant="rectangular" height={200} /></Grid>
+          <Grid size={{ xs: 12, sm: 6 }}><Skeleton variant="rectangular" height={200} /></Grid>
+          <Grid size={{ xs: 12 }}><Skeleton variant="rectangular" height={350} /></Grid>
+          <Grid size={{ xs: 12 }}><Skeleton variant="rectangular" height={400} /></Grid>
         </Grid>
-      ))}
-      <Grid size={{ xs: 12, md: 8 }}>
-        <Skeleton variant="rounded" height={320} sx={{ borderRadius: 4 }} />
-      </Grid>
-      <Grid size={{ xs: 12, md: 4 }}>
-        <Skeleton variant="rounded" height={320} sx={{ borderRadius: 4 }} />
-      </Grid>
-      <Grid size={{ xs: 12 }}>
-        <Skeleton variant="rounded" height={220} sx={{ borderRadius: 4 }} />
       </Grid>
     </Grid>
   );
 }
 
-// --- Main Component ---
+// --- Main Dashboard Entry ---
 
 export default function SupplierDashboard({ apiBase, getAccessToken }) {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [kpis, setKpis] = useState(null);
-  const [recentPos, setRecentPos] = useState([]);
-  const [scopeHint, setScopeHint] = useState(null);
   
-  const [performanceMetrics, setPerformanceMetrics] = useState(null);
-  const [financials, setFinancials] = useState(null);
+  const [kpis, setKpis] = useState(null);
+  const [recentRfqs, setRecentRfqs] = useState([]);
+  const [recentPos, setRecentPos] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -290,15 +596,15 @@ export default function SupplierDashboard({ apiBase, getAccessToken }) {
         const data = await fetchSupplierMetrics({ apiBase, getAccessToken });
         if (!cancelled) {
           setKpis(data.kpis ?? {});
+          setRecentRfqs(data.recentRfqs ?? []);
           setRecentPos(data.recentPurchaseOrders ?? []);
-          setPerformanceMetrics(data.performanceMetrics ?? null);
-          setFinancials(data.financials ?? null);
           setError(null);
         }
       } catch (e) {
         if (!cancelled) {
           setError(String(e?.message ?? e));
           setKpis({});
+          setRecentRfqs([]);
           setRecentPos([]);
         }
       } finally {
@@ -310,59 +616,99 @@ export default function SupplierDashboard({ apiBase, getAccessToken }) {
 
   if (loading) {
     return (
-      <Box sx={{ p: { xs: 2, md: 3 } }}>
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 3 }}>
-          My Dashboard
-        </Typography>
+      <Box sx={{ width: '100%', height: '100%', m: 0, p: 0 }}>
         <DashboardSkeleton />
       </Box>
     );
   }
 
-  const kpiItems = fallbackKpis.map((k) => ({
-    ...k,
-    value: kpis?.[k.key] ?? null,
-  }));
+  // Calculate dynamic totals for the mini-charts
+  const totalVolume = recentPos.reduce((sum, po) => sum + (po.grand_total || 0), 0);
+  const avgOrderValue = recentPos.length > 0 ? totalVolume / recentPos.length : 0;
+
+  // Real-time calculation for dynamic growth percentages based on history
+  let volumeGrowth = 0; 
+  let avgGrowth = 0;
+  if (recentPos.length >= 2) {
+    const latest = recentPos[0].grand_total || 0;
+    const previous = recentPos[1].grand_total || 0;
+    if (previous > 0) {
+      volumeGrowth = Number((((latest - previous) / previous) * 100).toFixed(1));
+    }
+    if (avgOrderValue > 0) {
+      avgGrowth = Number((((latest - avgOrderValue) / avgOrderValue) * 100).toFixed(1));
+    }
+  }
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
-      <Typography variant="h5" sx={{ fontWeight: 700, mb: 3 }}>
-        My Dashboard
-      </Typography>
+    <Box sx={{ width: '100%', height: '100%', m: 0, p: 0, bgcolor: 'background.paper' }}>
       
-      <Grid container spacing={3}>
-        {/* Alerts */}
-        {(scopeHint || error) && (
+      {error && (
+        <Alert severity="error" sx={{ borderRadius: 0, mb: 0 }}>
+          {error}
+        </Alert>
+      )}
+
+      {/* AURORA MASTER WRAPPER - Edge-to-edge flush layout */}
+      <Paper elevation={0} sx={{ borderRadius: 0, border: 'none', overflow: 'hidden', bgcolor: 'background.paper', height: '100%' }}>
+        
+        {/* Zero Spacing Grid structurally broken out so Tables expand full width */}
+        <Grid container spacing={0} alignItems="stretch">
+          
+          {/* TOP SECTION: Greeting + Charts */}
+          <Grid size={{ xs: 12, lg: 4, xl: 3 }} sx={{ borderRight: { lg: '1px solid' }, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <AuroraGreeting kpis={kpis} router={router} />
+          </Grid>
+
+          <Grid container size={{ xs: 12, lg: 8, xl: 9 }} spacing={0} alignItems="stretch" sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+              {/* Top Row: Mini-Stats */}
+              <Grid size={{ xs: 12, sm: 6 }} sx={{ borderRight: { sm: '1px solid' }, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <AuroraStatCard 
+                  title="Recent Volume" 
+                  subtitle="Total value of latest orders" 
+                  amount={totalVolume} 
+                  percentage={volumeGrowth}
+                  chartType="line" 
+                  data={recentPos} 
+                  color="primary"
+                  router={router}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }} sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+                <AuroraStatCard 
+                  title="Average Order" 
+                  subtitle="Mean value per recent PO" 
+                  amount={avgOrderValue} 
+                  percentage={avgGrowth}
+                  chartType="bar" 
+                  data={recentPos} 
+                  color="info"
+                  router={router} 
+                />
+              </Grid>
+
+              {/* Middle Row: Main Volume Chart */}
+              <Grid size={{ xs: 12 }}>
+                <AuroraMainChart orders={recentPos} router={router} />
+              </Grid>
+          </Grid>
+          
+          {/* BOTTOM SECTION: Tables & Status Donut */}
+          <Grid size={{ xs: 12, lg: 8, xl: 9 }} sx={{ borderRight: { lg: '1px solid' }, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <AuroraRecentOrdersTable orders={recentPos} router={router} />
+          </Grid>
+          
+          <Grid size={{ xs: 12, lg: 4, xl: 3 }} sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+            <AuroraStatusDonut orders={recentPos} router={router} />
+          </Grid>
+
+          {/* FULL WIDTH SECTION: Recent RFQs */}
           <Grid size={{ xs: 12 }}>
-            <Stack spacing={2}>
-              {scopeHint && <Alert severity="info" sx={{ borderRadius: 3 }}>{scopeHint}</Alert>}
-              {error && <Alert severity="error" sx={{ borderRadius: 3 }}>{error}</Alert>}
-            </Stack>
+            <AuroraRecentRfqsTable rfqs={recentRfqs} router={router} />
           </Grid>
-        )}
 
-        {/* KPI Cards Row */}
-        {kpiItems.map((kpi, index) => (
-          <Grid size={{ xs: 12, sm: 6, md: 3 }} key={kpi.key}>
-            <KpiCard label={kpi.label} value={kpi.value} index={index} />
-          </Grid>
-        ))}
-
-        {/* Middle Row: Order Volume & Supplier Performance */}
-        <Grid container item spacing={3} size={{ xs: 12 }}>
-          <Grid size={{ xs: 12, md: 8 }}>
-            <ActivityChart purchaseOrders={recentPos} />
-          </Grid>
-          <Grid size={{ xs: 12, md: 4 }}>
-            <PerformanceMetrics metrics={performanceMetrics} />
-          </Grid>
         </Grid>
-
-        {/* Bottom Row: Financial Pipeline */}
-        <Grid size={{ xs: 12 }}>
-          <FinancialPipeline financials={financials} />
-        </Grid>
-      </Grid>
+      </Paper>
     </Box>
   );
 }

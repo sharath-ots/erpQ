@@ -135,6 +135,7 @@ export function SupplierQuotationView({ apiBase, getAccessToken }) {
                 uniqueKey="name" 
                 defaultSort="transaction_date"
                 onRowClick={handleRowClick} 
+                loading={loading}
             />
 
             {/* SIDE LAYOUT / DRAWER */}

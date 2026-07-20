@@ -59,7 +59,8 @@ const MainLayout = ({ children }) => {
     pathname.includes('/add-opportunity') ||
     pathname.includes('/view-opportunity') ||
     pathname.includes('/edit-opportunity') ||
-    pathname.includes('/m/supplierq/quotation/new');
+    pathname.includes('/m/supplierq/quotation/new') ||
+    pathname.includes('/m/supplierq/quotation/edit');
 
   const isLeadRoute =
     pathname.includes('/lead-list') ||
