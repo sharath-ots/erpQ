@@ -3,6 +3,7 @@
 import { Button, Card, Form, Input, Select, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/apigate";
+import { docPath } from "./docQApi";
 
 function safeJsonParse(s) {
   try {
@@ -23,12 +24,30 @@ export default function DocWorkflowsAdmin() {
   const [jsonText, setJsonText] = useState(
     JSON.stringify(
       {
-        states: ["draft", "in_review", "approved"],
-        transitions: [
-          { action: "submit", from: "draft", to: "in_review", groups: ["authors"] },
-          { action: "approve", from: "in_review", to: "approved", groups: ["approvers"] },
-          { action: "request_changes", from: "in_review", to: "draft", groups: ["approvers"] },
+        version: 2,
+        stages: [
+          {
+            id: "review",
+            label: "Review",
+            role: "reviewer",
+            mode: "parallel",
+            quorum: "all",
+            assignees: [{ type: "reports_to", departmentFromDoc: true }],
+            allowSendBack: true,
+            sendBackTargets: ["author"],
+          },
+          {
+            id: "approval",
+            label: "Approval",
+            role: "approver",
+            mode: "sequential",
+            assignees: [{ type: "role", value: "Manager", departmentFromDoc: true }],
+            allowSendBack: true,
+            sendBackTargets: ["author", "reviewers"],
+            onResubmit: "return_to_approval",
+          },
         ],
+        rules: { requireNewVersionOnResubmit: true, slaDays: 5 },
       },
       null,
       2,
@@ -46,9 +65,7 @@ export default function DocWorkflowsAdmin() {
       setLoading(true);
       setStatus("");
       try {
-        const res = await apiFetch(
-          "/api/v1/partners/workdrive/api/v1/docs/workflows",
-        );
+        const res = await apiFetch(docPath("/workflows"));
         if (!res.ok) {
           const t = await res.text().catch(() => "");
           throw new Error(`HTTP ${res.status}: ${t.slice(0, 200)}`);
@@ -81,13 +98,10 @@ export default function DocWorkflowsAdmin() {
       const parsed = safeJsonParse(jsonText);
       if (!parsed.ok) throw new Error(`Invalid JSON: ${parsed.error}`);
 
-      const res = await apiFetch(
-        `/api/v1/partners/workdrive/api/v1/docs/workflows/${encodeURIComponent(docType)}`,
-        {
-          method: "PUT",
-          body: JSON.stringify({ definition: parsed.value }),
-        },
-      );
+      const res = await apiFetch(docPath(`/workflows/${encodeURIComponent(docType)}`), {
+        method: "PUT",
+        body: JSON.stringify({ definition: parsed.value }),
+      });
       const t = await res.text();
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${t.slice(0, 200)}`);
       setStatus("Saved.");

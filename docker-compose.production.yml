@@ -115,6 +115,10 @@ services:
       AUTHQ_ZOHO_CLIENT_SECRET: ${AUTHQ_ZOHO_CLIENT_SECRET:-}
       AUTHQ_ZOHO_ACCOUNTS_HOST: ${AUTHQ_ZOHO_ACCOUNTS_HOST:-accounts.zoho.com}
       DOCQ_WORKDRIVE_API_BASE: ${DOCQ_WORKDRIVE_API_BASE:-https://www.zohoapis.com}
+      DOCQ_SERVICE_ZOHO_EMAIL: ${DOCQ_SERVICE_ZOHO_EMAIL:-}
+      DOCQ_SHARED_PARENT_FOLDER_ID: ${DOCQ_SHARED_PARENT_FOLDER_ID:-}
+      DOCQ_MANAGED_FOLDER_NAME: ${DOCQ_MANAGED_FOLDER_NAME:-Managed Org Folder}
+      DOCQ_DUMP_FOLDER_NAME: ${DOCQ_DUMP_FOLDER_NAME:-Shared Dump Folder}
     depends_on:
       cityq-db:
         condition: service_healthy

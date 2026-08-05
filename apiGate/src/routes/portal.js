@@ -1,4 +1,4 @@
-import { getCoreModulesCached } from "../services/coreSettings.js";
+﻿import { getCoreModulesCached } from "../services/coreSettings.js";
 import { env } from "../config.js";
 
 /** Maps an ERPNext desk path (e.g. `/app/lead`) to the portal route that embeds it in an iframe. */
@@ -120,17 +120,17 @@ function buildCrmMenuChildren() {
     },
     {
       key: "crmq-embed-lead",
-      label: "Leads — ERPNext UI",
+      label: "Leads â€” ERPNext UI",
       path: portalPathForDeskIframe("/app/lead"),
     },
     {
       key: "crmq-embed-opp",
-      label: "Opportunities — ERPNext UI",
+      label: "Opportunities â€” ERPNext UI",
       path: portalPathForDeskIframe("/app/opportunity"),
     },
     {
       key: "crmq-embed-cust",
-      label: "Customers — ERPNext UI",
+      label: "Customers â€” ERPNext UI",
       path: portalPathForDeskIframe("/app/customer"),
     },
   ];
@@ -203,16 +203,31 @@ export async function registerPortalRoutes(app) {
       }
 
       if (env.docqUrl) {
+        const isDocAdmin =
+          Array.isArray(user?.allowedDocTypes) && user.allowedDocTypes.includes("*");
+        const docqChildren = [
+          { key: "docq-my", label: "My documents", path: "/m/docq/my-documents" },
+          { key: "docq-new", label: "Create documents", path: "/m/docq/new" },
+          { key: "docq-register", label: "All my dump files", path: "/m/docq/register" },
+          { key: "docq-shared-with-me", label: "Shared with me", path: "/m/docq/shared-with-me" },
+          { key: "docq-shared-by-me", label: "Shared by me", path: "/m/docq/shared-by-me" },
+          { key: "docq-changes", label: "Revision", path: "/m/docq/changes-requested" },
+          { key: "docq-review", label: "Documents for Review", path: "/m/docq/for-review" },
+          { key: "docq-approval", label: "Documents for Approval", path: "/m/docq/for-approval" },
+          { key: "docq-revoke", label: "Revoke documents", path: "/m/docq/revoke" },
+        ];
+        if (isDocAdmin) {
+          docqChildren.push(
+            { key: "docq-admin-wf", label: "Workflow (admin)", path: "/m/docq/admin/workflows" },
+            { key: "docq-admin-types", label: "Document types (admin)", path: "/m/docq/admin/doc-types" },
+            { key: "docq-admin-projects", label: "Projects (admin)", path: "/m/docq/admin/projects" },
+          );
+        }
         items.push({
           key: "docq-root",
           label: "Documents",
-          path: "/m/docq",
-          children: [
-            { key: "docq-dash", label: "Dashboard", path: "/m/docq" },
-            { key: "docq-register", label: "Register file", path: "/m/docq/register" },
-            { key: "docq-workflows", label: "Workflow admin", path: "/m/docq/admin/workflows" },
-            { key: "docq-erpnext", label: "ERPNext reference", path: "/m/docq/erpnext-link" },
-          ],
+          path: "/m/docq/my-documents",
+          children: docqChildren,
         });
       }
 

@@ -106,3 +106,31 @@ export async function getZohoAccessToken(pool, email) {
   });
   return accessToken;
 }
+
+/**
+ * Access token for the org service Zoho account that owns managed WorkDrive files.
+ */
+export async function getServiceZohoAccessToken(pool) {
+  const email = String(env.serviceZohoEmail || "").trim().toLowerCase();
+  if (!email) {
+    const e = new Error(
+      "DOCQ_SERVICE_ZOHO_EMAIL is not set. Set it to the org WorkDrive admin email and sign in once as that account.",
+    );
+    e.statusCode = 412;
+    e.code = "service_workdrive_not_configured";
+    throw e;
+  }
+  try {
+    return await getZohoAccessToken(pool, email);
+  } catch (err) {
+    if (err?.code === "workdrive_not_linked" || err?.message === "workdrive_not_linked") {
+      const e = new Error(
+        `Org service WorkDrive is not linked for ${email}. Sign in to erpQ once as that account and accept WorkDrive permissions.`,
+      );
+      e.statusCode = 412;
+      e.code = "service_workdrive_not_linked";
+      throw e;
+    }
+    throw err;
+  }
+}

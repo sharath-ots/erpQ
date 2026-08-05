@@ -22,6 +22,7 @@ export const CORE_QUEUE_BINDINGS = [
   "hr.#",
   "pur.#",
   "portal.#",
+  "doc.#",
 ];
 
 /**

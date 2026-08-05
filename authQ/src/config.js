@@ -14,6 +14,31 @@ function listCsv(v) {
     .filter(Boolean);
 }
 
+function parseTenantsJson(raw) {
+  const s = trim(raw);
+  if (!s) return [];
+  try {
+    const parsed = JSON.parse(s);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((t) => t && typeof t === "object" && t.id)
+      .map((t) => ({
+        id: String(t.id).trim(),
+        name: String(t.name || t.id).trim(),
+        allowedEmailDomains: Array.isArray(t.allowedEmailDomains)
+          ? t.allowedEmailDomains.map((d) => String(d).trim().toLowerCase().replace(/^@/, ""))
+          : [],
+        zohoOrgId: t.zohoOrgId ? String(t.zohoOrgId).trim() : "",
+        zohoTeamId: t.zohoTeamId ? String(t.zohoTeamId).trim() : "",
+        workdriveParentId: t.workdriveParentId
+          ? String(t.workdriveParentId).trim()
+          : "",
+      }));
+  } catch {
+    return [];
+  }
+}
+
 export const env = {
   jwtExpiresSec: Number(process.env.JWT_EXPIRES_SEC ?? 3600),
 
@@ -38,7 +63,28 @@ export const env = {
    * Default ERP doc-type allow list for OAuth users (same semantics as apiGate email map).
    * Use "*" for all types the integration user can access, or comma-separated DocType names.
    */
-  oauthDefaultAllowedDocTypes: trim(process.env.AUTHQ_OAUTH_DEFAULT_ALLOWED_DOC_TYPES ?? "*"),
+  oauthDefaultAllowedDocTypes: trim(process.env.AUTHQ_OAUTH_DEFAULT_ALLOWED_DOC_TYPES ?? "design,cad,general,manual,policy,spec,contract"),
+
+  /** Emails that receive allowedDocTypes ["*"] (docQ workflow admin). */
+  docqAdminEmails: listCsv(process.env.AUTHQ_DOCQ_ADMIN_EMAILS).map((e) => e.toLowerCase()),
+
+  /**
+   * B2B: only these email domains may complete Zoho/Google OAuth (customer org accounts).
+   * Empty = open (dev). Production should set e.g. ortusolis.in
+   */
+  allowedEmailDomains: listCsv(process.env.AUTHQ_ALLOWED_EMAIL_DOMAINS).map((d) =>
+    d.toLowerCase().replace(/^@/, ""),
+  ),
+  /** Optional exact email allowlist (in addition to domains). */
+  allowedEmails: listCsv(process.env.AUTHQ_ALLOWED_EMAILS).map((e) => e.toLowerCase()),
+
+  /**
+   * Multi-tenant registry (same JSON often shared as CITYQ_TENANTS_JSON).
+   * Each entry is one sold customer org ↔ Zoho organization.
+   */
+  tenants: parseTenantsJson(
+    process.env.CITYQ_TENANTS_JSON || process.env.AUTHQ_TENANTS_JSON || "",
+  ),
 
   /** Google OAuth 2.0 (set in Google Cloud Console → Credentials). */
   google: {
@@ -65,7 +111,7 @@ export const env = {
     scope: trim(
       process.env.AUTHQ_ZOHO_SCOPE ??
         // Keep profile scopes for userinfo + add WorkDrive read scopes for docQ.
-        "openid email profile aaaserver.profile.READ WorkDrive.files.READ WorkDrive.team.READ WorkDrive.workspace.READ WorkDrive.teamfolders.READ",
+        "openid email profile aaaserver.profile.READ WorkDrive.files.READ WorkDrive.files.CREATE WorkDrive.files.ALL WorkDrive.team.READ WorkDrive.workspace.READ WorkDrive.teamfolders.READ",
     ),
   },
 
@@ -73,6 +119,12 @@ export const env = {
   docqInternalUrl: trim(process.env.AUTHQ_DOCQ_INTERNAL_URL || ""),
   cityqServiceKey: trim(process.env.CITYQ_SERVICE_KEY || ""),
 };
+
+export function resolveAllowedDocTypesForEmail(email) {
+  const em = String(email ?? "").trim().toLowerCase();
+  if (em && env.docqAdminEmails.includes(em)) return ["*"];
+  return parseOAuthAllowedDocTypes();
+}
 
 export function parseOAuthAllowedDocTypes() {
   const raw = env.oauthDefaultAllowedDocTypes;
