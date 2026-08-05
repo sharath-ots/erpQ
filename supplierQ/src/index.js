@@ -7,6 +7,8 @@ export {
   fetchSupplierContext,
   fetchSupplierRfqs,
   fetchSupplierRfqDetail,
+  fetchSupplierQuotations,
+  fetchSupplierQuotationDetail,
   fetchSupplierDocuments,
   fetchSupplierPurchaseOrders,
   submitSupplierQuotation,
@@ -18,6 +20,7 @@ export {
   SupplierEntityList,
   RfqListPage,
   SupplierOtherDocTypesPage,
+  SupplierQuotationView,
   ErpDeskIframe,
   DocTypeExplorer,
 } from "./ui/index.js";

@@ -40,6 +40,19 @@ export const env = {
     /\/$/,
     "",
   ),
+
+  /*Versaq Configurations*/
+  // versaqErpnextEnabled: process.env.VERSAQ_ERPNEXT_ENABLED === "1",
+  // versaqErpnextUrl: (process.env.VERSAQ_ERPNEXT_URL ?? "").trim(),
+  // versaqErpnextApiKey: process.env.VERSAQ_ERPNEXT_API_KEY ?? "",
+  // versaqErpnextApiSecret: process.env.VERSAQ_ERPNEXT_API_SECRET ?? "",
+  
+  /* */
+  versaqErpnextEnabled: "1",
+  versaqErpnextUrl: "https://dashboard.versaq.eu",
+  versaqErpnextApiKey: "bac6081547b308c",
+  versaqErpnextApiSecret:"c5aec9d49ed3e16",
+
   /**
    * Optional query string appended to ERPNext iframe URLs (e.g. full_page=1).
    * Frappe reads search params into frappe.route_options; effect depends on ERPNext version.

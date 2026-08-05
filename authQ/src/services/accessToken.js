@@ -1,4 +1,4 @@
-import { parseOAuthAllowedDocTypes, resolveAllowedDocTypesForEmail } from "../config.js";
+import { resolveAllowedDocTypesForEmail } from "../config.js";
 
 /**
  * CityQ portal JWT (same shape as /internal/mint).
@@ -7,6 +7,7 @@ import { parseOAuthAllowedDocTypes, resolveAllowedDocTypesForEmail } from "../co
  * @param {string} opts.sub
  * @param {string} opts.email
  * @param {string[]} [opts.allowedDocTypes] — if omitted, uses OAuth env defaults
+ * @param {string} [opts.roles]
  * @param {string} [opts.zohoId]
  * @param {string} [opts.googleSub]
  * @param {string} [opts.tenantId]
@@ -22,11 +23,12 @@ export async function mintCityQAccessToken(reply, {
   tenantId,
   tenantName,
   zohoOrgId,
+  roles,
 }) {
   const expiresIn = Number(process.env.JWT_EXPIRES_SEC ?? 3600);
   const allowedDocTypes = Array.isArray(allowedOverride)
     ? allowedOverride
-    : parseOAuthAllowedDocTypes();
+    : resolveAllowedDocTypesForEmail(email);
   const token = await reply.jwtSign(
     {
       sub,
@@ -37,6 +39,7 @@ export async function mintCityQAccessToken(reply, {
       tenantId,
       tenantName,
       zohoOrgId,
+      roles,
       frappeUserEmail: email,
     },
     { expiresIn },

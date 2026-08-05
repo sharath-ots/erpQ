@@ -34,7 +34,8 @@ const ProfileMenu = ({ type = 'default' }) => {
     config: { textDirection },
   } = useSettingsContext();
 
-  const { user, displayName, displayEmail, loading } = useERPUser();
+  // Extract roles from the provider
+  const { user, displayName, displayEmail, loading, roles = [] } = useERPUser();
 
   const open = Boolean(anchorEl);
   const handleClick = (event) => {
@@ -49,6 +50,9 @@ const ProfileMenu = ({ type = 'default' }) => {
   // Use image if available, otherwise just use initials
   const userImage = user?.user_image ? `${ERP_CONFIG.baseUrl}${user.user_image}` : undefined;
   const initial = (nameLabel.charAt(0) || '?').toUpperCase();
+
+  // Check if the user is only a Supplier Portal User
+  const isSupplierUser = roles.includes('Supplier Portal User');
 
   const menuButton = (
     <Button
@@ -153,48 +157,50 @@ const ProfileMenu = ({ type = 'default' }) => {
           </Box>
         </Stack>
 
+        {/* Conditionally hide these options for Supplier Portal Users */}
+        {!isSupplierUser && (
+          <>
+            <Divider />
+
+            <Box sx={{ py: 1 }}>
+              <ProfileMenuItem icon="material-symbols:shield-person-outline-rounded" onClick={handleClose}>
+                Roles and Permissions
+              </ProfileMenuItem>
+
+              <ProfileMenuItem
+                icon="material-symbols:open-in-new-rounded"
+                onClick={handleClose}
+                href="https://cityqerp.ortusolis.in/app"
+                target="_blank"
+              >
+                Go to ERPNext
+              </ProfileMenuItem>
+            </Box>
+
+            <Divider />
+
+            <Box sx={{ py: 1 }}>
+              <ProfileMenuItem
+                icon="material-symbols:manage-accounts-outline-rounded"
+                onClick={handleClose}
+                href="#!"
+              >
+                Account Settings
+              </ProfileMenuItem>
+              <ProfileMenuItem
+                icon="material-symbols:question-mark-rounded"
+                onClick={handleClose}
+                href="#!"
+              >
+                Help Center
+              </ProfileMenuItem>
+            </Box>
+          </>
+        )}
+
         <Divider />
 
         <Box sx={{ py: 1 }}>
-          {/* Changed to Roles and Permissions */}
-          <ProfileMenuItem icon="material-symbols:shield-person-outline-rounded" onClick={handleClose}>
-            Roles and Permissions
-          </ProfileMenuItem>
-
-          {/* Changed to Go to ERPNext and opens in new tab */}
-          <ProfileMenuItem
-            icon="material-symbols:open-in-new-rounded"
-            onClick={handleClose}
-            href="https://cityqerp.ortusolis.in/app"
-            target="_blank" // Opens in new tab
-          >
-            Go to ERPNext
-          </ProfileMenuItem>
-        </Box>
-
-        <Divider />
-
-        <Box sx={{ py: 1 }}>
-          <ProfileMenuItem
-            icon="material-symbols:manage-accounts-outline-rounded"
-            onClick={handleClose}
-            href="#!"
-          >
-            Account Settings
-          </ProfileMenuItem>
-          <ProfileMenuItem
-            icon="material-symbols:question-mark-rounded"
-            onClick={handleClose}
-            href="#!"
-          >
-            Help Center
-          </ProfileMenuItem>
-        </Box>
-
-        <Divider />
-
-        <Box sx={{ py: 1 }}>
-          {/* Made Log Out button RED */}
           <ProfileMenuItem
             onClick={() => {
               handleClose();
@@ -212,7 +218,6 @@ const ProfileMenu = ({ type = 'default' }) => {
   );
 };
 
-// Updated helper component to allow passing custom icon colors and target attributes
 const ProfileMenuItem = ({ icon, onClick, children, href, target, sx, iconColor = 'text.secondary' }) => {
   const linkProps = href ? { component: Link, href, target, underline: 'none' } : {};
 

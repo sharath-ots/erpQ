@@ -47,6 +47,7 @@ export const ERPUserProvider = ({ children }) => {
       let cityqSession = parseCityQJwtPayload(getAccessToken());
 
       try {
+        // 1. Fetch current user session
         const meRes = await apiFetch('/api/v1/me');
         if (meRes.ok) {
           const me = await meRes.json();
@@ -62,8 +63,24 @@ export const ERPUserProvider = ({ children }) => {
           setCityq(cityqSession);
           setDisplayEmail(cityqSession.email);
           setDisplayName(displayNameFromEmail(cityqSession.email));
+
+          // ====================================================================
+          // 🚀 NEW: Fetch Roles using the custom API route we built earlier
+          // ====================================================================
+          try {
+            const rolesRes = await fetch(`/api/users/roles?email=${encodeURIComponent(cityqSession.email)}`);
+            if (rolesRes.ok) {
+              const rolesData = await rolesRes.json();
+              if (rolesData.roles) {
+                setRoles(rolesData.roles); // Set the roles reliably!
+              }
+            }
+          } catch (roleErr) {
+            console.error("Failed to fetch roles in provider:", roleErr);
+          }
         }
 
+        // 2. Fetch basic ERP user data (for image, name, etc)
         const userRes = await fetch('/api/erp-test');
         if (userRes.ok) {
           const userData = await userRes.json();
@@ -73,13 +90,16 @@ export const ERPUserProvider = ({ children }) => {
               setUser(doc);
               const erpName = erpProfileName(doc);
               if (erpName) setDisplayName(erpName);
-              if (doc.roles) {
+              
+              // Fallback in case the above roles fetch failed but this one succeeds
+              if (doc.roles && roles.length === 0) {
                 setRoles(doc.roles.map((r) => r.role));
               }
             }
           }
         }
 
+        // 3. Fetch Sidebar modules
         const sidebarRes = await fetch('/api/erp-sidebar');
         if (sidebarRes.ok) {
           const sidebarData = await sidebarRes.json();
@@ -148,7 +168,7 @@ export const ERPUserProvider = ({ children }) => {
     };
 
     fetchSessionData();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <ERPUserContext.Provider

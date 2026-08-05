@@ -70,12 +70,313 @@ const RFQ_FIELDS = [
   "modified",
 ];
 
-/**
- * Supplier portal routes — scoped lists, dashboard, quotation & invoice submission.
- */
+// --- HELPER FUNCTIONS ---
+// Link the Address to BOTH the Company and Supplier
+async function getOrCreateAddress(client, rawText, companyName, supplierId) {
+  if (!rawText || !rawText.trim()) return null;
+
+  const lines = rawText.split('\n').map(l => l.trim()).filter(l => l);
+  const line1 = lines[0]?.substring(0, 140) || "Address Line 1";
+  const line2 = lines.slice(1).join(', ').substring(0, 140) || null;
+
+  const addressDoc = {
+    doctype: "Address",
+    address_title: `${companyName} - Shipping`,
+    address_type: "Shipping",
+    address_line1: line1,
+    address_line2: line2,
+    city: "Not Provided",   
+    country: "India",
+    is_shipping_address: 1,      
+    is_your_company_address: 1,  
+    links: [
+      {
+        doctype: "Dynamic Link",
+        link_doctype: "Company",
+        link_name: companyName
+      },
+      {
+        doctype: "Dynamic Link",
+        link_doctype: "Supplier",
+        link_name: supplierId
+      }
+    ]
+  };
+
+  try {
+    const created = await client.createDocument("Address", addressDoc);
+    return created.name;
+  } catch (e) {
+    console.error("Failed to create Address:", e.body?._server_messages || e.message);
+    return null; 
+  }
+}
+
+async function getOrCreateTerms(client, rawText, supplierId) {
+  if (!rawText || !rawText.trim()) return null;
+
+  const tcDoc = {
+    doctype: "Terms and Conditions",
+    title: `TC-${supplierId}-${Date.now()}`.substring(0, 140), 
+    terms: rawText
+  };
+
+  try {
+    const created = await client.createDocument("Terms and Conditions", tcDoc);
+    return created.name; 
+  } catch (e) {
+    console.error("Failed to create Terms:", e.body?._server_messages || e.message);
+    return null; // Return null gracefully
+  }
+}
+
+
 export async function registerSupplierQRoutes(app) {
+
+  // Create New Supplier Quotation
+  app.post("/api/v1/supplierq/quotations/create", { preHandler: jwtPre }, async (request, reply) => {
+    if (!env.versaqErpnextUrl) return reply.code(503).send({ error: "erp_not_configured" });
+
+    const { client, scope } = await getScopedClient(request);
+    const body = request.body;
+    //const supplierId = scope.supplier || "SUP-TES-001"; 
+    const companyName = body.company || "VersaQ";
+    const supplierId = "SUP-TES-001";
+
+    const shippingAddressId = await getOrCreateAddress(client, body.shippingAddress, supplierId);
+    const tcNameId = await getOrCreateTerms(client, body.terms, supplierId);
+
+    const sanitize = (val) => (val && typeof val === 'string' && val.trim() !== "" ? val : null);
+
+    const newDoc = {
+      doctype: "Supplier Quotation",
+      naming_series: "PUR-SQTN-.YYYY.-",
+      supplier: supplierId,
+      company: companyName, 
+      currency: "INR",
+      transaction_date: body.date,
+      valid_till: body.validTill,
+      quotation_number: body.quotationNumber,
+      
+      tax_category: sanitize(body.taxCategory),
+      shipping_rule: sanitize(body.shippingRule),
+      incoterm: sanitize(body.incoterm),
+      named_place: sanitize(body.incotermPlace),
+
+      // Address mapping fixed
+      supplier_address: shippingAddressId,   
+      shipping_address: shippingAddressId,       
+      company_address_display: body.companyAddress,
+      billing_address_display: body.companyAddress,
+      
+      // Terms mapping
+      tc_name: tcNameId,
+      terms: body.terms,                         
+
+      items: (body.items || []).map(item => ({
+        doctype: "Supplier Quotation Item", // FIX 1: MUST BE 'Item'
+        item_code: item.id,
+        item_name: item.name.split(' — ')[1] || item.name,
+        qty: Math.max(Number(item.quantity) || 1, 1), // FIX 2: Prevent QTY 0 crash
+        rate: Number(item.price?.regular) || 0,
+        uom: item.variants?.find(v => v.label === 'UOM')?.value || "Nos"
+      }))
+    };
+
+    try {
+      const created = await client.createDocument("Supplier Quotation", newDoc);
+      return { data: created };
+    } catch (e) {
+      let readableError = e.message;
+      if (e.body && e.body._server_messages) {
+        try {
+          const messages = JSON.parse(e.body._server_messages);
+          readableError = messages.map(m => JSON.parse(m).message).join(" | ");
+        } catch (err) {}
+      }
+      return reply.code(500).send({ error: "failed_to_save", detail: readableError });
+    }
+  });
+
+
+  // Update Existing Supplier Quotation
+  app.put("/api/v1/supplierq/quotations/:name", { preHandler: jwtPre }, async (request, reply) => {
+    if (!env.versaqErpnextUrl) return reply.code(503).send({ error: "erp_not_configured" });
+
+    const { client, scope } = await getScopedClient(request);
+    const name = decodeURIComponent(request.params.name);
+    const body = request.body;
+    //const supplierId = scope.supplier || "SUP-TES-001";
+    const companyName = body.company || "VersaQ";
+    const supplierId = "SUP-TES-001";
+
+    const shippingAddressId = await getOrCreateAddress(client, body.shippingAddress, supplierId);
+    const tcNameId = await getOrCreateTerms(client, body.terms, supplierId);
+    
+    const sanitize = (val) => (val && typeof val === 'string' && val.trim() !== "" ? val : null);
+
+    const updateDoc = {
+      transaction_date: body.date,
+      valid_till: body.validTill,
+      quotation_number: body.quotationNumber,
+      tax_category: sanitize(body.taxCategory),
+      shipping_rule: sanitize(body.shippingRule),
+      incoterm: sanitize(body.incoterm),
+      named_place: sanitize(body.incotermPlace),
+      
+      supplier_address: shippingAddressId,
+      shipping_address: shippingAddressId,
+      company_address_display: body.companyAddress,
+      billing_address_display: body.companyAddress,
+      tc_name: tcNameId,
+      terms: body.terms,
+
+      items: (body.items || []).map(item => ({
+        doctype: "Supplier Quotation Item", // FIX 1: MUST BE 'Item'
+        item_code: item.id,
+        item_name: item.name.split(' — ')[1] || item.name,
+        qty: Math.max(Number(item.quantity) || 1, 1), // FIX 2: Prevent QTY 0 crash
+        rate: Number(item.price?.regular) || 0,
+        uom: item.variants?.find(v => v.label === 'UOM')?.value || "Nos"
+      }))
+    };
+
+    try {
+      const updated = await client.updateDocument("Supplier Quotation", name, updateDoc);
+      return { data: updated };
+    } catch (e) {
+      let readableError = e.message;
+      if (e.body && e.body._server_messages) {
+        try {
+          const messages = JSON.parse(e.body._server_messages);
+          readableError = messages.map(m => JSON.parse(m).message).join(" | ");
+        } catch (err) {}
+      }
+      return reply.code(500).send({ error: "failed_to_update", detail: readableError });
+    }
+  });
+
+  // ... (rest of your routes remain unchanged)
+
+  // Add to registerSupplierQRoutes in supplierq.js
+  app.get("/api/v1/supplierq/options/:doctype", { preHandler: jwtPre }, async (request, reply) => {
+      if (!env.versaqErpnextUrl) return reply.code(503).send({ error: "erp_not_configured" });
+      const doctype = decodeURIComponent(request.params.doctype);
+      const { client } = await getScopedClient(request);
+      
+      // Fetch names of the doctype (e.g., list of all Tax Categories)
+      const rows = await safeList(client, doctype, { fields: ["name"], limit_page_length: 500 });
+      return { data: rows.map(r => r.name) };
+  });
+
+  // Backend Route: Fetch Full Item Details
+  app.get("/api/v1/supplierq/items/:itemCode/details", { preHandler: jwtPre }, async (request, reply) => {
+    if (!env.versaqErpnextUrl) return reply.code(503).send({ error: "erp_not_configured" });
+    
+    const itemCode = decodeURIComponent(request.params.itemCode);
+    const { client } = await getScopedClient(request); // Scoped client to ensure supplier access
+
+    try {
+      // Fetches the entire Item document
+      const doc = await client.getDocument("Item", itemCode);
+      return { data: doc };
+    } catch (e) {
+      request.log.error("Failed to fetch item details:", e);
+      return reply.code(404).send({ error: "item_not_found" });
+    }
+  });
+
+  // Backend Route: Resolve ERPNext Link Fields (Hashes) to Human-Readable Titles
+  app.get("/api/v1/supplierq/resolve-link", { preHandler: jwtPre }, async (request, reply) => {
+    if (!env.versaqErpnextUrl) return reply.code(503).send({ error: "erp_not_configured" });
+    
+    const { doctype, name } = request.query;
+    if (!doctype || !name) return reply.code(400).send({ error: "missing_params" });
+    
+    const hostOrigin = new URL(env.versaqErpnextUrl).origin;
+
+    try {
+      // Securely fetch the full linked document from ERPNext
+      const res = await fetch(`${hostOrigin}/api/method/frappe.client.get?doctype=${encodeURIComponent(doctype)}&name=${encodeURIComponent(name)}`, {
+        method: "POST",
+        headers: {
+          "Authorization": `token ${env.versaqErpnextApiKey}:${env.versaqErpnextApiSecret}`,
+          "Content-Type": "application/json"
+        }
+      });
+      
+      if (!res.ok) throw new Error("Document not found");
+      
+      const data = await res.json();
+      const doc = data?.message || {};
+      
+      // Look for standard human-readable fields; fallback to hash if none exist
+      const readableTitle = doc.title || doc.variant || doc.variant_name || doc.system_name || doc.sub_system_name || doc.type_name || doc.description || doc.type_of_item || doc.item_type || doc.name || name;
+      
+      return { title: readableTitle };
+    } catch (e) {
+      request.log.error("Failed to resolve link title:", e);
+      return { title: name }; // Fallback to hash if fetch fails
+    }
+  });
+
+  // 1. Backend Route: Fetch Item Image Path
+  app.get("/api/v1/supplierq/items/:itemCode/image", { preHandler: jwtPre }, async (request, reply) => {
+    if (!env.versaqErpnextUrl) return reply.code(503).send({ error: "erp_not_configured" });
+    
+    const itemCode = decodeURIComponent(request.params.itemCode);
+    const hostOrigin = new URL(env.versaqErpnextUrl).origin;
+
+    try {
+      const res = await fetch(`${hostOrigin}/api/method/frappe.client.get_value?doctype=Item&filters={"name":"${itemCode}"}&fieldname=image`, {
+        method: "POST",
+        headers: {
+          "Authorization": `token ${env.versaqErpnextApiKey}:${env.versaqErpnextApiSecret}`,
+          "Content-Type": "application/json"
+        }
+      });
+      const data = await res.json();
+      return { image: data?.message?.image || null };
+    } catch (e) {
+      request.log.error("Failed to fetch image path:", e);
+      return { image: null };
+    }
+  });
+
+  // 2. Backend Route: Proxy Private Image Blob
+  app.get("/api/v1/supplierq/private-image", { preHandler: jwtPre }, async (request, reply) => {
+    if (!env.versaqErpnextUrl) return reply.code(503).send({ error: "erp_not_configured" });
+    
+    const imagePath = request.query.path;
+    if (!imagePath) return reply.code(400).send({ error: "path_required" });
+
+    const hostOrigin = new URL(env.versaqErpnextUrl).origin;
+    const fullUrl = `${hostOrigin}${imagePath.startsWith('/') ? imagePath : `/${imagePath}`}`;
+
+    try {
+      // Securely fetch the actual image file using your backend API keys
+      const res = await fetch(fullUrl, {
+        headers: {
+          "Authorization": `token ${env.versaqErpnextApiKey}:${env.versaqErpnextApiSecret}`
+        }
+      });
+
+      if (!res.ok) {
+        return reply.code(res.status).send({ error: "failed_to_fetch_image" });
+      }
+
+      // Read the image as a buffer and send it directly to the frontend
+      const buffer = await res.arrayBuffer();
+      reply.header('Content-Type', res.headers.get('content-type') || 'image/png');
+      return reply.send(Buffer.from(buffer));
+    } catch (e) {
+      request.log.error("Failed to proxy private image:", e);
+      return reply.code(500).send({ error: "proxy_failed" });
+    }
+  });
+
   app.get("/api/v1/supplierq/context", { preHandler: jwtPre }, async (request, reply) => {
-    if (!env.erpnextUrl) {
+    if (!env.versaqErpnextUrl) {
       return reply.code(503).send({ error: "erp_not_configured" });
     }
     const { scope } = await getScopedClient(request);
@@ -87,7 +388,7 @@ export async function registerSupplierQRoutes(app) {
   });
 
   app.get("/api/v1/supplierq/dashboard", { preHandler: jwtPre }, async (request, reply) => {
-    if (!env.erpnextUrl) {
+    if (!env.versaqErpnextUrl) {
       return reply.code(503).send({ error: "erp_not_configured" });
     }
 
@@ -144,7 +445,7 @@ export async function registerSupplierQRoutes(app) {
   });
 
   app.get("/api/v1/supplierq/rfqs", { preHandler: jwtPre }, async (request, reply) => {
-    if (!env.erpnextUrl) {
+    if (!env.versaqErpnextUrl) {
       return reply.code(503).send({ error: "erp_not_configured" });
     }
 
@@ -181,7 +482,7 @@ export async function registerSupplierQRoutes(app) {
   });
 
   app.get("/api/v1/supplierq/rfqs/:name", { preHandler: jwtPre }, async (request, reply) => {
-    if (!env.erpnextUrl) {
+    if (!env.versaqErpnextUrl) {
       return reply.code(503).send({ error: "erp_not_configured" });
     }
     const name = decodeURIComponent(request.params.name);
@@ -197,6 +498,49 @@ export async function registerSupplierQRoutes(app) {
           return reply.code(403).send({ error: "forbidden", detail: "RFQ not assigned to your supplier account" });
         }
       }
+
+      // --- NEW FIX: Fetch default Item Prices, Names, & Images from ERPNext in PARALLEL ---
+      if (doc.items && doc.items.length > 0) {
+        try {
+          const itemCodes = doc.items.map(item => item.item_code);
+          
+          // 1. Fetch Prices & Item Master Data at the EXACT SAME TIME
+          const [prices, itemMaster] = await Promise.all([
+            safeList(client, "Item Price", {
+              fields: ["item_code", "price_list_rate"],
+              filters: [["item_code", "in", itemCodes]],
+              limit_page_length: 500, 
+            }),
+            safeList(client, "Item", {
+              fields: ["item_code", "item_name", "image"], 
+              filters: [["item_code", "in", itemCodes]],
+              limit_page_length: 500,
+            })
+          ]);
+
+          const priceMap = {};
+          prices.forEach(p => {
+            if (!priceMap[p.item_code]) {
+              priceMap[p.item_code] = p.price_list_rate;
+            }
+          });
+
+          const itemDataMap = {};
+          itemMaster.forEach(i => {
+            itemDataMap[i.item_code] = { name: i.item_name, image: i.image };
+          });
+
+          // Attach data to each item
+          doc.items = doc.items.map(item => ({
+            ...item,
+            default_item_price: priceMap[item.item_code] || 0,
+            item_name: item.item_name || (itemDataMap[item.item_code]?.name) || "",
+            image: item.image || (itemDataMap[item.item_code]?.image) || null 
+          }));
+        } catch (err) {
+          console.error("Failed to fetch Item Prices, Names, or Images:", err);
+        }
+      }
       return { data: doc, scope: { mode: scope.mode, supplier: scope.supplier } };
     } catch (e) {
       if (e instanceof FrappeApiError) {
@@ -209,8 +553,58 @@ export async function registerSupplierQRoutes(app) {
     }
   });
 
+  // 1. GET: List Supplier Quotations
+  app.get("/api/v1/supplierq/quotations", { preHandler: jwtPre }, async (request, reply) => {
+    if (!env.versaqErpnextUrl) return reply.code(503).send({ error: "erp_not_configured" });
+
+    const { client, scope } = await getScopedClient(request);
+    const limit = Math.min(Math.max(Number(request.query.limit ?? 20), 1), 100);
+    const start = Math.max(Number(request.query.offset ?? 0), 0);
+    
+    // Apply supplier filtering scope (only show their own quotes)
+    const filters = filtersForDoctype("Supplier Quotation", scope);
+
+    try {
+      const [data, total] = await Promise.all([
+        safeList(client, "Supplier Quotation", {
+          fields: ["name", "supplier", "status", "transaction_date", "grand_total", "modified"],
+          filters,
+          limit_start: start,
+          limit_page_length: limit,
+          order_by: "modified desc",
+        }),
+        safeCount(client, "Supplier Quotation", filters),
+      ]);
+      return { data, total: total ?? data.length };
+    } catch (e) {
+      throw e;
+    }
+  });
+
+  // GET: Fetch a single Supplier Quotation by ID
+  app.get("/api/v1/supplierq/quotations/:id", { preHandler: jwtPre }, async (request, reply) => {
+    if (!env.versaqErpnextUrl) return reply.code(503).send({ error: "erp_not_configured" });
+
+    const { client, scope } = await getScopedClient(request);
+    const docName = decodeURIComponent(request.params.id);
+
+    try {
+      // Fetch the full document from ERPNext
+      const doc = await client.getDocument("Supplier Quotation", docName);
+      
+      // Security check: ensure the supplier can only see their own quotations
+      if (scope.mode === "supplier" && scope.supplier && doc.supplier !== scope.supplier) {
+        return reply.code(403).send({ error: "forbidden", detail: "Access denied to this quotation" });
+      }
+      
+      return { data: doc };
+    } catch (e) {
+      return reply.code(404).send({ error: "not_found", detail: "Quotation not found" });
+    }
+  });
+
   app.get("/api/v1/supplierq/documents/:doctype", { preHandler: jwtPre }, async (request, reply) => {
-    if (!env.erpnextUrl) {
+    if (!env.versaqErpnextUrl) {
       return reply.code(503).send({ error: "erp_not_configured" });
     }
 
@@ -245,7 +639,7 @@ export async function registerSupplierQRoutes(app) {
   });
 
   app.get("/api/v1/supplierq/purchase-orders", { preHandler: jwtPre }, async (request, reply) => {
-    if (!env.erpnextUrl) {
+    if (!env.versaqErpnextUrl) {
       return reply.code(503).send({ error: "erp_not_configured" });
     }
     const { client, scope } = await getScopedClient(request);
@@ -262,8 +656,30 @@ export async function registerSupplierQRoutes(app) {
     return { data };
   });
 
+  // GET: Fetch a single Purchase Order by ID
+  app.get("/api/v1/supplierq/purchase-orders/:id", { preHandler: jwtPre }, async (request, reply) => {
+    if (!env.versaqErpnextUrl) return reply.code(503).send({ error: "erp_not_configured" });
+
+    const { client, scope } = await getScopedClient(request);
+    const docName = decodeURIComponent(request.params.id);
+
+    try {
+      // Fetch the full document from ERPNext
+      const doc = await client.getDocument("Purchase Order", docName);
+      
+      // Security check: ensure the supplier can only see their own POs
+      if (scope.mode === "supplier" && scope.supplier && doc.supplier !== scope.supplier) {
+        return reply.code(403).send({ error: "forbidden", detail: "Access denied to this Purchase Order" });
+      }
+      
+      return { data: doc };
+    } catch (e) {
+      return reply.code(404).send({ error: "not_found", detail: "Purchase Order not found" });
+    }
+  });
+
   app.post("/api/v1/supplierq/quotations", { preHandler: jwtPre }, async (request, reply) => {
-    if (!env.erpnextUrl) {
+    if (!env.versaqErpnextUrl) {
       return reply.code(503).send({ error: "erp_not_configured" });
     }
 
@@ -339,8 +755,77 @@ export async function registerSupplierQRoutes(app) {
     }
   });
 
+  app.get("/api/v1/supplierq/purchase-invoices", { preHandler: jwtPre }, async (request, reply) => {
+    if (!env.versaqErpnextUrl) {
+      return reply.code(503).send({ error: "erp_not_configured" });
+    }
+
+    const { client, scope } = await getScopedClient(request);
+    const limit = Math.min(Math.max(Number(request.query.limit ?? 20), 1), 100);
+    const start = Math.max(Number(request.query.offset ?? 0), 0);
+    const filters = mergeFilters(
+      parseFilters(request.query.filters),
+      filtersForDoctype("Purchase Invoice", scope),
+    );
+
+    try {
+      const [data, total] = await Promise.all([
+        safeList(client, "Purchase Invoice", {
+          // FIX 1: Use specific Purchase Invoice fields instead of RFQ_FIELDS
+          fields: ["name", "supplier", "posting_date", "due_date", "grand_total", "outstanding_amount", "status"],
+          filters,
+          limit_start: start,
+          limit_page_length: limit,
+          order_by: "modified desc",
+        }),
+        safeCount(client, "Purchase Invoice", filters),
+      ]);
+      return { data, total: total ?? data.length, scope: { mode: scope.mode, supplier: scope.supplier } };
+    } catch (e) {
+      if (e instanceof FrappeApiError) {
+        return reply.code(e.status >= 500 ? 502 : e.status).send({
+          error: "frappe_error",
+          detail: e.message,
+          frappe: e.body,
+        });
+      }
+      throw e;
+    }
+  });
+
+  app.get("/api/v1/supplierq/purchase-invoices/:name", { preHandler: jwtPre }, async (request, reply) => {
+    if (!env.versaqErpnextUrl) {
+      return reply.code(503).send({ error: "erp_not_configured" });
+    }
+    const name = decodeURIComponent(request.params.name);
+    const { client, scope } = await getScopedClient(request);
+
+    try {
+      const doc = await client.getDocument("Purchase Invoice", name);
+      
+      if (scope.mode === "supplier" && scope.supplier) {
+        // FIX 2: Purchase Invoices only have a single 'supplier' field, not an array
+        if (doc.supplier !== scope.supplier) {
+          return reply.code(403).send({ 
+            error: "forbidden", 
+            detail: "Purchase Invoice not assigned to your supplier account" 
+          });
+        }
+      }
+      return { data: doc, scope: { mode: scope.mode, supplier: scope.supplier } };
+    } catch (e) {
+      if (e instanceof FrappeApiError) {
+        return reply.code(e.status >= 500 ? 502 : e.status).send({
+          error: "frappe_error",
+          detail: e.message,
+        });
+      }
+      throw e;
+    }
+  });
+
   app.post("/api/v1/supplierq/invoices", { preHandler: jwtPre }, async (request, reply) => {
-    if (!env.erpnextUrl) {
+    if (!env.versaqErpnextUrl) {
       return reply.code(503).send({ error: "erp_not_configured" });
     }
 

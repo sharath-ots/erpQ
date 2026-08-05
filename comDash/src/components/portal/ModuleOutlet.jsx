@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { Card, Empty, Spin, Typography } from "antd";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react"; // Removed useState
 import { findMenuItem } from "@/lib/menuMatch";
 import { apiBase, apiFetch, getAccessToken, parseCityQJwtPayload } from "@/lib/apigate";
 import CRMQ from "../../ui/components/sections/dashboards/crm-q/index"
@@ -33,13 +33,8 @@ import OpportunityListPage from '../../../../crmQ/pages/crm/opportunity/index'
 import AddOpportunityScreen from "../../../../crmQ/src/ui/AddOpportunityScreen";
 import EditOpportunityPage from "../../../../crmQ/pages/crm/opportunity/edit/[id]"
 import ViewOpportunityScreen from "../../../../crmQ/src/ui/ViewOpportunityScreen";
-//import { usePortalMenu } from "./shared-ui/PortalMenuContext";
 import { usePortalMenu } from "./PortalMenuProvider";
-
-// const CrmqShell = dynamic(
-//   () => import("@cityq/crmq").then((m) => ({ default: m.CrmqShell })),
-//   { ssr: false, loading: () => <Spin style={{ display: "block", margin: "40px auto" }} /> },
-// );
+import { useERPUser } from '../../ui/providers/ERPUserProvider'; // 🚀 ADDED: Global Context
 
 const HrqShell = dynamic(
   () => import("@cityq/hrq").then((m) => ({ default: m.HrqShell })),
@@ -59,11 +54,18 @@ const SupplierqShell = dynamic(
 export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskBaseUrlProp, deskIframeQuery: deskIframeQueryProp }) {
   const pathname = usePathname();
   const portalMenu = usePortalMenu();
+  
   const menuItems = menuItemsProp.length ? menuItemsProp : (portalMenu.menuItems ?? []);
   const deskBaseUrl = deskBaseUrlProp ?? portalMenu.deskBaseUrl;
   const deskIframeQuery = deskIframeQueryProp ?? portalMenu.deskIframeQuery;
   const mod = findMenuItem(menuItems, pathname);
+  
   const lastSentRef = useRef(null);
+  
+  const { isDark } = useThemeMode(); 
+
+  // 🚀 INSTANT ROLES: Grab directly from context. No awkward loading screens!
+  const { roles, loading } = useERPUser();
 
   useEffect(() => {
     if (!mod?.key) return;
@@ -76,66 +78,73 @@ export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskB
         payload: { moduleKey: mod.key, path: pathname },
       }),
     }).catch(() => {
-      // Best-effort telemetry/event; ignore failures (mq may be disabled).
+      // Best-effort telemetry
     });
   }, [pathname, mod?.key]);
 
+
+  // =========================================================================
+  // ACCESS DENIED RENDERING (Fully Centered)
+  // =========================================================================
+  
+  // Return a completely blank, seamless background while global session boots up (avoids flashing)
+  if (loading) {
+    return <div style={{ height: '100vh', width: '100vw', background: isDark ? '#0f172a' : '#f8fafc' }} />;
+  }
+
+  const isSupplierUser = roles.includes("Supplier Portal User");
+  const isSupplierPath = pathname.startsWith("/m/supplierq");
+
+  if (isSupplierUser && !isSupplierPath) {
+    return (
+      <div style={{ display: 'flex', height: '100vh', width: '100vw', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0f172a' : '#f8fafc' }}>
+        <Card style={{ margin: '24px', textAlign: 'center', minWidth: '350px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+          <Typography.Title level={4} style={{ color: '#ff4d4f' }}>Access Denied</Typography.Title>
+          <Typography.Paragraph>Your account profile only has access to the Supplier Portal.</Typography.Paragraph>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!isSupplierUser && isSupplierPath) {
+    return (
+      <div style={{ display: 'flex', height: '100vh', width: '100vw', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0f172a' : '#f8fafc' }}>
+        <Card style={{ margin: '24px', textAlign: 'center', minWidth: '350px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+          <Typography.Title level={4} style={{ color: '#ff4d4f' }}>Access Denied</Typography.Title>
+          <Typography.Paragraph>You do not have permission to access the Supplier Portal.</Typography.Paragraph>
+        </Card>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // NORMAL ROUTING
+  // =========================================================================
+
   if (pathname.startsWith("/m/crmq")) {
-    const normalized = pathname.replace(/\/$/, ""); // Strip trailing slashes
+    const normalized = pathname.replace(/\/$/, ""); 
 
-    // EXACT MATCH: Main Dashboard
-    if (normalized === "/m/crmq") {
-      return <CRMQ />;
-    }
+    if (normalized === "/m/crmq") return <CRMQ />;
+    if (normalized === "/m/crmq/lead-list" || normalized === "/m/crmq/list/Lead") return <LeadListPage />;
+    if (normalized === "/m/crmq/add-lead") return <AddLeadScreen />;
 
-    // EXACT MATCH: Lead List
-    if (normalized === "/m/crmq/lead-list" || normalized === "/m/crmq/list/Lead") {
-      return <LeadListPage />;
-    }
-
-    // EXACT MATCH: Add Lead
-    if (normalized === "/m/crmq/add-lead") {
-      return <AddLeadScreen />;
-    }
-
-    // DYNAMIC MATCH: View Lead Details
     const viewLeadMatch = normalized.match(/^\/m\/crmq\/view-lead\/([^/]+)$/);
-    if (viewLeadMatch) {
-      return <ViewLeadScreen id={viewLeadMatch[1]} />;
-    }
+    if (viewLeadMatch) return <ViewLeadScreen id={viewLeadMatch[1]} />;
 
     const editLeadMatch = normalized.match(/^\/m\/crmq\/edit-lead\/([^/]+)$/);
-    if (editLeadMatch) {
-      return <EditLeadPage id={editLeadMatch[1]} />;
-    }
+    if (editLeadMatch) return <EditLeadPage id={editLeadMatch[1]} />;
 
-    if (normalized === "/m/crmq/landing") {
-      return <CommingSoonPage />;
-    }
-
-    if (normalized === "/m/crmq/kanban") {
-      return <KanbanRoute />
-    }
-
-    if (normalized === "/m/crmq/opportunity-list") {
-      return <OpportunityListPage />
-    }
-
-    if (normalized === "/m/crmq/add-opportunity") {
-      return <AddOpportunityScreen />
-    }
+    if (normalized === "/m/crmq/landing") return <CommingSoonPage />;
+    if (normalized === "/m/crmq/kanban") return <KanbanRoute />
+    if (normalized === "/m/crmq/opportunity-list") return <OpportunityListPage />
+    if (normalized === "/m/crmq/add-opportunity") return <AddOpportunityScreen />
 
     const editOpportunityMatch = normalized.match(/^\/m\/crmq\/edit-opportunity\/([^/]+)$/);
-    if (editOpportunityMatch) {
-      return <EditOpportunityPage id={editOpportunityMatch[1]} />;
-    }
+    if (editOpportunityMatch) return <EditOpportunityPage id={editOpportunityMatch[1]} />;
 
     const viewOpportunityMatch = normalized.match(/^\/m\/crmq\/view-opportunity\/([^/]+)$/);
-    if (viewOpportunityMatch) {
-      return <ViewOpportunityScreen id={viewOpportunityMatch[1]} />;
-    }
+    if (viewOpportunityMatch) return <ViewOpportunityScreen id={viewOpportunityMatch[1]} />;
 
-    // FALLBACK: If the route is missing
     return (
       <Card>
         <Typography.Title level={4}>CRM Page Not Found</Typography.Title>
@@ -193,27 +202,15 @@ export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskB
   if (pathname.startsWith("/m/emailq/email")) {
     const listMatch = pathname.match(/^\/m\/emailq\/email\/list\/([^/]+)$/);
     if (listMatch) {
-      return (
-        <EmailLayout>
-          <Email />
-        </EmailLayout>
-      );
+      return <EmailLayout><Email /></EmailLayout>;
     }
 
     const detailsMatch = pathname.match(/^\/m\/emailq\/email\/details\/([^/]+)\/([^/]+)$/);
     if (detailsMatch) {
-      return (
-        <EmailLayout>
-          <EmailDetails />
-        </EmailLayout>
-      );
+      return <EmailLayout><EmailDetails /></EmailLayout>;
     }
 
-    return (
-      <EmailLayout>
-        <Email />
-      </EmailLayout>
-    );
+    return <EmailLayout><Email /></EmailLayout>;
   }
 
   if (pathname.startsWith("/m/hrq")) {
@@ -251,50 +248,35 @@ export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskB
       />
     );
   }
-  const { isDark } = useThemeMode();
+
   if (!mod) {
     return (
       <div style={{
         display: "flex", flexDirection: "column", alignItems: "center",
         justifyContent: "center", minHeight: "70vh",
-        // ðŸš€ DYNAMIC BACKGROUND GRADIENT
         background: isDark
           ? "linear-gradient(145deg, #1e293b 0%, #0f172a 100%)"
           : "linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)",
         borderRadius: "16px",
-        // ðŸš€ DYNAMIC BORDER
         border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
         boxShadow: isDark ? "0 10px 40px rgba(0,0,0,0.3)" : "0 10px 40px rgba(0,0,0,0.03)",
         padding: "40px", textAlign: "center", position: "relative",
         overflow: "hidden"
       }}>
         <style>{`
-          @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-12px); }
-          }
-          @keyframes pulse-ring {
-            0% { transform: scale(0.8); opacity: 0.4; }
-            100% { transform: scale(1.4); opacity: 0; }
-          }
-          @keyframes slide-up {
-            0% { opacity: 0; transform: translateY(20px); }
-            100% { opacity: 1; transform: translateY(0); }
-          }
+          @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-12px); } }
+          @keyframes pulse-ring { 0% { transform: scale(0.8); opacity: 0.4; } 100% { transform: scale(1.4); opacity: 0; } }
+          @keyframes slide-up { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
         `}</style>
 
-        {/* Animated Icon Container */}
         <div style={{ position: "relative", marginBottom: "32px", animation: "float 4s ease-in-out infinite" }}>
-          {/* Pulsing ring */}
           <div style={{
             position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
             borderRadius: "50%", background: "#1677ff",
             animation: "pulse-ring 2.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite"
           }} />
-          {/* Floating Circle */}
           <div style={{
             width: "88px", height: "88px",
-            // ðŸš€ DYNAMIC CIRCLE BACKGROUND
             background: isDark ? "#1e293b" : "#ffffff",
             borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
             boxShadow: isDark ? "0 8px 24px rgba(0, 0, 0, 0.4)" : "0 8px 24px rgba(22, 119, 255, 0.15)",
@@ -304,8 +286,6 @@ export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskB
           </div>
         </div>
 
-        {/* Staggered Text Animations */}
-        {/* ðŸš€ REMOVED hardcoded color="#1e293b" so Ant Design automatically handles it! */}
         <Typography.Title level={2} style={{ margin: 0, animation: "slide-up 0.6s ease-out both" }}>
           Welcome to ERP-Q
         </Typography.Title>

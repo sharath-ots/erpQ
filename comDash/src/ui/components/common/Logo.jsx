@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Link, SvgIcon, Typography, typographyClasses, useTheme } from '@mui/material';
 import { useThemeMode } from '../../hooks/useThemeMode';
 import { useSettingsContext } from '../../providers/SettingsProvider';
+import { useERPUser } from '../../providers/ERPUserProvider'; // 🚀 ADDED: Import global user context
 import paths, { rootPaths } from '../../routes/paths';
 
 const Logo = ({ sx, viewBox = '0 0 26 40', showName = true, isShowcase = false, ...rest }) => {
@@ -16,6 +17,9 @@ const Logo = ({ sx, viewBox = '0 0 26 40', showName = true, isShowcase = false, 
   const {
     config: { navColor },
   } = useSettingsContext();
+
+  // 🚀 ADDED: Get roles from the provider (with a safe fallback)
+  const { roles = [] } = useERPUser() || {};
 
   const color = isShowcase
     ? '#20DE99'
@@ -29,9 +33,17 @@ const Logo = ({ sx, viewBox = '0 0 26 40', showName = true, isShowcase = false, 
     setId(`logo-${Math.floor(Math.random() * 1000) + 1}`);
   }, []);
 
+  // 🚀 ADDED: Dynamic Routing Logic
+  const isSupplierUser = roles?.includes('Supplier Portal User');
+  const isSupplierRoute = pathname.startsWith('/m/supplierq');
+  
+  // If they are a supplier OR are currently inside a supplier route, go to /m/supplierq.
+  // Otherwise, default to /m/crmq.
+  const logoHref = (isSupplierUser || isSupplierRoute) ? '/m/supplierq' : '/m/crmq';
+
   return (
     <Link
-      href={pathname === '/' || pathname === paths.showcase ? rootPaths.root : paths.erpConfig}
+      href={logoHref} /* 🚀 UPDATED: Uses the dynamic link */
       underline="none"
       sx={{
         display: 'flex',
