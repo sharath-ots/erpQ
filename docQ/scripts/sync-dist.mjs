@@ -15,5 +15,9 @@ cpSync(src, dist, { recursive: true });
 cpSync(path.join(root, "migrations"), path.join(dist, "migrations"), {
   recursive: true,
 });
-console.log("sync-dist: src + migrations -> dist");
+const vendor = path.join(root, "vendor");
+if (existsSync(vendor)) {
+  cpSync(vendor, path.join(dist, "vendor"), { recursive: true });
+}
+console.log("sync-dist: src + migrations + vendor -> dist");
 

@@ -1,0 +1,21 @@
+{
+  "name": "@cityq/frapperestq",
+  "version": "0.1.0",
+  "private": true,
+  "description": "frappeRestQ — generic Frappe REST client (DocType CRUD, methods, filters)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "node scripts/sync-dist.mjs",
+    "lint": "eslint src --ext .js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0"
+  }
+}

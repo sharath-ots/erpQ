@@ -64,7 +64,8 @@ services:
     environment:
       POSTGRES_DB: cityq
       POSTGRES_USER: cityq
-      POSTGRES_PASSWORD: ${CITYQ_DB_PASSWORD:-cityq_dev_change_me}
+      # Prefer CITYQ_DB_PASSWORD; legacy .env files may only define DOCQ_DB_PASSWORD.
+      POSTGRES_PASSWORD: ${CITYQ_DB_PASSWORD:-${DOCQ_DB_PASSWORD:-cityq_dev_change_me}}
     volumes:
       - cityq_pg_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -79,17 +80,17 @@ services:
 
   docq:
     build:
-      context: ./docQ
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docQ/Dockerfile
     image: erpq/docq:latest
     ports:
       - "14160:14160"
     environment:
       DOCQ_HOST: "0.0.0.0"
       DOCQ_PORT: "14160"
-      CITYQ_DATABASE_URL: postgres://cityq:${CITYQ_DB_PASSWORD:-cityq_dev_change_me}@cityq-db:5432/cityq
+      CITYQ_DATABASE_URL: postgres://cityq:${CITYQ_DB_PASSWORD:-${DOCQ_DB_PASSWORD:-cityq_dev_change_me}}@cityq-db:5432/cityq
       # Legacy image compat until docq is rebuilt (older builds only read DOCQ_DATABASE_URL).
-      DOCQ_DATABASE_URL: postgres://cityq:${CITYQ_DB_PASSWORD:-cityq_dev_change_me}@cityq-db:5432/cityq
+      DOCQ_DATABASE_URL: postgres://cityq:${CITYQ_DB_PASSWORD:-${DOCQ_DB_PASSWORD:-cityq_dev_change_me}}@cityq-db:5432/cityq
       DOCQ_PG_SCHEMA: docq
       # Must match auth + apiGate JWT_SECRET or docQ returns 401 and comDash logs you out.
       JWT_SECRET: ${JWT_SECRET:-erpq-dev-jwt-change-me}
@@ -98,7 +99,16 @@ services:
       AUTHQ_ZOHO_CLIENT_ID: ${AUTHQ_ZOHO_CLIENT_ID:-}
       AUTHQ_ZOHO_CLIENT_SECRET: ${AUTHQ_ZOHO_CLIENT_SECRET:-}
       AUTHQ_ZOHO_ACCOUNTS_HOST: ${AUTHQ_ZOHO_ACCOUNTS_HOST:-accounts.zoho.com}
-      DOCQ_WORKDRIVE_API_BASE: ${DOCQ_WORKDRIVE_API_BASE:-https://www.zohoapis.com}
+      # Leave empty to derive from AUTHQ_ZOHO_ACCOUNTS_HOST (e.g. .eu → zohoapis.eu).
+      DOCQ_WORKDRIVE_API_BASE: ${DOCQ_WORKDRIVE_API_BASE:-}
+      DOCQ_SERVICE_ZOHO_EMAIL: ${DOCQ_SERVICE_ZOHO_EMAIL:-}
+      DOCQ_SCRATCH_ROOT: ${DOCQ_SCRATCH_ROOT:-}
+      DOCQ_MANAGED_ROOT: ${DOCQ_MANAGED_ROOT:-}
+      ERPNEXT_URL: ${ERPNEXT_URL:-}
+      ERPNEXT_API_KEY: ${ERPNEXT_API_KEY:-}
+      ERPNEXT_API_SECRET: ${ERPNEXT_API_SECRET:-}
+      CITYQ_MQ_URL: ${CITYQ_MQ_URL:-amqp://${RABBITMQ_DEFAULT_USER:-erpq}:${RABBITMQ_DEFAULT_PASS:-erpq_dev_change_me}@rabbitmq:5672}
+      DOCQ_APPROVAL_SLA_DAYS: ${DOCQ_APPROVAL_SLA_DAYS:-5}
     depends_on:
       cityq-db:
         condition: service_healthy

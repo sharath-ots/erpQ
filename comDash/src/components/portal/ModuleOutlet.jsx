@@ -1,11 +1,11 @@
-"use client";
+﻿"use client";
 
 import dynamic from "next/dynamic";
 import { Card, Empty, Spin, Typography } from "antd";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react"; // Removed useState
 import { findMenuItem } from "@/lib/menuMatch";
-import { apiBase, apiFetch, getAccessToken } from "@/lib/apigate";
+import { apiBase, apiFetch, getAccessToken, parseCityQJwtPayload } from "@/lib/apigate";
 import CRMQ from "../../ui/components/sections/dashboards/crm-q/index"
 import LeadListPage from '../../../../crmQ/pages/crm/lead-list/index';
 import AddLeadScreen from "../../../../crmQ/src/ui/AddLeadScreen";
@@ -15,6 +15,14 @@ import DocDashboard from "../../ui/components/sections/doc-q/DocDashboard";
 import DocWorkflowsAdmin from "../../ui/components/sections/doc-q/DocWorkflowsAdmin";
 import DocFileRegister from "../../ui/components/sections/doc-q/DocFileRegister";
 import DocErpNextLinker from "../../ui/components/sections/doc-q/DocErpNextLinker";
+import DocLibrary from "../../ui/components/sections/doc-q/DocLibrary";
+import DocMyDocuments from "../../ui/components/sections/doc-q/DocMyDocuments";
+import DocWorkflowSetup from "../../ui/components/sections/doc-q/DocWorkflowSetup";
+import DocInbox from "../../ui/components/sections/doc-q/DocInbox";
+import DocNewUpload from "../../ui/components/sections/doc-q/DocNewUpload";
+import DocDetail from "../../ui/components/sections/doc-q/DocDetail";
+import DocTypeAdmin from "../../ui/components/sections/doc-q/DocTypeAdmin";
+import DocProjectsAdmin from "../../ui/components/sections/doc-q/DocProjectsAdmin";
 import { useThemeMode } from '../../ui/hooks/useThemeMode';
 import EmailLayout from '../../../../crmQ/src/layouts/email-layout/index';
 import EmailDetails from '../../../../crmQ/components/email-app/email/EmailDetails';
@@ -149,10 +157,41 @@ export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskB
 
   if (/^\/m\/docq/i.test(pathname)) {
     const normalized = pathname.replace(/^\/m\/docq/i, "/m/docq").replace(/\/$/, "");
-    if (normalized === "/m/docq") return <DocDashboard />;
-    if (normalized === "/m/docq/register") return <DocFileRegister />;
-    if (normalized === "/m/docq/admin/workflows") return <DocWorkflowsAdmin />;
+    if (normalized === "/m/docq") return <DocMyDocuments />;
+    if (normalized === "/m/docq/scratch" || normalized === "/m/docq/register") return <DocFileRegister />;
+    if (normalized === "/m/docq/documents") return <DocLibrary view="all" />;
+    if (normalized === "/m/docq/my-documents") return <DocMyDocuments />;
+    if (normalized === "/m/docq/shared-with-me") return <DocLibrary view="shared_with_me" />;
+    if (normalized === "/m/docq/shared-by-me") return <DocLibrary view="shared_by_me" />;
+    if (normalized === "/m/docq/changes-requested") return <DocLibrary view="changes_requested" />;
+    if (normalized === "/m/docq/for-review") return <DocLibrary view="for_review" showActions />;
+    if (normalized === "/m/docq/for-approval") return <DocLibrary view="for_approval" showActions />;
+    if (normalized === "/m/docq/revoke") return <DocLibrary view="revocable" showActions />;
+    if (normalized === "/m/docq/archived") return <DocLibrary view="archived" />;
+    if (normalized === "/m/docq/inbox") return <DocLibrary view="for_review" showActions />;
+    if (normalized === "/m/docq/new") return <DocNewUpload />;
+    if (normalized === "/m/docq/admin/doc-types") {
+      const admin = parseCityQJwtPayload(getAccessToken())?.isDocAdmin;
+      if (!admin) return <Card><Typography.Title level={4}>Admin only</Typography.Title></Card>;
+      return <DocTypeAdmin />;
+    }
+    if (normalized === "/m/docq/admin/workflows") {
+      const admin = parseCityQJwtPayload(getAccessToken())?.isDocAdmin;
+      if (!admin) return <Card><Typography.Title level={4}>Admin only</Typography.Title></Card>;
+      return <DocWorkflowSetup />;
+    }
+    if (normalized === "/m/docq/admin/projects") {
+      const admin = parseCityQJwtPayload(getAccessToken())?.isDocAdmin;
+      if (!admin) return <Card><Typography.Title level={4}>Admin only</Typography.Title></Card>;
+      return <DocProjectsAdmin />;
+    }
+
     if (normalized === "/m/docq/erpnext-link") return <DocErpNextLinker />;
+
+    const detailMatch = normalized.match(/^\/m\/docq\/documents\/([^/]+)$/);
+    if (detailMatch) {
+      return <DocDetail documentId={detailMatch[1]} />;
+    }
 
     return (
       <Card>
@@ -245,7 +284,7 @@ export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskB
             boxShadow: isDark ? "0 8px 24px rgba(0, 0, 0, 0.4)" : "0 8px 24px rgba(22, 119, 255, 0.15)",
             position: "relative", zIndex: 1
           }}>
-            <span style={{ fontSize: "40px" }}>🚀</span>
+            <span style={{ fontSize: "40px" }}>ðŸš€</span>
           </div>
         </div>
 
@@ -280,7 +319,7 @@ export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskB
   return (
     <Card title={mod.label}>
       <Empty
-        description={`Custom workflow shell for "${mod.key}" — add a page under comDash or point embedUrl from apiGate /api/v1/portal/menu.`}
+        description={`Custom workflow shell for "${mod.key}" â€” add a page under comDash or point embedUrl from apiGate /api/v1/portal/menu.`}
       />
     </Card>
   );

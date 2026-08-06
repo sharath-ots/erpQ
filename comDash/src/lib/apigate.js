@@ -50,10 +50,15 @@ export function parseCityQJwtPayload(token) {
     const email =
       typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";
     if (!email) return null;
+    const allowedDocTypes = Array.isArray(payload.allowedDocTypes)
+      ? payload.allowedDocTypes
+      : [];
     return {
       sub: typeof payload.sub === "string" ? payload.sub : email,
       email,
       zohoId: typeof payload.zohoId === "string" ? payload.zohoId : undefined,
+      allowedDocTypes,
+      isDocAdmin: allowedDocTypes.includes("*"),
     };
   } catch {
     return null;
@@ -117,7 +122,15 @@ export async function apiFetch(path, init) {
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
-  headers.set("Content-Type", headers.get("Content-Type") ?? "application/json");
+  // FormData must set its own multipart boundary — never force JSON.
+  const isFormData =
+    typeof FormData !== "undefined" && init?.body instanceof FormData;
+  if (!isFormData && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (isFormData) {
+    headers.delete("Content-Type");
+  }
 
   const res = await fetch(`${apiBase.replace(/\/$/, "")}${path}`, {
     ...init,

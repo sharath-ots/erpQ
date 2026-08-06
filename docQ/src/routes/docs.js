@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { isDocAdmin } from "../lib/auth.js";
 
 function nowIso() {
   return new Date().toISOString();

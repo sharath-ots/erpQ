@@ -2,7 +2,7 @@
  * OAuth2 authorization-code + PKCE for Google and Zoho (IdP accounts).
  * Credentials: AUTHQ_GOOGLE_* / AUTHQ_ZOHO_* — never hardcode; use env / secrets manager.
  */
-import { env } from "../config.js";
+import { env, resolveAllowedDocTypesForEmail } from "../config.js";
 import { randomState, generatePkcePair } from "../lib/oauthPkce.js";
 import {
   saveOAuthState,
@@ -10,6 +10,7 @@ import {
 } from "../lib/oauthStateStore.js";
 import { resolveSafeReturnUrl } from "../lib/returnUrl.js";
 import { mintCityQAccessToken } from "../services/accessToken.js";
+import { assertOrgAccountAllowed } from "../services/tenantPolicy.js";
 import {
   buildGoogleAuthorizeUrl,
   exchangeGoogleCode,
@@ -151,13 +152,40 @@ function registerProvider(app, provider, {
     }
 
     const claims = mapClaims(profile, email);
+    // docQ admins (AUTHQ_DOCQ_ADMIN_EMAILS) get ["*"]; everyone else gets the OAuth defaults.
+    // The comDash/apiGate/docQ layers derive isDocAdmin from allowedDocTypes.includes("*").
+    claims.allowedDocTypes = resolveAllowedDocTypesForEmail(email);
+
+    let tenantGate;
+    try {
+      tenantGate = assertOrgAccountAllowed(email, provider);
+    } catch (e) {
+      request.log.warn({ email, provider, err: e.message }, "oauth org gate rejected");
+      return reply.code(e.statusCode || 403).send({
+        error: e.code || "org_account_required",
+        detail: e.message,
+      });
+    }
+    if (tenantGate?.tenant?.id) {
+      claims.tenantId = tenantGate.tenant.id;
+      claims.tenantName = tenantGate.tenant.name;
+      if (tenantGate.tenant.zohoOrgId) {
+        claims.zohoOrgId = tenantGate.tenant.zohoOrgId;
+      }
+    }
 
     if (typeof onTokens === "function") {
       try {
         await onTokens({ tokens, profile, claims, request });
       } catch (e) {
         request.log.error({ err: e }, `${provider} onTokens hook failed`);
-        // Non-fatal for login; token persistence is best-effort.
+        if (provider === "zoho") {
+          return reply.code(e.statusCode || 502).send({
+            error: e.code || "workdrive_link_failed",
+            detail: String(e?.message ?? e),
+          });
+        }
+        // Non-fatal for Google
       }
     }
     let minted;
@@ -215,21 +243,28 @@ export async function oauthRoutes(app) {
     }),
     onTokens: async ({ tokens, profile, claims, request }) => {
       if (!env.docqInternalUrl) {
-        request.log.warn("docQ token upsert skipped: AUTHQ_DOCQ_INTERNAL_URL not set");
-        return;
+        const e = new Error(
+          "AUTHQ_DOCQ_INTERNAL_URL is not set — cannot store Zoho WorkDrive refresh token",
+        );
+        e.statusCode = 503;
+        e.code = "docq_url_missing";
+        throw e;
       }
       if (!env.cityqServiceKey) {
-        request.log.warn(
-          "docQ token upsert skipped: CITYQ_SERVICE_KEY not set (authQ and docQ must match)",
+        const e = new Error(
+          "CITYQ_SERVICE_KEY is not set on authQ — cannot store Zoho WorkDrive refresh token",
         );
-        return;
+        e.statusCode = 503;
+        e.code = "service_key_missing";
+        throw e;
       }
       if (!tokens?.refresh_token) {
-        request.log.warn(
-          { email: claims.email },
-          "docQ token upsert skipped: Zoho did not return refresh_token (revoke app in Zoho Account Security and sign in again)",
+        const e = new Error(
+          "Zoho did not return a refresh_token. In Zoho Account → Security → Connected Apps, revoke this app, then Sign in with Zoho again and accept all WorkDrive scopes (first consent only).",
         );
-        return;
+        e.statusCode = 502;
+        e.code = "zoho_refresh_token_missing";
+        throw e;
       }
 
       const url = `${env.docqInternalUrl.replace(/\/$/, "")}/internal/zoho/token/upsert`;
@@ -249,11 +284,18 @@ export async function oauthRoutes(app) {
       });
       if (!res.ok) {
         const text = await res.text().catch(() => "");
-        request.log.warn(
-          { status: res.status, body: text.slice(0, 200) },
+        request.log.error(
+          { status: res.status, body: text.slice(0, 300), email: claims.email },
           "docQ refresh_token upsert failed",
         );
+        const e = new Error(
+          `Failed to store WorkDrive token in docQ (HTTP ${res.status}). Check DOCQ_TOKEN_ENC_KEY_B64 and CITYQ_SERVICE_KEY match on auth+docq. ${text.slice(0, 120)}`,
+        );
+        e.statusCode = 502;
+        e.code = "workdrive_token_upsert_failed";
+        throw e;
       }
+      request.log.info({ email: claims.email }, "Zoho WorkDrive refresh_token stored");
     },
   });
 
@@ -267,5 +309,15 @@ export async function oauthRoutes(app) {
       callback: absoluteCallbackPath("zoho"),
     },
     publicBaseUrl: env.publicBaseUrl || null,
+    tenancy: {
+      allowedEmailDomains: env.allowedEmailDomains,
+      tenantCount: env.tenants.length,
+      mode:
+        env.allowedEmailDomains.length ||
+        env.allowedEmails.length ||
+        env.tenants.length
+          ? "org_accounts_only"
+          : "open_dev",
+    },
   }));
 }

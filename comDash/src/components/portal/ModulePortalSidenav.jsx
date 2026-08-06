@@ -15,12 +15,13 @@ import NavItem from "../../ui/layouts/main-layout/sidenav/NavItem";
 import SidenavCollapse from "../../ui/layouts/main-layout/sidenav/SidenavCollapse";
 import SidenavSimpleBar from "../../ui/layouts/main-layout/sidenav/SidenavSimpleBar";
 import { usePortalMenu } from "./PortalMenuProvider";
-import { findModulePortalRoot, portalChildrenToNavItems } from "./modulePortalNav";
+import { findModulePortalRoot, portalChildrenToNavItems, docqNavForUser } from "./modulePortalNav";
+import { getAccessToken, parseCityQJwtPayload } from "@/lib/apigate";
 
-function ModulePortalSidenavContent({ moduleRoot, expanded }) {
+function ModulePortalSidenavContent({ moduleRoot, expanded, docqChildren }) {
   const navItems = useMemo(
-    () => portalChildrenToNavItems(moduleRoot?.children ?? []),
-    [moduleRoot],
+    () => portalChildrenToNavItems(docqChildren ?? moduleRoot?.children ?? []),
+    [docqChildren, moduleRoot],
   );
 
   return (
@@ -84,6 +85,9 @@ export default function ModulePortalSidenav({ variant = "permanent" }) {
   const theme = useTheme();
   const { menuItems } = usePortalMenu();
   const moduleRoot = findModulePortalRoot(pathname, menuItems);
+  const isDocq = /^\/m\/docq/i.test(pathname);
+  const isDocAdmin = Boolean(parseCityQJwtPayload(getAccessToken())?.isDocAdmin);
+  const docqChildren = isDocq ? docqNavForUser(isDocAdmin) : null;
 
   const {
     config: { sidenavCollapsed, drawerWidth, navColor },
@@ -95,7 +99,7 @@ export default function ModulePortalSidenav({ variant = "permanent" }) {
 
   if (variant === "temporary") {
     return (
-      <ModulePortalSidenavContent moduleRoot={moduleRoot} expanded />
+      <ModulePortalSidenavContent moduleRoot={moduleRoot} docqChildren={docqChildren} expanded />
     );
   }
 
@@ -135,7 +139,7 @@ export default function ModulePortalSidenav({ variant = "permanent" }) {
         open
       >
         {navColor === "vibrant" && <VibrantBackground position="side" />}
-        <ModulePortalSidenavContent moduleRoot={moduleRoot} expanded={expanded} />
+        <ModulePortalSidenavContent moduleRoot={moduleRoot} docqChildren={docqChildren} expanded={expanded} />
         <SidenavCollapse />
       </Drawer>
       {currentBreakpoint === "md" && (
