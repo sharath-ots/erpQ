@@ -27,6 +27,7 @@ import EditOpportunityPage from "../../../../crmQ/pages/crm/opportunity/edit/[id
 import ViewOpportunityScreen from "../../../../crmQ/src/ui/ViewOpportunityScreen";
 import { usePortalMenu } from "./PortalMenuProvider";
 import { useERPUser } from '../../ui/providers/ERPUserProvider'; // 🚀 ADDED: Global Context
+import ChatPage from "../../../../crmQ/ai/chat-bot/ChatPage";
 
 const HrqShell = dynamic(
   () => import("@cityq/hrq").then((m) => ({ default: m.HrqShell })),
@@ -119,6 +120,7 @@ export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskB
     if (normalized === "/m/crmq") return <CRMQ />;
     if (normalized === "/m/crmq/lead-list" || normalized === "/m/crmq/list/Lead") return <LeadListPage />;
     if (normalized === "/m/crmq/add-lead") return <AddLeadScreen />;
+    if (normalized === "/m/crmq/ai") return <ChatPage />;
 
     const viewLeadMatch = normalized.match(/^\/m\/crmq\/view-lead\/([^/]+)$/);
     if (viewLeadMatch) return <ViewLeadScreen id={viewLeadMatch[1]} />;
