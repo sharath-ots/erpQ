@@ -311,6 +311,7 @@ services:
     build:
       context: .
       dockerfile: comDash/Dockerfile
+      network: host
     image: erpq/comdash:latest
     ports:
       - "${COMDASH_PUBLISH_PORT:-13001}:3000"
