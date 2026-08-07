@@ -84,21 +84,23 @@ function getEmailFromToken(token) {
   }
 }
 
-// 2. The core router uses the Server Action
+// 2. Routing logic natively uses ERP roles
 async function handleLiveRouting(email, token, defaultDestUrl) {
   try {
     const { roles } = await fetchUserRoles(email);
     const base = getComDashBase().replace(/\/$/, "");
     let finalUrl = new URL(defaultDestUrl);
 
-    // Read the tag we set when the button was clicked
-    const loginProvider = typeof window !== "undefined" ? window.localStorage.getItem("cityq_login_provider") : null;
-
     if (roles.includes("Supplier Portal User")) {
       finalUrl = new URL(`${base}/m/supplierq`);
-    } else if (loginProvider === "zoho") {
-      // Force Zoho users to docq
+    } else if (roles.length === 0) {
+      // 🚀 Zoho users aren't in ERP, so they safely fall into this block!
       finalUrl = new URL(`${base}/m/docq`);
+    } else {
+      // Normal admins/users go to CRM if they don't have a specific deep link
+      if (finalUrl.pathname === "/" || finalUrl.pathname === "/login") {
+        finalUrl = new URL(`${base}/m/crmq`);
+      }
     }
 
     finalUrl.hash = `cityq_token=${encodeURIComponent(token)}`;
@@ -161,10 +163,11 @@ function IllustrationPanel() {
   );
 }
 
-function SsoButton({ href, provider, onClick }) {
+// 🚀 Removed the messy onClick provider tags!
+function SsoButton({ href, provider }) {
   const label = provider === "google" ? "Sign in with Google" : "Sign in with Zoho";
   return (
-    <a href={href} onClick={onClick} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2">
+    <a href={href} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2">
       <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-xs font-semibold text-slate-700">
         {provider === "google" ? "G" : "Z"}
       </span>
@@ -179,7 +182,6 @@ function LoginCard() {
   const [error, setError] = useState("");
   const [errorPopup, setErrorPopup] = useState(null);
 
-  // PATH 1: SSO LOGIN HANDLER
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setRedirect(params.get("redirect") ?? "/");
@@ -199,31 +201,27 @@ function LoginCard() {
     handleLiveRouting(email, token, destUrl);
   }, []);
 
+  // 1. Google Return (CRM Base)
   const oauthReturn = useMemo(() => {
     if (typeof window === "undefined") {
-      return encodeURIComponent(`${getComDashBase().replace(/\/$/, "")}/`);
+      return encodeURIComponent(`${getComDashBase().replace(/\/$/, "")}/m/crmq`);
     }
     const params = new URLSearchParams(window.location.search);
-    return encodeURIComponent(resolvePostLoginDestination(params.get("redirect")).toString());
+    return encodeURIComponent(resolvePostLoginDestination(params.get("redirect") || "/m/crmq").toString());
   }, [redirect]);
 
-  // 1. Force the Zoho return URL to carry the provider tag
+  // 2. Zoho Return (DocQ Base - Without custom parameters)
   const zohoReturn = useMemo(() => {
     if (typeof window === "undefined") {
-      return encodeURIComponent(`${getComDashBase().replace(/\/$/, "")}/m/docq?provider=zoho`);
+      return encodeURIComponent(`${getComDashBase().replace(/\/$/, "")}/m/docq`);
     }
     const baseDest = resolvePostLoginDestination("/m/docq").toString();
-    const urlObj = new URL(baseDest);
-    urlObj.searchParams.set("provider", "zoho"); // 👈 The crucial bridge across ports
-    return encodeURIComponent(urlObj.toString());
+    return encodeURIComponent(baseDest);
   }, []);
   
   const googleHref = `${getAuthQBase()}/oauth/google/start?return_url=${oauthReturn}`;
-  
-  // 2. MAKE SURE this uses zohoReturn, not oauthReturn!
   const zohoHref = `${getAuthQBase()}/oauth/zoho/start?return_url=${zohoReturn}`;
 
-  // PATH 2: EMAIL LOGIN HANDLER
   async function onSubmit(event) {
     event.preventDefault();
     setLoading(true);
@@ -261,7 +259,7 @@ function LoginCard() {
 
       window.localStorage.setItem("cityq_access_token", data.access_token);
 
-      const destUrl = resolvePostLoginDestination(params.get("redirect")).toString();
+      const destUrl = resolvePostLoginDestination(params.get("redirect") || "/m/crmq").toString();
       await handleLiveRouting(email, data.access_token, destUrl);
 
     } catch (err) {
@@ -280,16 +278,8 @@ function LoginCard() {
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <SsoButton 
-            href={googleHref} 
-            provider="google" 
-            onClick={() => window.localStorage.setItem("cityq_login_provider", "google")} 
-          />
-          <SsoButton 
-            href={zohoHref} 
-            provider="zoho" 
-            onClick={() => window.localStorage.setItem("cityq_login_provider", "zoho")} 
-          />
+          <SsoButton href={googleHref} provider="google" />
+          <SsoButton href={zohoHref} provider="zoho" />
         </div>
 
         <div className="my-6 flex items-center gap-3">
@@ -316,7 +306,6 @@ function LoginCard() {
           </button>
         </form>
       </div>
-      {/* Error Popup omitted for brevity, keep your existing one here */}
     </>
   );
 }

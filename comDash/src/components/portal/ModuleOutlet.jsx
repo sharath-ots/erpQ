@@ -1,9 +1,9 @@
 ﻿"use client";
 
 import dynamic from "next/dynamic";
-import { Card, Empty, Spin, Typography } from "antd";
-import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react"; // Removed useState
+import { Button, Card, Empty, Spin, Typography } from "antd"; 
+import { usePathname, useRouter } from "next/navigation"; 
+import { useEffect, useRef } from "react"; 
 import { findMenuItem } from "@/lib/menuMatch";
 import { apiBase, apiFetch, getAccessToken, parseCityQJwtPayload } from "@/lib/apigate";
 import CRMQ from "../../ui/components/sections/dashboards/crm-q/index"
@@ -34,7 +34,7 @@ import AddOpportunityScreen from "../../../../crmQ/src/ui/AddOpportunityScreen";
 import EditOpportunityPage from "../../../../crmQ/pages/crm/opportunity/edit/[id]"
 import ViewOpportunityScreen from "../../../../crmQ/src/ui/ViewOpportunityScreen";
 import { usePortalMenu } from "./PortalMenuProvider";
-import { useERPUser } from '../../ui/providers/ERPUserProvider'; // 🚀 ADDED: Global Context
+import { useERPUser } from '../../ui/providers/ERPUserProvider';
 import ChatPage from "../../../../crmQ/ai/chat-bot/ChatPage";
 
 const HrqShell = dynamic(
@@ -54,8 +54,7 @@ const SupplierqShell = dynamic(
 
 export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskBaseUrlProp, deskIframeQuery: deskIframeQueryProp }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const providerParam = searchParams.get("provider");
+  const router = useRouter(); 
   const portalMenu = usePortalMenu();
   
   const menuItems = menuItemsProp.length ? menuItemsProp : (portalMenu.menuItems ?? []);
@@ -66,35 +65,7 @@ export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskB
   const lastSentRef = useRef(null);
   
   const { isDark } = useThemeMode(); 
-
-  // 🚀 INSTANT ROLES: Grab directly from context. No awkward loading screens!
   const { roles, loading } = useERPUser();
-
-  const [loginProvider, setLoginProvider] = useState(null);
-  const [providerChecked, setProviderChecked] = useState(false);
-
-  // 🚀 Bridge the gap: Catch the URL param natively and save it
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const urlProvider = params.get("provider");
-
-      if (urlProvider) {
-        // Save it to Port 13001's storage
-        window.localStorage.setItem("cityq_login_provider", urlProvider);
-        setLoginProvider(urlProvider);
-
-        // Clean the URL so "?provider=zoho" magically disappears from the address bar
-        const cleanUrl = window.location.pathname + window.location.hash;
-        window.history.replaceState(null, '', cleanUrl);
-      } else {
-        // Read from existing storage if they are just navigating around
-        setLoginProvider(window.localStorage.getItem("cityq_login_provider"));
-      }
-    }
-    // Release the UI blocker once we know who they are
-    setProviderChecked(true); 
-  }, []);
 
   useEffect(() => {
     if (!mod?.key) return;
@@ -106,58 +77,72 @@ export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskB
         type: "portal.module_viewed",
         payload: { moduleKey: mod.key, path: pathname },
       }),
-    }).catch(() => {
-      // Best-effort telemetry
-    });
+    }).catch(() => {});
   }, [pathname, mod?.key]);
 
 
   // =========================================================================
-  // ACCESS DENIED RENDERING (Fully Centered)
+  // ACCESS DENIED RENDERING (Supplier Logic Only)
   // =========================================================================
   
-  // Return a completely blank, seamless background while global session boots up (avoids flashing)
-  if (loading || !providerChecked) {
-    return <div style={{ height: '100vh', width: '100vw', background: isDark ? '#0f172a' : '#f8fafc' }} />;
+  if (loading) {
+    return <div style={{ height: '100vh', width: '100vw', background: isDark ? '#141414' : '#f4f5f7' }} />;
   }
 
+  // Strictly check Supplier Roles
   const isSupplierUser = roles.includes("Supplier Portal User");
-  const isZohoUser = loginProvider === "zoho";
-
   const isSupplierPath = pathname.startsWith("/m/supplierq");
-  const isDocqPath = pathname.startsWith("/m/docq");
 
+  const renderAccessDenied = (message, redirectPath, buttonLabel) => (
+    <div style={{
+      position: 'fixed', 
+      top: 0,
+      left: 0,
+      width: '100vw',
+      height: '100vh',
+      zIndex: 9999, 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center',
+      background: isDark ? '#141414' : '#f4f5f7' 
+    }}>
+      <div style={{
+        background: isDark ? '#1f1f1f' : '#ffffff',
+        padding: '36px 32px',
+        textAlign: 'center',
+        minWidth: '450px',
+        boxShadow: isDark ? '0 4px 12px rgba(0,0,0,0.2)' : '0 4px 16px rgba(0,0,0,0.04)',
+        borderRadius: '8px',
+      }}>
+        <Typography.Title level={4} style={{ color: '#ff4d4f', margin: '0 0 16px 0', fontWeight: 500 }}>
+          Access Denied
+        </Typography.Title>
+        <Typography.Paragraph style={{ margin: '0 0 24px 0', fontSize: '14px', color: isDark ? 'rgba(255,255,255,0.85)' : '#333' }}>
+          {message}
+        </Typography.Paragraph>
+
+        {redirectPath && (
+          <Button 
+            type="primary" 
+            size="large" 
+            onClick={() => router.push(redirectPath)}
+            style={{ borderRadius: '6px' }}
+          >
+            {buttonLabel}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+
+  // 1. Supplier Trapped in SupplierQ
   if (isSupplierUser && !isSupplierPath) {
-    return (
-      <div style={{ display: 'flex', height: '100vh', width: '100vw', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0f172a' : '#f8fafc' }}>
-        <Card style={{ margin: '24px', textAlign: 'center', minWidth: '350px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-          <Typography.Title level={4} style={{ color: '#ff4d4f' }}>Access Denied</Typography.Title>
-          <Typography.Paragraph>Your account profile only has access to the Supplier Portal.</Typography.Paragraph>
-        </Card>
-      </div>
-    );
+    return renderAccessDenied("Your account profile only has access to the Supplier Portal.", "/m/supplierq", "Return to Supplier Portal");
   }
-
-  if (isZohoUser && !isDocqPath) {
-    return (
-      <div style={{ display: 'flex', height: '100vh', width: '100vw', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0f172a' : '#f8fafc' }}>
-        <Card style={{ margin: '24px', textAlign: 'center', minWidth: '350px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-          <Typography.Title level={4} style={{ color: '#ff4d4f' }}>Access Denied</Typography.Title>
-          <Typography.Paragraph>Your WorkDrive session only permits access to the Documents Portal.</Typography.Paragraph>
-        </Card>
-      </div>
-    );
-  }
-
+  
+  // 2. Normal Users Trapped OUT of SupplierQ
   if (!isSupplierUser && isSupplierPath) {
-    return (
-      <div style={{ display: 'flex', height: '100vh', width: '100vw', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0f172a' : '#f8fafc' }}>
-        <Card style={{ margin: '24px', textAlign: 'center', minWidth: '350px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-          <Typography.Title level={4} style={{ color: '#ff4d4f' }}>Access Denied</Typography.Title>
-          <Typography.Paragraph>You do not have permission to access the Supplier Portal.</Typography.Paragraph>
-        </Card>
-      </div>
-    );
+    return renderAccessDenied("You do not have permission to access the Supplier Portal.", "/m/crmq", "Return to CRM");
   }
 
   // =========================================================================
@@ -296,49 +281,29 @@ export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskB
   if (!mod) {
     return (
       <div style={{
-        display: "flex", flexDirection: "column", alignItems: "center",
-        justifyContent: "center", minHeight: "70vh",
-        background: isDark
-          ? "linear-gradient(145deg, #1e293b 0%, #0f172a 100%)"
-          : "linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)",
-        borderRadius: "16px",
-        border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-        boxShadow: isDark ? "0 10px 40px rgba(0,0,0,0.3)" : "0 10px 40px rgba(0,0,0,0.03)",
-        padding: "40px", textAlign: "center", position: "relative",
-        overflow: "hidden"
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        minHeight: "70vh",
+        background: isDark ? '#18181b' : '#ffffff',
+        borderRadius: "12px",
+        border: `1px solid ${isDark ? '#27272a' : '#e4e4e7'}`,
+        padding: "48px",
+        textAlign: "center",
+        boxShadow: "none" 
       }}>
-        <style>{`
-          @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-12px); } }
-          @keyframes pulse-ring { 0% { transform: scale(0.8); opacity: 0.4; } 100% { transform: scale(1.4); opacity: 0; } }
-          @keyframes slide-up { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
-        `}</style>
-
-        <div style={{ position: "relative", marginBottom: "32px", animation: "float 4s ease-in-out infinite" }}>
-          <div style={{
-            position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-            borderRadius: "50%", background: "#1677ff",
-            animation: "pulse-ring 2.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite"
-          }} />
-          <div style={{
-            width: "88px", height: "88px",
-            background: isDark ? "#1e293b" : "#ffffff",
-            borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: isDark ? "0 8px 24px rgba(0, 0, 0, 0.4)" : "0 8px 24px rgba(22, 119, 255, 0.15)",
-            position: "relative", zIndex: 1
-          }}>
-            <span style={{ fontSize: "40px" }}>ðŸš€</span>
-          </div>
+        <div style={{
+          width: "64px", height: "64px",
+          background: isDark ? '#27272a' : '#f4f4f5',
+          borderRadius: "8px", 
+          display: "flex", alignItems: "center", justifyContent: "center",
+          marginBottom: "24px"
+        }}>
+          <span style={{ fontSize: "28px" }}>🚀</span>
         </div>
-
-        <Typography.Title level={2} style={{ margin: 0, animation: "slide-up 0.6s ease-out both" }}>
+        <Typography.Title level={3} style={{ margin: 0 }}>
           Welcome to ERP-Q
         </Typography.Title>
-
-        <Typography.Paragraph type="secondary" style={{
-          fontSize: "16px", maxWidth: "500px", marginTop: "16px", lineHeight: "1.6",
-          animation: "slide-up 0.8s ease-out both", animationDelay: "0.1s"
-        }}>
-          Your central workspace is ready. Select a module from the sidebar on the left to start managing your workflow.
+        <Typography.Paragraph type="secondary" style={{ marginTop: "12px", maxWidth: "400px" }}>
+          Your central workspace is ready. Select a module from the sidebar to start managing your workflow.
         </Typography.Paragraph>
       </div>
     );
@@ -361,7 +326,7 @@ export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskB
   return (
     <Card title={mod.label}>
       <Empty
-        description={`Custom workflow shell for "${mod.key}" â€” add a page under comDash or point embedUrl from apiGate /api/v1/portal/menu.`}
+        description={`Custom workflow shell for "${mod.key}" — add a page under comDash or point embedUrl from apiGate /api/v1/portal/menu.`}
       />
     </Card>
   );
