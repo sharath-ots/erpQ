@@ -1,0 +1,6 @@
+# ERPNext HRMS Installation Guide
+To install the HRMS module in ERPNext version 15, you must use the bench command line tool. The HRMS module is no longer bundled with the core ERPNext application and must be fetched separately.
+
+First, navigate to your frappe-bench directory. Run the command `bench get-app hrms` to download the application from the official Frappe repository. 
+
+Once the application is fetched, you need to install it on your specific site. Use the command `bench --site your_site_name install-app hrms`. After installation, run `bench migrate` to ensure all database schema changes are applied correctly.

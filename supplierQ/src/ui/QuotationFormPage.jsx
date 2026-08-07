@@ -17,7 +17,7 @@ const resolveImageUrl = (imagePath, apiBase) => {
   if (!imagePath) return 'https://placehold.co/150x150?text=No+Image';
   if (imagePath.startsWith("http")) return imagePath;
 
-  let host = 'https://dashboard.versaq.eu';
+  let host = 'https://cityqerp.ortusolis.in';
   try {
     host = new URL(apiBase || host).origin;
   } catch (e) {

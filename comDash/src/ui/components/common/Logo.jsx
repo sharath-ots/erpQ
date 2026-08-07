@@ -36,10 +36,15 @@ const Logo = ({ sx, viewBox = '0 0 26 40', showName = true, isShowcase = false, 
   // 🚀 ADDED: Dynamic Routing Logic
   const isSupplierUser = roles?.includes('Supplier Portal User');
   const isSupplierRoute = pathname.startsWith('/m/supplierq');
+  const isDocqRoute = pathname.startsWith('/m/docq'); // 👈 ADDED: Check for Doc-Q route
   
-  // If they are a supplier OR are currently inside a supplier route, go to /m/supplierq.
-  // Otherwise, default to /m/crmq.
-  const logoHref = (isSupplierUser || isSupplierRoute) ? '/m/supplierq' : '/m/crmq';
+  // 1. Determine the correct return link
+  let logoHref = '/m/crmq';
+  if (isSupplierUser || isSupplierRoute) {
+    logoHref = '/m/supplierq';
+  } else if (isDocqRoute) {
+    logoHref = '/m/docq'; // 👈 ADDED: Link back to docq if inside the module
+  }
 
   return (
     <Link
@@ -187,7 +192,8 @@ const Logo = ({ sx, viewBox = '0 0 26 40', showName = true, isShowcase = false, 
             },
           ]}
         >
-          ERP-
+          {/* 2. Dynamically toggle the UI text based on the path */}
+          {isDocqRoute ? 'DOC-' : 'ERP-'}
         </Typography>
       )}
       <img

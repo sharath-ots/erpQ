@@ -13,6 +13,7 @@ COPY crmQ ./crmQ
 COPY hrQ ./hrQ
 COPY purQ ./purQ
 COPY supplierQ ./supplierQ
+COPY aiQ ./aiQ
 COPY comDash ./comDash
 WORKDIR /repo/comDash
 ENV NEXT_TELEMETRY_DISABLED=1

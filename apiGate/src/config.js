@@ -49,9 +49,9 @@ export const env = {
   
   /* */
   versaqErpnextEnabled: "1",
-  versaqErpnextUrl: "https://dashboard.versaq.eu",
-  versaqErpnextApiKey: "bac6081547b308c",
-  versaqErpnextApiSecret:"c5aec9d49ed3e16",
+  versaqErpnextUrl: "https://cityqerp.ortusolis.in",
+  versaqErpnextApiKey: "328d4905785c7d6",
+  versaqErpnextApiSecret:"e5e4a367e8ea13b",
 
   /**
    * Optional query string appended to ERPNext iframe URLs (e.g. full_page=1).

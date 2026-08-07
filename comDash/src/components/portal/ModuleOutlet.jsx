@@ -2,8 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { Card, Empty, Spin, Typography } from "antd";
-import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react"; // Removed useState
+import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react"; // Removed useState
 import { findMenuItem } from "@/lib/menuMatch";
 import { apiBase, apiFetch, getAccessToken, parseCityQJwtPayload } from "@/lib/apigate";
 import CRMQ from "../../ui/components/sections/dashboards/crm-q/index"
@@ -35,6 +35,7 @@ import EditOpportunityPage from "../../../../crmQ/pages/crm/opportunity/edit/[id
 import ViewOpportunityScreen from "../../../../crmQ/src/ui/ViewOpportunityScreen";
 import { usePortalMenu } from "./PortalMenuProvider";
 import { useERPUser } from '../../ui/providers/ERPUserProvider'; // 🚀 ADDED: Global Context
+import ChatPage from "../../../../crmQ/ai/chat-bot/ChatPage";
 
 const HrqShell = dynamic(
   () => import("@cityq/hrq").then((m) => ({ default: m.HrqShell })),
@@ -53,6 +54,8 @@ const SupplierqShell = dynamic(
 
 export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskBaseUrlProp, deskIframeQuery: deskIframeQueryProp }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const providerParam = searchParams.get("provider");
   const portalMenu = usePortalMenu();
   
   const menuItems = menuItemsProp.length ? menuItemsProp : (portalMenu.menuItems ?? []);
@@ -66,6 +69,32 @@ export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskB
 
   // 🚀 INSTANT ROLES: Grab directly from context. No awkward loading screens!
   const { roles, loading } = useERPUser();
+
+  const [loginProvider, setLoginProvider] = useState(null);
+  const [providerChecked, setProviderChecked] = useState(false);
+
+  // 🚀 Bridge the gap: Catch the URL param natively and save it
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlProvider = params.get("provider");
+
+      if (urlProvider) {
+        // Save it to Port 13001's storage
+        window.localStorage.setItem("cityq_login_provider", urlProvider);
+        setLoginProvider(urlProvider);
+
+        // Clean the URL so "?provider=zoho" magically disappears from the address bar
+        const cleanUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState(null, '', cleanUrl);
+      } else {
+        // Read from existing storage if they are just navigating around
+        setLoginProvider(window.localStorage.getItem("cityq_login_provider"));
+      }
+    }
+    // Release the UI blocker once we know who they are
+    setProviderChecked(true); 
+  }, []);
 
   useEffect(() => {
     if (!mod?.key) return;
@@ -88,12 +117,15 @@ export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskB
   // =========================================================================
   
   // Return a completely blank, seamless background while global session boots up (avoids flashing)
-  if (loading) {
+  if (loading || !providerChecked) {
     return <div style={{ height: '100vh', width: '100vw', background: isDark ? '#0f172a' : '#f8fafc' }} />;
   }
 
   const isSupplierUser = roles.includes("Supplier Portal User");
+  const isZohoUser = loginProvider === "zoho";
+
   const isSupplierPath = pathname.startsWith("/m/supplierq");
+  const isDocqPath = pathname.startsWith("/m/docq");
 
   if (isSupplierUser && !isSupplierPath) {
     return (
@@ -101,6 +133,17 @@ export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskB
         <Card style={{ margin: '24px', textAlign: 'center', minWidth: '350px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
           <Typography.Title level={4} style={{ color: '#ff4d4f' }}>Access Denied</Typography.Title>
           <Typography.Paragraph>Your account profile only has access to the Supplier Portal.</Typography.Paragraph>
+        </Card>
+      </div>
+    );
+  }
+
+  if (isZohoUser && !isDocqPath) {
+    return (
+      <div style={{ display: 'flex', height: '100vh', width: '100vw', alignItems: 'center', justifyContent: 'center', background: isDark ? '#0f172a' : '#f8fafc' }}>
+        <Card style={{ margin: '24px', textAlign: 'center', minWidth: '350px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+          <Typography.Title level={4} style={{ color: '#ff4d4f' }}>Access Denied</Typography.Title>
+          <Typography.Paragraph>Your WorkDrive session only permits access to the Documents Portal.</Typography.Paragraph>
         </Card>
       </div>
     );
@@ -127,6 +170,7 @@ export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskB
     if (normalized === "/m/crmq") return <CRMQ />;
     if (normalized === "/m/crmq/lead-list" || normalized === "/m/crmq/list/Lead") return <LeadListPage />;
     if (normalized === "/m/crmq/add-lead") return <AddLeadScreen />;
+    if (normalized === "/m/crmq/ai") return <ChatPage />;
 
     const viewLeadMatch = normalized.match(/^\/m\/crmq\/view-lead\/([^/]+)$/);
     if (viewLeadMatch) return <ViewLeadScreen id={viewLeadMatch[1]} />;

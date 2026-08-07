@@ -293,11 +293,25 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+  
+  db:
+    image: pgvector/pgvector:pg16   # <--- Use this instead of postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      POSTGRES_DB: ${POSTGRES_DB:-}
+      DaTABASE_URL: ${DATABASE_URL:-}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
 
   comdash:
     build:
       context: .
       dockerfile: comDash/Dockerfile
+      network: host
     image: erpq/comdash:latest
     ports:
       - "${COMDASH_PUBLISH_PORT:-13001}:3000"
@@ -317,6 +331,10 @@ services:
       ERPNEXT_PUBLIC_URL: ${ERPNEXT_PUBLIC_URL:-}
       ERPNEXT_API_KEY: ${ERPNEXT_API_KEY:-}
       ERPNEXT_API_SECRET: ${ERPNEXT_API_SECRET:-}
+      POSTGRES_USER: ${POSTGRES_USER:-}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      POSTGRES_DB: ${POSTGRES_DB:-}
+      DATABASE_URL: ${DATABASE_URL:-}
       VIRTUAL_HOST: ${VIRTUAL_HOST_DASHBOARD}
       VIRTUAL_PORT: "3000"
 
@@ -336,6 +354,8 @@ services:
     image: ollama/ollama:latest
     container_name: erpq-ollama
     restart: unless-stopped
+    ports:                     # <--- ADD THIS
+      - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
     networks:
@@ -367,6 +387,7 @@ volumes:
   rabbitmq_data:
   cityq_pg_data:
   ollama_data:
+  pgdata:
 
 networks:
   # Default: create an internal "proxy" network automatically.
