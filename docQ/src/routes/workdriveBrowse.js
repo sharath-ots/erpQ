@@ -1,5 +1,9 @@
 import { env } from "../config.js";
-import { getZohoAccessToken, loadRefreshToken } from "../services/zohoAuth.js";
+import {
+  getServiceZohoAccessToken,
+  getZohoAccessToken,
+  loadRefreshToken,
+} from "../services/zohoAuth.js";
 import { ensureSharedLibrary } from "../services/sharedLibrary.js";
 import {
   fetchFolderMeta,
@@ -29,8 +33,19 @@ function sendRouteError(reply, err) {
 }
 
 /**
+ * Vault Team Folder must stay service-account-only. End users are not members,
+ * so shared ensure / vault browse must use the org service Zoho token.
+ */
+async function resolveVaultLibrary(pool, actor) {
+  const serviceToken = await getServiceZohoAccessToken(pool);
+  const serviceEmail = env.serviceZohoEmail || actor.email;
+  const library = await ensureSharedLibrary(pool, serviceToken, serviceEmail, actor);
+  return { serviceToken, library };
+}
+
+/**
  * area=shared|personal|all
- * - shared: Team Folders + auto Managed Org / Shared Dump roots (org library)
+ * - shared: vault Managed / Dump roots (service token) + any team folders Zoho grants the user
  * - personal: My Folders only (drafts / rough work)
  * - all: both (default for backward compatibility)
  */
@@ -75,8 +90,7 @@ export async function workdriveBrowseRoutes(app, { pool }) {
   app.post("/api/v1/docs/workdrive/shared/ensure", async (request, reply) => {
     const actor = requireJwt(request);
     try {
-      const accessToken = await getZohoAccessToken(pool, actor.email);
-      const library = await ensureSharedLibrary(pool, accessToken, actor.email, actor);
+      const { library } = await resolveVaultLibrary(pool, actor);
       return reply.send({
         ok: true,
         tenantId: library.tenantId,
@@ -113,8 +127,8 @@ export async function workdriveBrowseRoutes(app, { pool }) {
     const area = String(request.query?.area ?? "all").trim().toLowerCase();
 
     try {
-      const accessToken = await getZohoAccessToken(pool, actor.email);
-      const me = await fetchWorkdriveMe(accessToken);
+      const userToken = await getZohoAccessToken(pool, actor.email);
+      const me = await fetchWorkdriveMe(userToken);
       const myFolderId = me.myFolderId;
       const warnings = [];
 
@@ -136,12 +150,7 @@ export async function workdriveBrowseRoutes(app, { pool }) {
 
         if (area === "shared" || area === "all") {
           try {
-            const library = await ensureSharedLibrary(
-              pool,
-              accessToken,
-              actor.email,
-              actor,
-            );
+            const { library } = await resolveVaultLibrary(pool, actor);
             roots.push({
               id: library.managedFolderId,
               name: env.managedFolderName,
@@ -160,8 +169,8 @@ export async function workdriveBrowseRoutes(app, { pool }) {
               area: "shared",
               role: "dump",
             });
-            // Also surface other team workspaces Zoho already grants (reflect WD perms)
-            const teamResult = await listTeamFolders(accessToken, me);
+            // Optional: other team workspaces the user still belongs to (usually none).
+            const teamResult = await listTeamFolders(userToken, me);
             warnings.push(...(teamResult.warnings || []));
             for (const tf of teamResult.items) {
               if (
@@ -187,8 +196,7 @@ export async function workdriveBrowseRoutes(app, { pool }) {
               message: err.message,
               code: err.code,
             });
-            // Fallback: list team folders without ensure
-            const teamResult = await listTeamFolders(accessToken, me);
+            const teamResult = await listTeamFolders(userToken, me);
             warnings.push(...(teamResult.warnings || []));
             for (const tf of teamResult.items) {
               roots.push({
@@ -224,12 +232,27 @@ export async function workdriveBrowseRoutes(app, { pool }) {
       }
 
       const isTeam = source === "teamfolder" || source === "shared";
+      // Vault Team Folder is service-account-only; list with service token for shared/team.
+      let listToken = userToken;
+      if (isTeam) {
+        try {
+          const vault = await resolveVaultLibrary(pool, actor);
+          listToken = vault.serviceToken;
+        } catch (err) {
+          warnings.push({
+            step: "shared_library",
+            message: err.message,
+            code: err.code,
+          });
+        }
+      }
+
       const listed = isTeam
-        ? await listTeamFolderItems(accessToken, folderId)
-        : await listFolderItems(accessToken, folderId);
+        ? await listTeamFolderItems(listToken, folderId)
+        : await listFolderItems(listToken, folderId);
       warnings.push(...(listed.warnings || []));
 
-      const folderMeta = await fetchFolderMeta(accessToken, folderId);
+      const folderMeta = await fetchFolderMeta(listToken, folderId);
       const folderName = folderMeta?.name || folderId;
       const parentId =
         folderMeta?.parentId && folderMeta.parentId !== folderId
