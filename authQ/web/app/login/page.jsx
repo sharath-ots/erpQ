@@ -84,8 +84,8 @@ function getEmailFromToken(token) {
   }
 }
 
-// 2. Routing logic natively uses ERP roles
-async function handleLiveRouting(email, token, defaultDestUrl) {
+// 2. Routing logic natively uses ERP roles and login provider
+async function handleLiveRouting(email, token, defaultDestUrl, provider) {
   try {
     const { roles } = await fetchUserRoles(email);
     const base = getComDashBase().replace(/\/$/, "");
@@ -93,8 +93,13 @@ async function handleLiveRouting(email, token, defaultDestUrl) {
 
     if (roles.includes("Supplier Portal User")) {
       finalUrl = new URL(`${base}/m/supplierq`);
+    } else if (provider === "zoho") {
+      // 🚀 Explicitly route Zoho logins to docq
+      finalUrl = new URL(`${base}/m/docq`);
+    } else if (provider === "email") {
+      // 🚀 Explicitly route email logins to crmq
+      finalUrl = new URL(`${base}/m/crmq`);
     } else if (roles.length === 0) {
-      // 🚀 Zoho users aren't in ERP, so they safely fall into this block!
       finalUrl = new URL(`${base}/m/docq`);
     } else {
       // Normal admins/users go to CRM if they don't have a specific deep link
@@ -163,11 +168,10 @@ function IllustrationPanel() {
   );
 }
 
-// 🚀 Removed the messy onClick provider tags!
-function SsoButton({ href, provider }) {
+function SsoButton({ href, provider, onClick }) {
   const label = provider === "google" ? "Sign in with Google" : "Sign in with Zoho";
   return (
-    <a href={href} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2">
+    <a href={href} onClick={onClick} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2">
       <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-xs font-semibold text-slate-700">
         {provider === "google" ? "G" : "Z"}
       </span>
@@ -198,7 +202,11 @@ function LoginCard() {
     const email = getEmailFromToken(token);
     const destUrl = resolvePostLoginDestination(params.get("redirect")).toString();
     
-    handleLiveRouting(email, token, destUrl);
+    // Retrieve provider saved in sessionStorage during click, fallback to zoho if unspecified
+    const provider = sessionStorage.getItem("login_provider") || "zoho";
+    sessionStorage.removeItem("login_provider");
+
+    handleLiveRouting(email, token, destUrl, provider);
   }, []);
 
   // 1. Google Return (CRM Base)
@@ -260,7 +268,9 @@ function LoginCard() {
       window.localStorage.setItem("cityq_access_token", data.access_token);
 
       const destUrl = resolvePostLoginDestination(params.get("redirect") || "/m/crmq").toString();
-      await handleLiveRouting(email, data.access_token, destUrl);
+      
+      // Explicitly pass "email" provider flag
+      await handleLiveRouting(email, data.access_token, destUrl, "email");
 
     } catch (err) {
       const msg = "Could not connect to the server. Please check your connection.";
@@ -278,8 +288,16 @@ function LoginCard() {
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <SsoButton href={googleHref} provider="google" />
-          <SsoButton href={zohoHref} provider="zoho" />
+          <SsoButton 
+            href={googleHref} 
+            provider="google" 
+            onClick={() => sessionStorage.setItem("login_provider", "google")} 
+          />
+          <SsoButton 
+            href={zohoHref} 
+            provider="zoho" 
+            onClick={() => sessionStorage.setItem("login_provider", "zoho")} 
+          />
         </div>
 
         <div className="my-6 flex items-center gap-3">

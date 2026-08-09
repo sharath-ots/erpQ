@@ -18,14 +18,17 @@ import {
 import {
   ArrowLeftOutlined,
   FileOutlined,
+  FolderOpenOutlined,
   FolderOutlined,
   HomeOutlined,
+  InboxOutlined,
   PlusOutlined,
   ReloadOutlined,
+  ShareAltOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/apigate";
 import { docPath } from "./docQApi";
@@ -37,10 +40,6 @@ function errText(json, res) {
     .join(" — ");
 }
 
-/**
- * Personal dump explorer — folders + files only.
- * Register copies into managed vault; dump file stays and is flagged Registered.
- */
 export default function DocFileRegister() {
   const router = useRouter();
   const [rootId, setRootId] = useState(null);
@@ -48,20 +47,34 @@ export default function DocFileRegister() {
   const [trail, setTrail] = useState([{ id: null, name: "My Folders" }]);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
+  
+  // Modal states
   const [createOpen, setCreateOpen] = useState(false);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [creatingFolder, setCreatingFolder] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
-  const [shareDoc, setShareDoc] = useState(null);
+  // Sharing states
+  const [shareItems, setShareItems] = useState([]); 
+  const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [sharingBulk, setSharingBulk] = useState(false);
+
+  // Registering states
   const [registerFile, setRegisterFile] = useState(null);
   const [registering, setRegistering] = useState(false);
   const [docTypes, setDocTypes] = useState([]);
   const [projects, setProjects] = useState([]);
   const [registerForm] = Form.useForm();
 
+  // Used to batch concurrent file uploads (crucial for folder uploads)
+  const activeUploads = useRef(0);
+
   const loadFolder = useCallback(async (parentId, nextTrail) => {
     setLoading(true);
+    setSelectedRowKeys([]);
+    setSelectedRows([]);
     try {
       const q = parentId ? `?parentId=${encodeURIComponent(parentId)}` : "";
       const res = await apiFetch(docPath(`/scratch/folders${q}`));
@@ -148,26 +161,38 @@ export default function DocFileRegister() {
     }
   }
 
+  // Upload handler for single, multiple, drag & drop, and folder batch uploads
   async function onUpload(file) {
+    activeUploads.current++;
     setUploading(true);
     try {
       const form = new FormData();
       form.append("file", file);
+      // Pass the relative path to retain folder structures on the backend if supported
+      if (file.webkitRelativePath) {
+        form.append("webkitRelativePath", file.webkitRelativePath);
+      }
       if (folderId) form.append("folderId", folderId);
+      
       const res = await apiFetch(docPath("/scratch/upload"), {
         method: "POST",
         body: form,
       });
       const json = await res.json();
       if (!res.ok) throw new Error(errText(json, res));
-      message.success(`Uploaded “${file.name}”`);
-      loadFolder(folderId || rootId, trail);
     } catch (e) {
-      message.error(String(e.message || e));
+      message.error(`Failed on “${file.name}”: ${e.message || e}`);
     } finally {
-      setUploading(false);
+      activeUploads.current--;
+      // When the last upload in the batch finishes, refresh the UI and close modal
+      if (activeUploads.current === 0) {
+        setUploading(false);
+        setUploadModalOpen(false); // Close the popup automatically
+        message.success(`Upload complete`);
+        loadFolder(folderId || rootId, trail);
+      }
     }
-    return false;
+    return false; // Prevent default antd action
   }
 
   async function ensureDocument(file) {
@@ -186,16 +211,39 @@ export default function DocFileRegister() {
     return json.document?.id;
   }
 
-  async function onShare(file) {
+  async function onShare(row) {
     try {
-      const documentId = await ensureDocument(file);
-      setShareDoc({
-        id: documentId,
-        title: file.dumpTitle || file.name,
-      });
+      if (row.kind === "folder") {
+        setShareItems([{ id: row.id, title: row.name, type: "folder" }]);
+      } else {
+        const documentId = await ensureDocument(row);
+        setShareItems([{ id: documentId, title: row.dumpTitle || row.name, type: "document" }]);
+        loadFolder(folderId || rootId, trail);
+      }
+    } catch (e) {
+      message.error(String(e.message || e));
+    }
+  }
+
+  async function onShareSelected() {
+    setSharingBulk(true);
+    try {
+      const formattedItems = await Promise.all(
+        selectedRows.map(async (row) => {
+          if (row.kind === "folder") {
+            return { id: row.id, title: row.name, type: "folder" };
+          } else {
+            const docId = await ensureDocument(row);
+            return { id: docId, title: row.dumpTitle || row.name, type: "document" };
+          }
+        })
+      );
+      setShareItems(formattedItems);
       loadFolder(folderId || rootId, trail);
     } catch (e) {
       message.error(String(e.message || e));
+    } finally {
+      setSharingBulk(false);
     }
   }
 
@@ -285,11 +333,7 @@ export default function DocFileRegister() {
       width: 120,
       render: (_, row) => {
         if (row.kind === "folder") return "—";
-        return row.registered ? (
-          <Tag color="green">Registered</Tag>
-        ) : (
-          <Tag>Dump</Tag>
-        );
+        return row.registered ? <Tag color="green">Registered</Tag> : <Tag>Dump</Tag>;
       },
     },
     {
@@ -299,7 +343,10 @@ export default function DocFileRegister() {
       render: (_, row) => {
         if (row.kind === "folder") {
           return (
-            <a onClick={() => openFolder(row)}>Open</a>
+            <Space size="middle">
+              <a onClick={() => openFolder(row)}>Open</a>
+              <a onClick={() => onShare(row)}>Share</a>
+            </Space>
           );
         }
         return (
@@ -364,6 +411,17 @@ export default function DocFileRegister() {
         }
         extra={
           <Space wrap>
+            {selectedRowKeys.length > 0 && (
+              <Button 
+                type="primary" 
+                ghost 
+                icon={<ShareAltOutlined />} 
+                onClick={onShareSelected}
+                loading={sharingBulk}
+              >
+                Share {selectedRowKeys.length} selected
+              </Button>
+            )}
             <Button icon={<ReloadOutlined />} onClick={() => loadFolder(folderId, trail)}>
               Refresh
             </Button>
@@ -374,27 +432,18 @@ export default function DocFileRegister() {
             >
               New folder
             </Button>
-            <Upload
-              beforeUpload={onUpload}
-              showUploadList={false}
-              multiple
+            {/* Replaced massive block with single upload button */}
+            <Button
+              type="primary"
+              icon={<UploadOutlined />}
+              onClick={() => setUploadModalOpen(true)}
               disabled={!folderId && !rootId}
             >
-              <Button
-                type="primary"
-                icon={<UploadOutlined />}
-                loading={uploading}
-                disabled={!folderId && !rootId}
-              >
-                Upload here
-              </Button>
-            </Upload>
+              Upload
+            </Button>
           </Space>
         }
       >
-        <Typography.Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
-          Current folder: {currentName}
-        </Typography.Text>
         <Table
           size="middle"
           rowKey="id"
@@ -403,6 +452,13 @@ export default function DocFileRegister() {
           columns={columns}
           pagination={false}
           locale={{ emptyText: "This folder is empty." }}
+          rowSelection={{
+            selectedRowKeys,
+            onChange: (keys, rows) => {
+              setSelectedRowKeys(keys);
+              setSelectedRows(rows);
+            },
+          }}
           onRow={(row) =>
             row.kind === "folder"
               ? { onDoubleClick: () => openFolder(row), style: { cursor: "pointer" } }
@@ -411,6 +467,57 @@ export default function DocFileRegister() {
         />
       </Card>
 
+      {/* Upload Popup Modal */}
+      <Modal
+        title={`Upload to “${currentName}”`}
+        open={uploadModalOpen}
+        onCancel={() => !uploading && setUploadModalOpen(false)}
+        footer={
+          <Button onClick={() => setUploadModalOpen(false)} disabled={uploading}>
+            Cancel
+          </Button>
+        }
+        destroyOnClose
+      >
+        <div style={{ marginTop: 16 }}>
+          <Upload.Dragger
+            multiple
+            beforeUpload={onUpload}
+            showUploadList={false}
+            disabled={uploading}
+            style={{ padding: "24px 0", background: "#fafafa" }}
+          >
+            <p className="ant-upload-drag-icon" style={{ margin: 0, fontSize: 36, color: '#1677ff' }}>
+              <InboxOutlined />
+            </p>
+            <p className="ant-upload-text" style={{ marginTop: 12 }}>
+              Click or drag files here to upload
+            </p>
+            <p className="ant-upload-hint">
+              Supports single or bulk file upload.
+            </p>
+          </Upload.Dragger>
+        </div>
+
+        <div style={{ marginTop: 24, textAlign: "center", borderTop: "1px solid #f0f0f0", paddingTop: 16 }}>
+          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
+            Want to upload an entire folder structure?
+          </Typography.Text>
+          <Upload
+            beforeUpload={onUpload}
+            showUploadList={false}
+            multiple
+            directory
+            disabled={uploading}
+          >
+            <Button icon={<FolderOpenOutlined />} loading={uploading}>
+              Select Folder to Upload
+            </Button>
+          </Upload>
+        </div>
+      </Modal>
+
+      {/* New Folder Modal */}
       <Modal
         title={`New folder in “${currentName}”`}
         open={createOpen}
@@ -431,6 +538,7 @@ export default function DocFileRegister() {
         />
       </Modal>
 
+      {/* Register Modal */}
       <Modal
         title="Register into managed documents"
         open={Boolean(registerFile)}
@@ -480,10 +588,9 @@ export default function DocFileRegister() {
       </Modal>
 
       <DocSharePanel
-        documentId={shareDoc?.id}
-        documentTitle={shareDoc?.title}
-        open={Boolean(shareDoc)}
-        onClose={() => setShareDoc(null)}
+        items={shareItems}
+        open={shareItems.length > 0}
+        onClose={() => setShareItems([])}
       />
     </Card>
   );
