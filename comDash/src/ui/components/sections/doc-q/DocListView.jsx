@@ -35,16 +35,18 @@ export default function DocListView({
     try {
       const params = new URLSearchParams();
       if (view) params.set("view", view);
-      // Named views already encode zone/state filters; avoid double-filtering.
       if (!view && zone) params.set("zone", zone);
       if (docType) params.set("docType", docType);
       if (q) params.set("q", q);
+      
       const res = await apiFetch(`${docPath("/documents")}?${params}`);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || res.statusText);
+      const json = await res.json().catch(() => ({}));
+      
+      if (!res.ok) throw new Error(json.detail || json.error || res.statusText);
       setDocs(json.documents || []);
     } catch (e) {
       message.error(String(e.message || e));
+      setDocs([]);
     } finally {
       setLoading(false);
     }
@@ -71,9 +73,11 @@ export default function DocListView({
         method: "POST",
         body: JSON.stringify(body),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || json.detail || res.statusText);
-      message.success(action === "submit" ? "Submitted for review" : "Done");
+      const json = await res.json().catch(() => ({}));
+      
+      if (!res.ok) throw new Error(json.detail || json.error || res.statusText);
+      
+      message.success(json.message || (action === "submit" ? "Submitted for review" : "Done"));
       setActionDoc(null);
       setComment("");
       load();
@@ -97,7 +101,11 @@ export default function DocListView({
           <Select allowClear placeholder="Doc type" style={{ width: 160 }} onChange={(v) => setDocType(v || "")}
             options={["general","manual","contract","design","cad","spec","policy"].map((v) => ({ value: v, label: v }))} />
         </div>
-        {!loading && !docs.length && emptyHint ? <Typography.Paragraph type="secondary">{emptyHint}</Typography.Paragraph> : null}
+        
+        {!loading && !docs.length && emptyHint ? (
+          <Typography.Paragraph type="secondary">{emptyHint}</Typography.Paragraph> 
+        ) : null}
+        
         <DocDocumentGrid
           documents={docs}
           loading={loading}
@@ -111,6 +119,7 @@ export default function DocListView({
           onOpen={(row) => router.push(`/m/docq/documents/${row.id}`)}
         />
       </Card>
+      
       <Modal open={Boolean(actionDoc)} title={actionType === "approve" ? "Approve" : "Request changes"}
         onCancel={() => setActionDoc(null)} onOk={() => runTransition(actionType, actionDoc)} confirmLoading={submitting}
         okText={actionType === "approve" ? "Approve" : "Send back"}>
@@ -118,6 +127,7 @@ export default function DocListView({
         <Input.TextArea rows={actionType === "request_changes" ? 5 : 3} value={comment} onChange={(e) => setComment(e.target.value)}
           placeholder={actionType === "request_changes" ? "One review point per line" : "Optional comment"} />
       </Modal>
+      
       <DocRevokePanel
         open={Boolean(revokeDoc)}
         documentId={revokeDoc?.id}

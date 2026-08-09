@@ -115,8 +115,8 @@ export const env = {
     accountsHost: trim(process.env.AUTHQ_ZOHO_ACCOUNTS_HOST || "accounts.zoho.com"),
     scope: trim(
       process.env.AUTHQ_ZOHO_SCOPE ??
-        // Keep profile scopes for userinfo + add WorkDrive read scopes for docQ.
-        "openid email profile aaaserver.profile.READ WorkDrive.files.READ WorkDrive.files.CREATE WorkDrive.files.ALL WorkDrive.team.READ WorkDrive.workspace.READ WorkDrive.teamfolders.READ",
+        // Keep profile scopes for userinfo + add WorkDrive read/share scopes for docQ.
+        "openid email profile aaaserver.profile.READ WorkDrive.files.READ WorkDrive.files.CREATE WorkDrive.files.ALL WorkDrive.team.READ WorkDrive.workspace.READ WorkDrive.teamfolders.READ WorkDrive.permissions.CREATE WorkDrive.permissions.ALL",
     ),
   },
 

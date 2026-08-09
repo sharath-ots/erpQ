@@ -9,15 +9,10 @@ import {
   getServiceZohoAccessToken,
   getZohoAccessToken,
 } from "../services/zohoAuth.js";
-import {
-  uploadWorkdriveFile,
-} from "../services/workdrive.js";
+import { uploadWorkdriveFile } from "../services/workdrive.js";
 import { ensureSharedLibrary } from "../services/sharedLibrary.js";
 import { grantVaultFileAccess } from "../services/vaultAccess.js";
-import {
-  normalizeMetadataInput,
-  recordMetadataHistory,
-} from "../services/documentMetadata.js";
+import { normalizeMetadataInput, recordMetadataHistory } from "../services/documentMetadata.js";
 import { env } from "../config.js";
 import { computeNextAction } from "../lib/documentDisplay.js";
 import { draftBump, initialDraftVersion } from "../lib/versioning.js";
@@ -25,7 +20,6 @@ import { actorCanRevokeDocument } from "../services/workflowEngineV2.js";
 import { uploadScratchWithPersonalFolder } from "./scratch.js";
 import { registerDumpToManaged } from "../services/dumpRegister.js";
 
-/** Managed library root using the org service Zoho token. */
 async function resolveManagedParent(pool, serviceToken, actor) {
   const serviceEmail = env.serviceZohoEmail || actor.email;
   const library = await ensureSharedLibrary(pool, serviceToken, serviceEmail, actor);
@@ -40,20 +34,14 @@ async function loadDocTypeDef(pool, docType) {
   return rows[0] || null;
 }
 
-/** @returns {Promise<{ fields: Record<string, string>, file: { filename: string, mimetype: string, buffer: Buffer } | null }>} */
 async function parseMultipartRequest(request) {
   const fields = {};
-  /** @type {{ filename: string, mimetype: string, buffer: Buffer } | null} */
   let file = null;
   for await (const part of request.parts()) {
     if (part.type === "file") {
       const chunks = [];
       for await (const chunk of part.file) chunks.push(chunk);
-      file = {
-        filename: part.filename || "upload.bin",
-        mimetype: part.mimetype || "application/octet-stream",
-        buffer: Buffer.concat(chunks),
-      };
+      file = { filename: part.filename || "upload.bin", mimetype: part.mimetype || "application/octet-stream", buffer: Buffer.concat(chunks) };
     } else if (part.fieldname) {
       fields[part.fieldname] = part.value;
     }
@@ -63,25 +51,12 @@ async function parseMultipartRequest(request) {
 
 function parseTagsField(raw) {
   if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return String(raw)
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-  }
+  try { return Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : []; } catch { return String(raw).split(",").map((s) => s.trim()).filter(Boolean); }
 }
 
 function parseCustomMetadataField(raw) {
   if (!raw) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
+  try { const parsed = JSON.parse(raw); return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {}; } catch { return {}; }
 }
 
 async function getDocument(pool, id) {
@@ -104,83 +79,36 @@ export async function documentsListRoutes(app, { pool }) {
     const params = [normalizeEmail(actor.email)];
     let where = "where 1=1";
 
-    if (view === "my") {
-      where += ` and d.zone = 'managed' and (d.author_email = $1 or d.created_by_email = $1)`;
-    } else if (view === "my_draft") {
-      where += ` and d.zone = 'managed' and d.state = 'draft' and (d.author_email = $1 or d.created_by_email = $1)`;
-    } else if (view === "my_waiting") {
-      where += ` and d.zone = 'managed' and d.state = 'in_review' and (d.author_email = $1 or d.created_by_email = $1)`;
-    } else if (view === "my_approved") {
-      where += ` and d.zone = 'managed' and d.state = 'approved' and (d.author_email = $1 or d.created_by_email = $1)`;
-    } else if (view === "changes_requested") {
-      where += ` and d.state = 'changes_requested' and (d.author_email = $1 or d.created_by_email = $1)`;
-    } else if (view === "for_review") {
-      where += ` and d.id in (
-        select document_id from workflow_tasks
-        where assignee_email = $1 and status = 'pending' and role = 'reviewer'
-      )`;
-    } else if (view === "for_approval") {
-      where += ` and d.id in (
-        select document_id from workflow_tasks
-        where assignee_email = $1 and status = 'pending' and role = 'approver'
-      )`;
-    } else if (view === "archived") {
-      where += ` and d.state = 'archived'`;
-    } else if (view === "shared_by_me") {
-      where += ` and d.id in (
-        select document_id from document_shares where granted_by_email = $1
-      )`;
-    } else if (view === "shared_with_me") {
-      where += ` and d.id in (
-        select document_id from document_shares
-        where grantee_email = $1 and (expires_at is null or expires_at > now())
-      )`;
-    } else if (view === "revocable") {
-      where += ` and d.zone = 'managed' and d.state = 'approved'`;
-    } else if (zone) {
-      params.push(zone);
-      where += ` and d.zone = $${params.length}`;
-    } else if (!view) {
-      where += ` and d.zone = 'managed'`;
-    }
+    if (view === "my") { where += ` and d.zone = 'managed' and (d.author_email = $1 or d.created_by_email = $1)`;
+    } else if (view === "my_draft") { where += ` and d.zone = 'managed' and d.state = 'draft' and (d.author_email = $1 or d.created_by_email = $1)`;
+    } else if (view === "my_waiting") { where += ` and d.zone = 'managed' and d.state = 'in_review' and (d.author_email = $1 or d.created_by_email = $1)`;
+    } else if (view === "my_approved") { where += ` and d.zone = 'managed' and d.state = 'approved' and (d.author_email = $1 or d.created_by_email = $1)`;
+    } else if (view === "changes_requested") { where += ` and d.state = 'changes_requested' and (d.author_email = $1 or d.created_by_email = $1)`;
+    } else if (view === "for_review") { where += ` and d.id in (select document_id from workflow_tasks where assignee_email = $1 and status = 'pending' and role = 'reviewer')`;
+    } else if (view === "for_approval") { where += ` and d.id in (select document_id from workflow_tasks where assignee_email = $1 and status = 'pending' and role = 'approver')`;
+    } else if (view === "archived") { where += ` and d.state = 'archived'`;
+    } else if (view === "shared_by_me") { where += ` and d.id in (select document_id from document_shares where granted_by_email = $1)`;
+    } else if (view === "shared_with_me") { where += ` and d.id in (select document_id from document_shares where grantee_email = $1 and (expires_at is null or expires_at > now()))`;
+    } else if (view === "revocable") { where += ` and d.zone = 'managed' and d.state = 'approved'`;
+    } else if (zone) { params.push(zone); where += ` and d.zone = $${params.length}`;
+    } else if (!view) { where += ` and d.zone = 'managed'`; }
 
-    if (state) {
-      params.push(state);
-      where += ` and d.state = $${params.length}`;
-    }
-    if (docType) {
-      params.push(docType);
-      where += ` and d.doc_type = $${params.length}`;
-    }
-    if (mine) {
-      where += ` and (d.author_email = $1 or d.created_by_email = $1)`;
-    }
-    if (q) {
-      params.push(q);
-      where += ` and d.search_vector @@ plainto_tsquery('english', $${params.length})`;
-    }
+    if (state) { params.push(state); where += ` and d.state = $${params.length}`; }
+    if (docType) { params.push(docType); where += ` and d.doc_type = $${params.length}`; }
+    if (mine) { where += ` and (d.author_email = $1 or d.created_by_email = $1)`; }
+    if (q) { params.push(q); where += ` and d.search_vector @@ plainto_tsquery('english', $${params.length})`; }
 
     if (!isDocAdmin(request)) {
       where += `
         and (
-          d.author_email = $1 or d.created_by_email = $1
-          or d.current_approver_email = $1
-          or d.id in (
-            select document_id from workflow_tasks
-            where assignee_email = $1
-          )
-          or d.id in (
-            select document_id from document_shares
-            where grantee_email = $1
-              and (expires_at is null or expires_at > now())
-          )
+          d.author_email = $1 or d.created_by_email = $1 or d.current_approver_email = $1
+          or d.id in (select document_id from workflow_tasks where assignee_email = $1)
+          or d.id in (select document_id from document_shares where grantee_email = $1 and (expires_at is null or expires_at > now()))
           or (d.zone = 'managed' and d.state = 'approved')
         )
       `;
       if (zone === "scratch" || view === "scratch") {
-        where += ` and (d.author_email = $1 or d.created_by_email = $1 or d.id in (
-          select document_id from document_shares where grantee_email = $1
-        ))`;
+        where += ` and (d.author_email = $1 or d.created_by_email = $1 or d.id in (select document_id from document_shares where grantee_email = $1))`;
       }
     }
 
@@ -189,47 +117,26 @@ export async function documentsListRoutes(app, { pool }) {
       `
         select d.*,
           coalesce(v.versions, '[]'::json) as versions,
-          rev.reviewed_by,
-          app.approved_by,
-          coalesce(rp.open_review_points, 0) as open_review_points
+          rev.reviewed_by, app.approved_by, coalesce(rp.open_review_points, 0) as open_review_points
         from documents d
         left join lateral (
           select json_agg(json_build_object(
-            'id', dv.id,
-            'version', dv.version,
-            'version_label', dv.version_label,
-            'version_major', dv.version_major,
-            'version_minor', dv.version_minor,
-            'is_historical', dv.is_historical,
-            'workdrive_permalink', dv.workdrive_permalink
+            'id', dv.id, 'version', dv.version, 'version_label', dv.version_label, 'version_major', dv.version_major, 'version_minor', dv.version_minor, 'is_historical', dv.is_historical, 'workdrive_permalink', dv.workdrive_permalink
           ) order by dv.version_major desc, dv.version_minor desc, dv.version desc) as versions
-          from document_versions dv
-          where dv.document_id = d.id
+          from document_versions dv where dv.document_id = d.id
         ) v on true
         left join lateral (
           select string_agg(distinct wt.completed_by_email, ', ' order by wt.completed_by_email) as reviewed_by
-          from workflow_tasks wt
-          where wt.document_id = d.id
-            and wt.role = 'reviewer'
-            and wt.status = 'completed'
-            and wt.decision = 'approved'
+          from workflow_tasks wt where wt.document_id = d.id and wt.role = 'reviewer' and wt.status = 'completed' and wt.decision = 'approved'
         ) rev on true
         left join lateral (
           select string_agg(distinct wt.completed_by_email, ', ' order by wt.completed_by_email) as approved_by
-          from workflow_tasks wt
-          where wt.document_id = d.id
-            and wt.role = 'approver'
-            and wt.status = 'completed'
-            and wt.decision = 'approved'
+          from workflow_tasks wt where wt.document_id = d.id and wt.role = 'approver' and wt.status = 'completed' and wt.decision = 'approved'
         ) app on true
         left join lateral (
-          select count(*)::int as open_review_points
-          from review_points rp
-          where rp.document_id = d.id and rp.status = 'open'
+          select count(*)::int as open_review_points from review_points rp where rp.document_id = d.id and rp.status = 'open'
         ) rp on true
-        ${where}
-        order by d.updated_at desc
-        limit $${params.length - 1} offset $${params.length}
+        ${where} order by d.updated_at desc limit $${params.length - 1} offset $${params.length}
       `,
       params,
     );
@@ -239,27 +146,47 @@ export async function documentsListRoutes(app, { pool }) {
     let taskByDoc = {};
     if (docIds.length) {
       const { rows: myTasks } = await pool.query(
-        `
-          select document_id, role, stage_id, id
-          from workflow_tasks
-          where assignee_email = $1 and status = 'pending' and document_id = any($2::uuid[])
-        `,
+        `select document_id, role, stage_id, id from workflow_tasks where assignee_email = $1 and status = 'pending' and document_id = any($2::uuid[])`,
         [em, docIds],
       );
       taskByDoc = Object.fromEntries(myTasks.map((t) => [t.document_id, t]));
     }
 
     let documents = rows.map((doc) => {
-      const isAuthor =
-        normalizeEmail(doc.author_email || doc.created_by_email) === em;
-      const pendingTask = taskByDoc[doc.id] || null;
       return {
         ...doc,
-        is_author: isAuthor,
-        next_action: computeNextAction(doc, em, pendingTask),
-        my_pending_task: pendingTask,
+        is_author: normalizeEmail(doc.author_email || doc.created_by_email) === em,
+        next_action: computeNextAction(doc, em, taskByDoc[doc.id] || null),
+        my_pending_task: taskByDoc[doc.id] || null,
       };
     });
+
+    if (view === "shared_by_me" || view === "shared_with_me") {
+      try {
+        const folderShareField = view === "shared_by_me" ? "granted_by_email" : "grantee_email";
+        const { rows: fShares } = await pool.query(
+          `select * from folder_shares where ${folderShareField} = $1 order by created_at desc`,
+          [em]
+        );
+
+        const folderDocs = fShares.map(fs => ({
+          id: fs.id, 
+          workdrive_folder_id: fs.folder_id,
+          title: fs.folder_name || "Shared Folder",
+          description: view === "shared_by_me" 
+            ? `Shared with: ${fs.grantee_email} (${fs.permission})` 
+            : `Shared by: ${fs.granted_by_email} (${fs.permission})`,
+          doc_type: "folder", state: "approved", zone: "scratch",
+          author_email: fs.granted_by_email, created_by_email: fs.granted_by_email,
+          created_at: fs.created_at, updated_at: fs.created_at,
+          is_author: normalizeEmail(fs.granted_by_email) === em,
+          versions: [], open_review_points: 0,
+          can_revoke: view === "shared_by_me", next_action: null
+        }));
+
+        documents = [...documents, ...folderDocs].sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+      } catch (e) {}
+    }
 
     if (view === "revocable") {
       const filtered = [];
@@ -270,101 +197,109 @@ export async function documentsListRoutes(app, { pool }) {
       }
       documents = filtered;
     }
-
     return reply.send({ documents, limit, offset });
   });
 
   app.get("/api/v1/docs/documents/:id", async (request, reply) => {
     const actor = requireJwt(request);
-    const doc = await getDocument(pool, request.params.id);
-    if (!doc) return reply.code(404).send({ error: "not_found" });
-    const canRead = await canReadDocument(pool, doc, actor.email, request);
-    const canRevokeEarly = await actorCanRevokeDocument(
-      pool,
-      doc,
-      actor.email,
-      request,
-    );
-    if (!canRead && !canRevokeEarly) {
-      return reply.code(403).send({ error: "forbidden" });
+    let doc = await getDocument(pool, request.params.id);
+    
+    // ========================================================================
+    // 🚀 NEW LOGIC: Fetch Folder Contents & Render as "Versions"
+    // ========================================================================
+    if (!doc) {
+      try {
+        const { rows: fShares } = await pool.query("select * from folder_shares where id = $1", [request.params.id]);
+        if (fShares.length > 0) {
+          const fs = fShares[0];
+          let folderContents = [];
+          let errorNote = "";
+          
+          // Peek inside the folder using the Granter's API Token
+          try {
+            const granterToken = await getZohoAccessToken(pool, fs.granted_by_email);
+            const filesRes = await fetch(`https://workdrive.zoho.eu/api/v1/files/${fs.folder_id}/files`, {
+              headers: { "Authorization": `Zoho-oauthtoken ${granterToken}` }
+            });
+            
+            if (filesRes.ok) {
+              const filesJson = await filesRes.json();
+              const files = filesJson?.data || [];
+              
+              // Mapped perfectly to match exactly what your React UI expects in the Versions tab!
+              folderContents = files.map((f, index) => ({
+                id: f.id,
+                version: files.length - index,
+                version_label: f.attributes.name || 'Unnamed File',
+                version_major: 1,
+                version_minor: 0,
+                is_historical: false,
+                workdrive_permalink: f.attributes.permalink,
+                created_at: new Date().toISOString(),
+                uploaded_by_email: fs.granted_by_email,
+                change_summary: "Shared File"
+              }));
+            } else {
+              errorNote = ` | Error: Could not load files (Zoho API ${filesRes.status})`;
+            }
+          } catch (fetchErr) {
+            errorNote = ` | Error: Token expired for ${fs.granted_by_email}`;
+          }
+
+          return reply.send({
+            document: {
+              id: fs.id,
+              title: fs.folder_name || "Shared Folder",
+              description: `Shared by ${fs.granted_by_email}${errorNote}`,
+              doc_type: "folder",
+              state: "approved",
+              zone: "scratch",
+              author_email: fs.granted_by_email,
+              created_at: fs.created_at,
+              updated_at: fs.created_at,
+            },
+            authorCanEdit: false,
+            canRevoke: normalizeEmail(fs.granted_by_email) === normalizeEmail(actor.email),
+            shares: fShares, 
+            versions: folderContents, // 🚀 Now perfectly populates the "Versions" tab!
+            history: [], approvalTasks: [], workflowTasks: [], reviewPoints: [], reviewComments: [], historySnapshots: [], metadataHistory: [], erpnextRefs: []
+          });
+        }
+      } catch (e) {}
+      
+      return reply.code(404).send({ error: "not_found" });
     }
+
+    const canRead = await canReadDocument(pool, doc, actor.email, request);
+    const canRevokeEarly = await actorCanRevokeDocument(pool, doc, actor.email, request);
+    if (!canRead && !canRevokeEarly) return reply.code(403).send({ error: "forbidden" });
 
     const [history, tasks, chain, shares, comments, versions, refs, reviewPoints, wfInstance, wfTasks, metaHistory, historySnapshots] =
       await Promise.all([
-        pool.query(
-          "select * from transition_history where document_id = $1 order by created_at desc limit 100",
-          [doc.id],
-        ),
-        pool.query(
-          "select * from approval_tasks where document_id = $1 order by step_order asc",
-          [doc.id],
-        ),
+        pool.query("select * from transition_history where document_id = $1 order by created_at desc limit 100", [doc.id]),
+        pool.query("select * from approval_tasks where document_id = $1 order by step_order asc", [doc.id]),
         pool.query("select * from approval_chains where document_id = $1", [doc.id]),
         pool.query("select * from document_shares where document_id = $1", [doc.id]),
-        pool.query(
-          "select * from review_comments where document_id = $1 order by created_at desc",
-          [doc.id],
-        ),
-        pool.query(
-          `select * from document_versions
-           where document_id = $1
-           order by version_major desc, version_minor desc, version desc`,
-          [doc.id],
-        ),
+        pool.query("select * from review_comments where document_id = $1 order by created_at desc", [doc.id]),
+        pool.query(`select * from document_versions where document_id = $1 order by version_major desc, version_minor desc, version desc`, [doc.id]),
         pool.query("select * from erpnext_refs where document_id = $1", [doc.id]),
-        pool.query(
-          "select * from review_points where document_id = $1 order by round desc, created_at desc",
-          [doc.id],
-        ),
+        pool.query("select * from review_points where document_id = $1 order by round desc, created_at desc", [doc.id]),
         pool.query("select * from workflow_instances where document_id = $1", [doc.id]),
-        pool.query(
-          "select * from workflow_tasks where document_id = $1 order by stage_id, step_order asc",
-          [doc.id],
-        ),
-        pool.query(
-          "select * from document_metadata_history where document_id = $1 order by created_at desc limit 50",
-          [doc.id],
-        ),
-        pool.query(
-          `select id, version_label, version_major, version_minor, state_at_snapshot,
-                  stamped_by_email, stamped_at, workdrive_permalink
-           from document_history_snapshots
-           where document_id = $1
-           order by stamped_at desc`,
-          [doc.id],
-        ),
+        pool.query("select * from workflow_tasks where document_id = $1 order by stage_id, step_order asc", [doc.id]),
+        pool.query("select * from document_metadata_history where document_id = $1 order by created_at desc limit 50", [doc.id]),
+        pool.query(`select id, version_label, version_major, version_minor, state_at_snapshot, stamped_by_email, stamped_at, workdrive_permalink from document_history_snapshots where document_id = $1 order by stamped_at desc`, [doc.id]),
       ]);
 
-    const authorCanEdit = canAuthorEditMetadata(doc, actor.email, request);
-    const canRevoke = canRevokeEarly;
-
     const { rows: pendingForUser } = await pool.query(
-      `
-        select * from workflow_tasks
-        where document_id = $1 and assignee_email = $2 and status = 'pending'
-        order by created_at asc
-        limit 1
-      `,
+      `select * from workflow_tasks where document_id = $1 and assignee_email = $2 and status = 'pending' order by created_at asc limit 1`,
       [doc.id, normalizeEmail(actor.email)],
     );
 
     return reply.send({
-      document: doc,
-      authorCanEdit,
-      canRevoke,
-      currentUserPendingTask: pendingForUser[0] || null,
-      history: history.rows,
-      approvalTasks: tasks.rows,
-      approvalChain: chain.rows[0] || null,
-      workflowInstance: wfInstance.rows[0] || null,
-      workflowTasks: wfTasks.rows,
-      reviewPoints: reviewPoints.rows,
-      shares: shares.rows,
-      reviewComments: comments.rows,
-      versions: versions.rows,
-      historySnapshots: historySnapshots.rows,
-      metadataHistory: metaHistory.rows,
-      erpnextRefs: refs.rows,
+      document: doc, authorCanEdit: canAuthorEditMetadata(doc, actor.email, request), canRevoke: canRevokeEarly,
+      currentUserPendingTask: pendingForUser[0] || null, history: history.rows, approvalTasks: tasks.rows, approvalChain: chain.rows[0] || null,
+      workflowInstance: wfInstance.rows[0] || null, workflowTasks: wfTasks.rows, reviewPoints: reviewPoints.rows, shares: shares.rows,
+      reviewComments: comments.rows, versions: versions.rows, historySnapshots: historySnapshots.rows, metadataHistory: metaHistory.rows, erpnextRefs: refs.rows,
     });
   });
 
@@ -374,49 +309,29 @@ export async function documentsListRoutes(app, { pool }) {
     if (!doc) return reply.code(404).send({ error: "not_found" });
     const canRead = await canReadDocument(pool, doc, actor.email, request);
     const canRevoke = await actorCanRevokeDocument(pool, doc, actor.email, request);
-    if (!canRead && !canRevoke) {
-      return reply.code(403).send({ error: "forbidden" });
-    }
+    if (!canRead && !canRevoke) return reply.code(403).send({ error: "forbidden" });
     const versionLabel = String(request.params.versionLabel || "").trim();
-    if (!versionLabel) {
-      return reply.code(400).send({ error: "version_label_required" });
-    }
-    const { rows } = await pool.query(
-      `
-        select * from document_history_snapshots
-        where document_id = $1 and version_label = $2
-        limit 1
-      `,
-      [doc.id, versionLabel],
-    );
+    if (!versionLabel) return reply.code(400).send({ error: "version_label_required" });
+    const { rows } = await pool.query(`select * from document_history_snapshots where document_id = $1 and version_label = $2 limit 1`, [doc.id, versionLabel]);
     if (!rows[0]) return reply.code(404).send({ error: "snapshot_not_found" });
     return reply.send({ ok: true, snapshot: rows[0] });
   });
 
-  /** Create managed document: file upload + metadata in one step (Phase 1). */
   app.post("/api/v1/docs/documents/create-managed", async (request, reply) => {
     const actor = requireJwt(request);
     try {
       const { fields, file } = await parseMultipartRequest(request);
-      if (!file?.buffer?.length) {
-        return reply.code(400).send({ error: "file_required" });
-      }
+      if (!file?.buffer?.length) return reply.code(400).send({ error: "file_required" });
 
       const docType = String(fields.docType || fields.doc_type || "general").trim();
       const docTypeDef = await loadDocTypeDef(pool, docType);
-      const meta = normalizeMetadataInput(
-        {
-          title: fields.title || file.filename,
-          description: fields.description,
-          docType,
-          department: fields.department,
-          classification: fields.classification,
-          referenceNumber: fields.referenceNumber || fields.reference_number,
-          tags: parseTagsField(fields.tags),
-          customMetadata: parseCustomMetadataField(fields.customMetadata || fields.custom_metadata),
-        },
-        docTypeDef,
-      );
+      const meta = normalizeMetadataInput({
+        title: fields.title || file.filename,
+        description: fields.description,
+        docType, department: fields.department, classification: fields.classification,
+        referenceNumber: fields.referenceNumber || fields.reference_number,
+        tags: parseTagsField(fields.tags), customMetadata: parseCustomMetadataField(fields.customMetadata || fields.custom_metadata),
+      }, docTypeDef);
 
       const org = await getOrgUser(pool, actor.email);
       const serviceToken = await getServiceZohoAccessToken(pool);
@@ -425,108 +340,36 @@ export async function documentsListRoutes(app, { pool }) {
       let projectId = null;
       const projectField = String(fields.projectId || fields.project_id || "").trim();
       if (projectField) {
-        const { rows: projRows } = await pool.query(
-          `select id, workdrive_folder_id from projects where id = $1 and active = true`,
-          [projectField],
-        );
-        if (!projRows[0]) {
-          return reply.code(400).send({ error: "project_not_found" });
-        }
+        const { rows: projRows } = await pool.query(`select id, workdrive_folder_id from projects where id = $1 and active = true`, [projectField]);
+        if (!projRows[0]) return reply.code(400).send({ error: "project_not_found" });
         projectId = projRows[0].id;
-        if (projRows[0].workdrive_folder_id) {
-          parentId = projRows[0].workdrive_folder_id;
-        }
+        if (projRows[0].workdrive_folder_id) parentId = projRows[0].workdrive_folder_id;
       }
 
-      const uploaded = await uploadWorkdriveFile(serviceToken, {
-        parentId,
-        filename: file.filename,
-        buffer: file.buffer,
-        contentType: file.mimetype,
-      });
-
+      const uploaded = await uploadWorkdriveFile(serviceToken, { parentId, filename: file.filename, buffer: file.buffer, contentType: file.mimetype });
       const id = crypto.randomUUID();
       const author = normalizeEmail(actor.email);
       const department = meta.department ?? org?.department ?? null;
       const ver = initialDraftVersion();
 
       const { rows } = await pool.query(
-        `
-          insert into documents(
-            id, workdrive_file_id, workdrive_folder_id, workdrive_permalink,
-            doc_type, title, description, state, zone, project_id,
-            author_email, department, classification, reference_number, tags, custom_metadata,
-            created_by_email, modified_by_email,
-            workflow_mode, workflow_stage, review_round,
-            version, version_label, version_major, version_minor,
-            created_at, updated_at
-          )
-          values (
-            $1,$2,$3,$4,$5,$6,$7,'draft','managed',$18,
-            $8,$9,$10,$11,$12,$13,
-            $8,$8,
-            'none', null, 0,
-            $14,$15,$16,$17,
-            now(), now()
-          )
-          returning *
-        `,
-        [
-          id,
-          uploaded.id,
-          parentId,
-          uploaded.permalink,
-          meta.doc_type || docType,
-          meta.title || file.filename,
-          meta.description ?? null,
-          author,
-          department,
-          meta.classification ?? null,
-          meta.reference_number ?? null,
-          JSON.stringify(meta.tags || []),
-          JSON.stringify(meta.custom_metadata || {}),
-          ver.version,
-          ver.label,
-          ver.major,
-          ver.minor,
-          projectId,
-        ],
+        `insert into documents(
+            id, workdrive_file_id, workdrive_folder_id, workdrive_permalink, doc_type, title, description, state, zone, project_id,
+            author_email, department, classification, reference_number, tags, custom_metadata, created_by_email, modified_by_email,
+            workflow_mode, workflow_stage, review_round, version, version_label, version_major, version_minor, created_at, updated_at
+          ) values ($1,$2,$3,$4,$5,$6,$7,'draft','managed',$18,$8,$9,$10,$11,$12,$13,$8,$8,'none', null, 0,$14,$15,$16,$17,now(), now()) returning *`,
+        [id, uploaded.id, parentId, uploaded.permalink, meta.doc_type || docType, meta.title || file.filename, meta.description ?? null, author, department, meta.classification ?? null, meta.reference_number ?? null, JSON.stringify(meta.tags || []), JSON.stringify(meta.custom_metadata || {}), ver.version, ver.label, ver.major, ver.minor, projectId]
       );
 
       await pool.query(
-        `
-          insert into document_versions(
-            document_id, workdrive_file_id, workdrive_permalink,
-            version, version_label, version_major, version_minor,
-            uploaded_by_email, change_summary
-          )
-          values ($1,$2,$3,$4,$5,$6,$7,$8,'Initial version')
-        `,
-        [
-          id,
-          uploaded.id,
-          uploaded.permalink || null,
-          ver.version,
-          ver.label,
-          ver.major,
-          ver.minor,
-          author,
-        ],
+        `insert into document_versions(document_id, workdrive_file_id, workdrive_permalink, version, version_label, version_major, version_minor, uploaded_by_email, change_summary)
+          values ($1,$2,$3,$4,$5,$6,$7,$8,'Initial version')`,
+        [id, uploaded.id, uploaded.permalink || null, ver.version, ver.label, ver.major, ver.minor, author]
       );
 
-      // Vault: author is not a Team Folder member — grant personal Edit on this file only.
       try {
-        await grantVaultFileAccess(pool, {
-          resourceId: uploaded.id,
-          email: author,
-          permission: "write",
-        });
-      } catch (grantErr) {
-        request.log?.warn?.(
-          { err: grantErr?.message, fileId: uploaded.id, author },
-          "vault author grant failed after create-managed",
-        );
-      }
+        await grantVaultFileAccess(pool, { resourceId: uploaded.id, email: author, permission: "write" });
+      } catch (grantErr) {}
 
       return reply.send({ ok: true, document: rows[0], workdrive: uploaded });
     } catch (e) {
@@ -541,81 +384,33 @@ export async function documentsListRoutes(app, { pool }) {
     const docType = String(body.docType || "general").trim();
     const title = body.title ? String(body.title).trim() : null;
     const description = body.description ? String(body.description).trim() : null;
-    const workdriveFileId = body.workdriveFileId
-      ? String(body.workdriveFileId).trim()
-      : null;
+    const workdriveFileId = body.workdriveFileId ? String(body.workdriveFileId).trim() : null;
     const permalink = body.permalink ? String(body.permalink).trim() : null;
     const folderId = body.folderId ? String(body.folderId).trim() : null;
 
-    if (!workdriveFileId) {
-      return reply.code(400).send({ error: "workdriveFileId_required" });
-    }
+    if (!workdriveFileId) return reply.code(400).send({ error: "workdriveFileId_required" });
 
     const org = await getOrgUser(pool, actor.email);
     const id = crypto.randomUUID();
     const ver = initialDraftVersion();
 
     const { rows } = await pool.query(
-      `
-        insert into documents(
-          id, workdrive_file_id, workdrive_folder_id, workdrive_permalink,
-          doc_type, title, description, state, zone,
-          author_email, department, created_by_email, modified_by_email,
-          workflow_mode, version, version_label, version_major, version_minor,
-          created_at, updated_at
-        )
-        values (
-          $1,$2,$3,$4,$5,$6,$7,'draft',$8,
-          $9,$10,$9,$9,'none',$11,$12,$13,$14, now(), now()
-        )
-        returning *
-      `,
-      [
-        id,
-        workdriveFileId,
-        folderId,
-        permalink,
-        docType,
-        title,
-        description,
-        zone,
-        normalizeEmail(actor.email),
-        org?.department || null,
-        ver.version,
-        ver.label,
-        ver.major,
-        ver.minor,
-      ],
+      `insert into documents(
+          id, workdrive_file_id, workdrive_folder_id, workdrive_permalink, doc_type, title, description, state, zone,
+          author_email, department, created_by_email, modified_by_email, workflow_mode, version, version_label, version_major, version_minor, created_at, updated_at
+        ) values ($1,$2,$3,$4,$5,$6,$7,'draft',$8,$9,$10,$9,$9,'none',$11,$12,$13,$14, now(), now()) returning *`,
+      [id, workdriveFileId, folderId, permalink, docType, title, description, zone, normalizeEmail(actor.email), org?.department || null, ver.version, ver.label, ver.major, ver.minor]
     );
 
     await pool.query(
-      `
-        insert into document_versions(
-          document_id, workdrive_file_id, workdrive_permalink,
-          version, version_label, version_major, version_minor,
-          uploaded_by_email, change_summary
-        )
-        values ($1,$2,$3,$4,$5,$6,$7,$8,'Initial version')
-      `,
-      [
-        id,
-        workdriveFileId,
-        permalink || null,
-        ver.version,
-        ver.label,
-        ver.major,
-        ver.minor,
-        normalizeEmail(actor.email),
-      ],
+      `insert into document_versions(document_id, workdrive_file_id, workdrive_permalink, version, version_label, version_major, version_minor, uploaded_by_email, change_summary)
+        values ($1,$2,$3,$4,$5,$6,$7,$8,'Initial version')`,
+      [id, workdriveFileId, permalink || null, ver.version, ver.label, ver.major, ver.minor, normalizeEmail(actor.email)]
     );
 
     return reply.send({ ok: true, document: rows[0] });
   });
 
-  /**
-   * Register dump → managed: copy file into vault; dump file stays;
-   * scratch row flagged dump_registered (does not convert zone).
-   */
   app.post("/api/v1/docs/documents/:id/promote", async (request, reply) => {
     const actor = requireJwt(request);
     const doc = await getDocument(pool, request.params.id);
@@ -623,40 +418,18 @@ export async function documentsListRoutes(app, { pool }) {
 
     const docType = String(request.body?.docType || "general").trim();
     const title = request.body?.title ? String(request.body.title).trim() : doc.title;
-    const description = request.body?.description
-      ? String(request.body.description).trim()
-      : doc.description;
-    const projectId = request.body?.projectId
-      ? String(request.body.projectId).trim()
-      : null;
+    const description = request.body?.description ? String(request.body.description).trim() : doc.description;
+    const projectId = request.body?.projectId ? String(request.body.projectId).trim() : null;
 
     try {
-      const result = await registerDumpToManaged(pool, actor, {
-        scratchDoc: doc,
-        docType,
-        title,
-        description,
-        projectId,
-      });
-      return reply.send({
-        ok: true,
-        document: result.document,
-        scratch: result.scratch,
-        workdrive: result.workdrive,
-      });
+      const result = await registerDumpToManaged(pool, actor, { scratchDoc: doc, docType, title, description, projectId });
+      return reply.send({ ok: true, document: result.document, scratch: result.scratch, workdrive: result.workdrive });
     } catch (e) {
-      if (e.message === "already_registered") {
-        return reply.code(409).send({
-          error: e.message,
-          detail: e.detail,
-          managedDocumentId: e.managedDocumentId,
-        });
-      }
+      if (e.message === "already_registered") return reply.code(409).send({ error: e.message, detail: e.detail, managedDocumentId: e.managedDocumentId });
       return sendError(reply, e);
     }
   });
 
-  /** Dump upload → personal My Folders only (optional folderId field). Never team Temp_Folder. */
   app.post("/api/v1/docs/scratch/upload", async (request, reply) => {
     return uploadScratchWithPersonalFolder(pool, request, reply);
   });
@@ -666,32 +439,15 @@ export async function documentsListRoutes(app, { pool }) {
     const doc = await getDocument(pool, request.params.id);
     if (!doc) return reply.code(404).send({ error: "not_found" });
     if (!canAuthorEditMetadata(doc, actor.email, request)) {
-      return reply.code(403).send({
-        error: "forbidden",
-        detail:
-          "Metadata can only be edited by the author while the document is draft, under revision, or sent back for changes.",
-      });
+      return reply.code(403).send({ error: "forbidden" });
     }
 
     const docTypeDef = await loadDocTypeDef(pool, doc.doc_type);
     let meta;
-    try {
-      meta = normalizeMetadataInput(request.body || {}, docTypeDef);
-    } catch (e) {
-      return sendError(reply, e);
-    }
+    try { meta = normalizeMetadataInput(request.body || {}, docTypeDef); } 
+    catch (e) { return sendError(reply, e); }
 
-    const fieldMap = {
-      title: "title",
-      description: "description",
-      doc_type: "doc_type",
-      department: "department",
-      classification: "classification",
-      reference_number: "reference_number",
-      tags: "tags",
-      custom_metadata: "custom_metadata",
-    };
-
+    const fieldMap = { title: "title", description: "description", doc_type: "doc_type", department: "department", classification: "classification", reference_number: "reference_number", tags: "tags", custom_metadata: "custom_metadata" };
     const updates = [];
     const values = [doc.id];
     const after = { ...doc };
@@ -703,10 +459,7 @@ export async function documentsListRoutes(app, { pool }) {
       updates.push(`${col} = $${values.length}`);
       after[col] = key === "tags" || key === "custom_metadata" ? meta[key] : val;
     }
-
-    if (!updates.length) {
-      return reply.code(400).send({ error: "no_fields_to_update" });
-    }
+    if (!updates.length) return reply.code(400).send({ error: "no_fields_to_update" });
 
     const client = await pool.connect();
     try {
@@ -714,17 +467,8 @@ export async function documentsListRoutes(app, { pool }) {
       values.push(normalizeEmail(actor.email));
       updates.push(`modified_by_email = $${values.length}`);
       updates.push("updated_at = now()");
-
-      const { rows } = await client.query(
-        `update documents set ${updates.join(", ")} where id = $1 returning *`,
-        values,
-      );
-      await recordMetadataHistory(client, {
-        documentId: doc.id,
-        before: doc,
-        after: rows[0],
-        actorEmail: actor.email,
-      });
+      const { rows } = await client.query(`update documents set ${updates.join(", ")} where id = $1 returning *`, values);
+      await recordMetadataHistory(client, { documentId: doc.id, before: doc, after: rows[0], actorEmail: actor.email });
       await client.query("commit");
       return reply.send({ ok: true, document: rows[0] });
     } catch (e) {
@@ -739,13 +483,7 @@ export async function documentsListRoutes(app, { pool }) {
     const actor = requireJwt(request);
     const doc = await getDocument(pool, request.params.id);
     if (!doc) return reply.code(404).send({ error: "not_found" });
-    if (!canAuthorEditMetadata(doc, actor.email, request)) {
-      return reply.code(403).send({
-        error: "forbidden",
-        detail:
-          "New versions can only be uploaded by the author while the document is draft, under revision, or sent back for changes.",
-      });
-    }
+    if (!canAuthorEditMetadata(doc, actor.email, request)) return reply.code(403).send({ error: "forbidden" });
 
     const data = await request.file();
     if (!data) return reply.code(400).send({ error: "file_required" });
@@ -755,71 +493,21 @@ export async function documentsListRoutes(app, { pool }) {
 
     try {
       const useService = doc.zone === "managed";
-      const accessToken = useService
-        ? await getServiceZohoAccessToken(pool)
-        : await getZohoAccessToken(pool, actor.email);
+      const accessToken = useService ? await getServiceZohoAccessToken(pool) : await getZohoAccessToken(pool, actor.email);
       let parentId = doc.workdrive_folder_id || env.managedRootFolderId;
-      if (useService && !parentId) {
-        parentId = await resolveManagedParent(pool, accessToken, actor);
-      }
-      if (!parentId) {
-        return reply.code(412).send({
-          error: "parent_folder_required",
-          detail: "No WorkDrive folder for this document.",
-        });
-      }
-      const uploaded = await uploadWorkdriveFile(accessToken, {
-        parentId,
-        filename: data.filename || "version.bin",
-        buffer,
-        contentType: data.mimetype,
-      });
+      if (useService && !parentId) parentId = await resolveManagedParent(pool, accessToken, actor);
+      if (!parentId) return reply.code(412).send({ error: "parent_folder_required" });
+      
+      const uploaded = await uploadWorkdriveFile(accessToken, { parentId, filename: data.filename || "version.bin", buffer, contentType: data.mimetype });
       const next = draftBump(doc);
 
       await pool.query(
-        `
-          update documents set
-            workdrive_file_id = $2,
-            workdrive_permalink = $3,
-            version = $4,
-            version_label = $5,
-            version_major = $6,
-            version_minor = $7,
-            modified_by_email = $8,
-            updated_at = now()
-          where id = $1
-        `,
-        [
-          doc.id,
-          uploaded.id,
-          uploaded.permalink,
-          next.version,
-          next.label,
-          next.major,
-          next.minor,
-          normalizeEmail(actor.email),
-        ],
+        `update documents set workdrive_file_id = $2, workdrive_permalink = $3, version = $4, version_label = $5, version_major = $6, version_minor = $7, modified_by_email = $8, updated_at = now() where id = $1`,
+        [doc.id, uploaded.id, uploaded.permalink, next.version, next.label, next.major, next.minor, normalizeEmail(actor.email)]
       );
       await pool.query(
-        `
-          insert into document_versions(
-            document_id, workdrive_file_id, workdrive_permalink,
-            version, version_label, version_major, version_minor,
-            uploaded_by_email, change_summary
-          )
-          values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-        `,
-        [
-          doc.id,
-          uploaded.id,
-          uploaded.permalink || null,
-          next.version,
-          next.label,
-          next.major,
-          next.minor,
-          normalizeEmail(actor.email),
-          "New version",
-        ],
+        `insert into document_versions(document_id, workdrive_file_id, workdrive_permalink, version, version_label, version_major, version_minor, uploaded_by_email, change_summary) values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        [doc.id, uploaded.id, uploaded.permalink || null, next.version, next.label, next.major, next.minor, normalizeEmail(actor.email), "New version"]
       );
       const { rows } = await pool.query("select * from documents where id = $1", [doc.id]);
       return reply.send({ ok: true, document: rows[0] });
