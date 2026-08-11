@@ -26,6 +26,7 @@ import DocWorkflowBanner from "./DocWorkflowBanner";
 import DocSharePanel from "./DocSharePanel";
 import DocRevokePanel from "./DocRevokePanel";
 import { versionLabel } from "./DocDocumentGrid";
+import SharedFolderBrowser from "./SharedFolderBrowser";
 
 export default function DocDetail({ documentId }) {
   const router = useRouter();
@@ -279,10 +280,11 @@ export default function DocDetail({ documentId }) {
             ) : null}
           </Card>
         ) : null}
-
-        
       </Card>
-
+      
+      {doc.doc_type === "folder" ? (
+        <SharedFolderBrowser shareId={doc.id} folderName={doc.title}/>
+      ) : (
       <Card>
         <Tabs
           items={[
@@ -444,6 +446,7 @@ export default function DocDetail({ documentId }) {
           ]}
         />
       </Card>
+      )}
 
       <Button onClick={() => router.push("/m/docq/my-documents")}>Back to library</Button>
 

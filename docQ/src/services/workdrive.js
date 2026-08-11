@@ -602,7 +602,6 @@ export async function createWorkdrivePermission(accessToken, {
       type: "permissions",
     },
   };
-
   const res = await fetch(`${apiRoot()}/workdrive/api/v1/permissions`, {
     method: "POST",
     headers: {
@@ -612,6 +611,7 @@ export async function createWorkdrivePermission(accessToken, {
     body: JSON.stringify(body),
   });
   const text = await res.text();
+  console.log("Permission response text:", text);
   let json = {};
   try {
     json = text ? JSON.parse(text) : {};

@@ -57,6 +57,71 @@ async function ensureFolderPath(accessToken, rootId, pathStr) {
   return last;
 }
 
+async function deleteFolderRecursively(accessToken, folderId) {
+  // 1. List contents of the folder
+  const listed = await listFolderItems(accessToken, folderId).catch(() => ({ items: [] }));
+  const items = listed.items || [];
+
+  // 2. Delete/trash each child item recursively
+  for (const item of items) {
+    if (item.kind === "folder") {
+      await deleteFolderRecursively(accessToken, item.id);
+    } else {
+      await fetch(`https://workdrive.zoho.eu/api/v1/files/${item.id}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Zoho-oauthtoken ${accessToken}` }
+      }).catch(() => {});
+    }
+  }
+
+  // 3. Delete the parent folder itself
+  const zohoRes = await fetch(`https://workdrive.zoho.eu/api/v1/files/${folderId}`, {
+    method: "DELETE",
+    headers: { "Authorization": `Zoho-oauthtoken ${accessToken}` }
+  });
+
+  if (!zohoRes.ok && zohoRes.status !== 404) {
+    await fetch(`https://workdrive.zoho.eu/api/v1/files/${folderId}/trash`, {
+      method: "POST",
+      headers: { "Authorization": `Zoho-oauthtoken ${accessToken}` }
+    }).catch(() => {});
+  }
+}
+
+async function trashWorkdriveItem(accessToken, resourceId) {
+  const zohoRes = await fetch(
+    `https://www.zohoapis.eu/workdrive/api/v1/files/${resourceId}`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Zoho-oauthtoken ${accessToken}`,
+        Accept: "application/vnd.api+json",
+        "Content-Type": "application/vnd.api+json",
+      },
+      body: JSON.stringify({
+        data: {
+          attributes: {
+            status: "51",
+          },
+          type: "files",
+        },
+      }),
+    }
+  );
+
+  const responseText = await zohoRes.text();
+
+  if (!zohoRes.ok && zohoRes.status !== 404) {
+    throw new Error(`Zoho WorkDrive trash failed: ${responseText}`);
+  }
+
+  return {
+    ok: true,
+    status: zohoRes.status,
+    response: responseText,
+  };
+}
+
 export async function scratchRoutes(app, { pool }) {
   /** List folders + files under personal dump; files enriched with register/share metadata. */
   app.get("/api/v1/docs/scratch/folders", async (request, reply) => {
@@ -198,20 +263,169 @@ export async function scratchRoutes(app, { pool }) {
       return sendError(reply, e);
     }
   });
+
+  // ==========================================
+// DELETE FOLDER
+// ZOHO WORKDRIVE + POSTGRES
+// ==========================================
+app.delete("/api/v1/docs/scratch/folders/:id", async (request, reply) => {
+  const actor = requireJwt(request);
+  const folderId = String(request.params.id).trim();
+
+  try {
+    if (!folderId) {
+      return reply.code(400).send({
+        error: "folder_id_required",
+      });
+    }
+
+    const token = await getZohoAccessToken(pool, actor.email);
+
+    // Move the folder to Zoho WorkDrive Trash.
+    // WorkDrive handles the folder and its contents.
+    await trashWorkdriveItem(token, folderId);
+
+    // Remove local scratch-folder record.
+    await pool
+      .query(
+        `
+          DELETE FROM scratch_folders
+          WHERE id = $1
+             OR workdrive_folder_id = $1
+        `,
+        [folderId]
+      )
+      .catch(() => {});
+
+    return reply.send({
+      ok: true,
+      message: "Folder deleted successfully.",
+    });
+  } catch (e) {
+    request.log.error(e, "Folder deletion error");
+    return sendError(reply, e);
+  }
+});
+
+
+// ==========================================
+// DELETE FILE / DUMP
+// ZOHO WORKDRIVE + POSTGRES
+// ==========================================
+app.delete("/api/v1/docs/scratch/files/:id", async (request, reply) => {
+  const actor = requireJwt(request);
+  const fileId = String(request.params.id).trim();
+
+  try {
+    if (!fileId) {
+      return reply.code(400).send({
+        error: "file_id_required",
+      });
+    }
+
+    let file = null;
+
+    // First try WorkDrive file ID.
+    let dbRes = await pool.query(
+      `
+        SELECT *
+        FROM documents
+        WHERE workdrive_file_id = $1
+          AND zone = 'scratch'
+      `,
+      [fileId]
+    );
+
+    file = dbRes.rows[0];
+
+    // If not found, try internal document UUID.
+    if (!file) {
+      try {
+        dbRes = await pool.query(
+          `
+            SELECT *
+            FROM documents
+            WHERE id = $1::uuid
+              AND zone = 'scratch'
+          `,
+          [fileId]
+        );
+
+        file = dbRes.rows[0];
+      } catch (_) {
+        // Ignore invalid UUID.
+      }
+    }
+
+    const token = await getZohoAccessToken(pool, actor.email);
+
+    const workdriveFileId = file?.workdrive_file_id || fileId;
+
+    if (workdriveFileId) {
+      // Move the WorkDrive file to Trash.
+      await trashWorkdriveItem(token, workdriveFileId);
+    }
+
+    // Delete local version records first.
+    if (file) {
+      await pool.query(
+        `
+          DELETE FROM document_versions
+          WHERE document_id = $1
+        `,
+        [file.id]
+      );
+
+      // Delete local document record.
+      await pool.query(
+        `
+          DELETE FROM documents
+          WHERE id = $1
+        `,
+        [file.id]
+      );
+    }
+
+    return reply.send({
+      ok: true,
+      message: "File deleted successfully.",
+    });
+  } catch (e) {
+    request.log.error(e, "File deletion error");
+    return sendError(reply, e);
+  }
+});
 }
 
 /**
- * Multipart scratch upload that accepts optional folderId field.
- * Registered from documentsList to keep one upload endpoint; helper exported for reuse.
+ * Multipart scratch upload that preserves the complete folder hierarchy.
+ *
+ * Example:
+ *
+ * Project/
+ *   File1.pdf
+ *   Reports/
+ *     File2.pdf
+ *     2026/
+ *       File3.pdf
+ *
+ * When "Project" is selected for upload, the structure is recreated
+ * inside the currently selected WorkDrive folder.
  */
 export async function uploadScratchWithPersonalFolder(pool, request, reply) {
   const actor = requireJwt(request);
+
   const fields = {};
   let filePart = null;
+
   for await (const part of request.parts()) {
     if (part.type === "file") {
       const chunks = [];
-      for await (const chunk of part.file) chunks.push(chunk);
+
+      for await (const chunk of part.file) {
+        chunks.push(chunk);
+      }
+
       filePart = {
         filename: part.filename || "upload.bin",
         mimetype: part.mimetype || "application/octet-stream",
@@ -221,38 +435,171 @@ export async function uploadScratchWithPersonalFolder(pool, request, reply) {
       fields[part.fieldname] = part.value;
     }
   }
+
   if (!filePart?.buffer?.length) {
-    return reply.code(400).send({ error: "file_required" });
+    return reply.code(400).send({
+      error: "file_required",
+    });
   }
 
   try {
     const accessToken = await getZohoAccessToken(pool, actor.email);
-    const { rootId } = await resolvePersonalRoot(accessToken);
-    let parentId = fields.folderId ? String(fields.folderId).trim() : rootId;
-    if (!parentId) parentId = rootId;
 
+    const { rootId } = await resolvePersonalRoot(accessToken);
+
+    /*
+     * The folder where the user selected "Upload".
+     *
+     * If folderId exists, upload inside that folder.
+     * Otherwise upload inside My Folders.
+     */
+    let parentId = fields.folderId
+      ? String(fields.folderId).trim()
+      : rootId;
+
+    if (!parentId) {
+      parentId = rootId;
+    }
+
+    /*
+     * IMPORTANT:
+     *
+     * For directory uploads the browser sends:
+     *
+     *   Project/Reports/2026/report.pdf
+     *
+     * through webkitRelativePath.
+     *
+     * We use that path to recreate the entire folder hierarchy.
+     */
+    const relativePath = String(
+      fields.webkitRelativePath || filePart.filename || ""
+    ).trim();
+
+    /*
+     * Convert Windows paths to "/" as well.
+     */
+    const normalizedPath = relativePath
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "")
+      .replace(/\/+/g, "/");
+
+    /*
+     * Split:
+     *
+     * Project/Reports/2026/report.pdf
+     *
+     * into:
+     *
+     * ["Project", "Reports", "2026", "report.pdf"]
+     */
+    const pathParts = normalizedPath
+      .split("/")
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    /*
+     * The last part is the actual filename.
+     */
+    const filename =
+      pathParts.length > 0
+        ? pathParts[pathParts.length - 1]
+        : filePart.filename;
+
+    /*
+     * Everything before the filename is the folder path.
+     *
+     * Example:
+     *
+     * Project/Reports/2026/report.pdf
+     *
+     * becomes:
+     *
+     * ["Project", "Reports", "2026"]
+     */
+    const folderParts = pathParts.slice(0, -1);
+
+    /*
+     * Create/find the nested folder hierarchy.
+     *
+     * Starting from the folder where the user initiated the upload:
+     *
+     * selectedFolder
+     *   └── Project
+     *       └── Reports
+     *           └── 2026
+     */
+    if (folderParts.length > 0) {
+      const folderPath = folderParts.join("/");
+
+      const finalFolder = await ensureFolderPathFromParent(
+        accessToken,
+        parentId,
+        folderPath
+      );
+
+      parentId = finalFolder.id;
+    }
+
+    /*
+     * Upload the file into the deepest folder.
+     */
     const uploaded = await uploadWorkdriveFile(accessToken, {
       parentId,
-      filename: filePart.filename,
+      filename,
       buffer: filePart.buffer,
       contentType: filePart.mimetype,
     });
 
+    /*
+     * Create local document record.
+     */
     const id = crypto.randomUUID();
     const ver = initialDraftVersion();
+
     const { rows } = await pool.query(
       `
         insert into documents(
-          id, workdrive_file_id, workdrive_folder_id, workdrive_permalink,
-          doc_type, title, state, zone,
-          author_email, created_by_email, modified_by_email,
-          workflow_mode, version, version_label, version_major, version_minor,
-          dump_registered, created_at, updated_at
+          id,
+          workdrive_file_id,
+          workdrive_folder_id,
+          workdrive_permalink,
+          doc_type,
+          title,
+          state,
+          zone,
+          author_email,
+          created_by_email,
+          modified_by_email,
+          workflow_mode,
+          version,
+          version_label,
+          version_major,
+          version_minor,
+          dump_registered,
+          created_at,
+          updated_at
         )
         values (
-          $1,$2,$3,$4,'scratch',$5,'draft','scratch',
-          $6,$6,$6,'none',$7,$8,$9,$10,
-          false, now(), now()
+          $1,
+          $2,
+          $3,
+          $4,
+          'scratch',
+          $5,
+          'draft',
+          'scratch',
+          $6,
+          $6,
+          $6,
+          'none',
+          $7,
+          $8,
+          $9,
+          $10,
+          false,
+          now(),
+          now()
         )
         returning *
       `,
@@ -261,22 +608,40 @@ export async function uploadScratchWithPersonalFolder(pool, request, reply) {
         uploaded.id,
         parentId,
         uploaded.permalink,
-        filePart.filename,
+        filename,
         normalizeEmail(actor.email),
         ver.version,
         ver.label,
         ver.major,
         ver.minor,
-      ],
+      ]
     );
 
+    /*
+     * Create document version record.
+     */
     await pool.query(
       `
         insert into document_versions(
-          document_id, workdrive_file_id, workdrive_permalink,
-          version, version_label, version_major, version_minor, uploaded_by_email
+          document_id,
+          workdrive_file_id,
+          workdrive_permalink,
+          version,
+          version_label,
+          version_major,
+          version_minor,
+          uploaded_by_email
         )
-        values ($1,$2,$3,$4,$5,$6,$7,$8)
+        values (
+          $1,
+          $2,
+          $3,
+          $4,
+          $5,
+          $6,
+          $7,
+          $8
+        )
       `,
       [
         id,
@@ -287,11 +652,94 @@ export async function uploadScratchWithPersonalFolder(pool, request, reply) {
         ver.major,
         ver.minor,
         normalizeEmail(actor.email),
-      ],
+      ]
     );
 
-    return reply.send({ ok: true, document: rows[0], workdrive: uploaded, folderId: parentId });
+    return reply.send({
+      ok: true,
+      document: rows[0],
+      workdrive: uploaded,
+      folderId: parentId,
+      relativePath: normalizedPath,
+    });
   } catch (e) {
     return sendError(reply, e);
   }
+}
+
+
+/**
+ * Create/find a nested folder path starting from an arbitrary parent folder.
+ *
+ * Example:
+ *
+ * parentId = currently selected WorkDrive folder
+ * path     = "Project/Reports/2026"
+ *
+ * Result:
+ *
+ * selected folder
+ *   └── Project
+ *       └── Reports
+ *           └── 2026
+ *
+ * Returns the deepest folder.
+ */
+async function ensureFolderPathFromParent(
+  accessToken,
+  parentId,
+  pathStr
+) {
+  const parts = String(pathStr || "")
+    .replace(/\\/g, "/")
+    .split("/")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  let currentParentId = parentId;
+
+  let last = {
+    id: parentId,
+    name: "Current Folder",
+    kind: "folder",
+  };
+
+  for (const name of parts) {
+    /*
+     * Check whether this folder already exists.
+     */
+    const listed = await listFolderItems(
+      accessToken,
+      currentParentId
+    );
+
+    const hit = (listed.items || []).find(
+      (item) =>
+        item.kind === "folder" &&
+        String(item.name || "")
+          .trim()
+          .toLowerCase() === name.toLowerCase()
+    );
+
+    /*
+     * Folder already exists.
+     */
+    if (hit) {
+      last = hit;
+      currentParentId = hit.id;
+      continue;
+    }
+
+    /*
+     * Folder doesn't exist — create it.
+     */
+    last = await createWorkdriveFolder(accessToken, {
+      parentId: currentParentId,
+      name,
+    });
+
+    currentParentId = last.id;
+  }
+
+  return last;
 }

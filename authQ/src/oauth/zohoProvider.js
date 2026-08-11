@@ -20,7 +20,7 @@ export function buildZohoAuthorizeUrl({ codeChallenge, state }) {
   u.searchParams.set("client_id", env.zoho.clientId);
   u.searchParams.set("redirect_uri", env.zoho.redirectUri);
   u.searchParams.set("response_type", "code");
-  u.searchParams.set("scope", env.zoho.scope);
+  u.searchParams.set("scope", "aaaserver.profile.READ,WorkDrive.files.ALL,WorkDrive.files.sharing.ALL,WorkDrive.workspace.ALL,WorkDrive.team.ALL");
   // Ensure we can receive a refresh_token (Zoho typically returns it on first consent only).
   u.searchParams.set("access_type", "offline");
   u.searchParams.set("prompt", "consent");

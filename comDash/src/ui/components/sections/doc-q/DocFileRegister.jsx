@@ -7,6 +7,7 @@ import {
   Form,
   Input,
   Modal,
+  Popconfirm,
   Select,
   Space,
   Table,
@@ -68,8 +69,9 @@ export default function DocFileRegister() {
   const [projects, setProjects] = useState([]);
   const [registerForm] = Form.useForm();
 
-  // Used to batch concurrent file uploads (crucial for folder uploads)
+  // FIX: Declare activeUploads so batch upload tracking works correctly
   const activeUploads = useRef(0);
+  const uploadQueue = useRef(Promise.resolve());
 
   const loadFolder = useCallback(async (parentId, nextTrail) => {
     setLoading(true);
@@ -161,38 +163,55 @@ export default function DocFileRegister() {
     }
   }
 
-  // Upload handler for single, multiple, drag & drop, and folder batch uploads
   async function onUpload(file) {
     activeUploads.current++;
     setUploading(true);
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      // Pass the relative path to retain folder structures on the backend if supported
-      if (file.webkitRelativePath) {
-        form.append("webkitRelativePath", file.webkitRelativePath);
+
+    const uploadTask = async () => {
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        if (file.webkitRelativePath) {
+          form.append("webkitRelativePath", file.webkitRelativePath);
+        }
+        if (folderId) {
+          form.append("folderId", folderId);
+        } else if (rootId) {
+          form.append("folderId", rootId);
+        }
+
+        const res = await apiFetch(docPath("/scratch/upload"), {
+          method: "POST",
+          body: form,
+        });
+
+        const json = await res.json();
+        if (!res.ok) {
+          throw new Error(errText(json, res));
+        }
+        return json;
+      } catch (e) {
+        message.error(`Failed on “${file.name}”: ${e.message || e}`);
+        return null;
       }
-      if (folderId) form.append("folderId", folderId);
-      
-      const res = await apiFetch(docPath("/scratch/upload"), {
-        method: "POST",
-        body: form,
+    };
+
+    uploadQueue.current = uploadQueue.current
+      .then(uploadTask)
+      .catch((error) => {
+        console.error("Upload queue error:", error);
+      })
+      .finally(() => {
+        activeUploads.current--;
+        if (activeUploads.current === 0) {
+          setUploading(false);
+          setUploadModalOpen(false);
+          message.success("Upload complete");
+          loadFolder(folderId || rootId, trail);
+        }
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(errText(json, res));
-    } catch (e) {
-      message.error(`Failed on “${file.name}”: ${e.message || e}`);
-    } finally {
-      activeUploads.current--;
-      // When the last upload in the batch finishes, refresh the UI and close modal
-      if (activeUploads.current === 0) {
-        setUploading(false);
-        setUploadModalOpen(false); // Close the popup automatically
-        message.success(`Upload complete`);
-        loadFolder(folderId || rootId, trail);
-      }
-    }
-    return false; // Prevent default antd action
+
+    return false;
   }
 
   async function ensureDocument(file) {
@@ -244,6 +263,31 @@ export default function DocFileRegister() {
       message.error(String(e.message || e));
     } finally {
       setSharingBulk(false);
+    }
+  }
+
+  async function onDelete(row) {
+    const isFolder = row.kind === "folder";
+    const endpoint = isFolder 
+      ? docPath(`/scratch/folders/${row.id}`) 
+      : docPath(`/scratch/files/${row.id}`);
+
+    // Optimistically remove from UI immediately
+    setItems((prevItems) => prevItems.filter((item) => item.id !== row.id));
+
+    try {
+      const res = await apiFetch(endpoint, {
+        method: "DELETE",
+        body: JSON.stringify({}),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.detail || json.error || "Delete failed");
+
+      message.success(`${isFolder ? "Folder" : "File"} deleted successfully`);
+      loadFolder(folderId || rootId, trail);
+    } catch (e) {
+      message.error(`Delete failed: ${e.message}`);
+      loadFolder(folderId || rootId, trail);
     }
   }
 
@@ -301,8 +345,6 @@ export default function DocFileRegister() {
     }
   }
 
-  const currentName = trail[trail.length - 1]?.name || "My Folders";
-
   const columns = [
     {
       title: "Name",
@@ -339,13 +381,21 @@ export default function DocFileRegister() {
     {
       title: "Actions",
       key: "actions",
-      width: 260,
+      width: 280,
       render: (_, row) => {
         if (row.kind === "folder") {
           return (
             <Space size="middle">
               <a onClick={() => openFolder(row)}>Open</a>
               <a onClick={() => onShare(row)}>Share</a>
+              <Popconfirm
+                title="Delete folder and contents?"
+                onConfirm={() => onDelete(row)}
+                okText="Delete"
+                okButtonProps={{ danger: true }}
+              >
+                <a style={{ color: "#ff4d4f" }}>Delete</a>
+              </Popconfirm>
             </Space>
           );
         }
@@ -366,11 +416,21 @@ export default function DocFileRegister() {
             ) : (
               <a onClick={() => openRegister(row)}>Register</a>
             )}
+            <Popconfirm
+              title="Delete file?"
+              onConfirm={() => onDelete(row)}
+              okText="Delete"
+              okButtonProps={{ danger: true }}
+            >
+              <a style={{ color: "#ff4d4f" }}>Delete</a>
+            </Popconfirm>
           </Space>
         );
       },
     },
   ];
+
+  const currentName = trail[trail.length - 1]?.name || "My Folders";
 
   return (
     <Card title="All my dump files">
@@ -432,7 +492,6 @@ export default function DocFileRegister() {
             >
               New folder
             </Button>
-            {/* Replaced massive block with single upload button */}
             <Button
               type="primary"
               icon={<UploadOutlined />}

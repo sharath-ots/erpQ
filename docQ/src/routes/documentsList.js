@@ -212,46 +212,12 @@ export async function documentsListRoutes(app, { pool }) {
         const { rows: fShares } = await pool.query("select * from folder_shares where id = $1", [request.params.id]);
         if (fShares.length > 0) {
           const fs = fShares[0];
-          let folderContents = [];
-          let errorNote = "";
-          
-          // Peek inside the folder using the Granter's API Token
-          try {
-            const granterToken = await getZohoAccessToken(pool, fs.granted_by_email);
-            const filesRes = await fetch(`https://workdrive.zoho.eu/api/v1/files/${fs.folder_id}/files`, {
-              headers: { "Authorization": `Zoho-oauthtoken ${granterToken}` }
-            });
-            
-            if (filesRes.ok) {
-              const filesJson = await filesRes.json();
-              const files = filesJson?.data || [];
-              
-              // Mapped perfectly to match exactly what your React UI expects in the Versions tab!
-              folderContents = files.map((f, index) => ({
-                id: f.id,
-                version: files.length - index,
-                version_label: f.attributes.name || 'Unnamed File',
-                version_major: 1,
-                version_minor: 0,
-                is_historical: false,
-                workdrive_permalink: f.attributes.permalink,
-                created_at: new Date().toISOString(),
-                uploaded_by_email: fs.granted_by_email,
-                change_summary: "Shared File"
-              }));
-            } else {
-              errorNote = ` | Error: Could not load files (Zoho API ${filesRes.status})`;
-            }
-          } catch (fetchErr) {
-            errorNote = ` | Error: Token expired for ${fs.granted_by_email}`;
-          }
-
           return reply.send({
             document: {
               id: fs.id,
               title: fs.folder_name || "Shared Folder",
-              description: `Shared by ${fs.granted_by_email}${errorNote}`,
-              doc_type: "folder",
+              description: `Shared by ${fs.granted_by_email}`,
+              doc_type: "folder", // We label it a folder so your UI knows what to do
               state: "approved",
               zone: "scratch",
               author_email: fs.granted_by_email,
@@ -261,7 +227,7 @@ export async function documentsListRoutes(app, { pool }) {
             authorCanEdit: false,
             canRevoke: normalizeEmail(fs.granted_by_email) === normalizeEmail(actor.email),
             shares: fShares, 
-            versions: folderContents, // 🚀 Now perfectly populates the "Versions" tab!
+            versions: [], // We leave versions EMPTY now!
             history: [], approvalTasks: [], workflowTasks: [], reviewPoints: [], reviewComments: [], historySnapshots: [], metadataHistory: [], erpnextRefs: []
           });
         }
