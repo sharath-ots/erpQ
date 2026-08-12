@@ -42,9 +42,33 @@ function VersionLinks({ doc, versions }) {
   );
 }
 
+function getFolderName(row) {
+  if (!row) return "—";
+  if (typeof row.folder_name === "string" && row.folder_name) return row.folder_name;
+  if (typeof row.folder_path === "string" && row.folder_path) return row.folder_path;
+  if (Array.isArray(row.folder_path) && row.folder_path.length) {
+    return row.folder_path.map((f) => (typeof f === "object" ? f.name || f.title || f.folder_name : f)).filter(Boolean).join(" / ");
+  }
+  if (typeof row.folder === "string" && row.folder) return row.folder;
+  if (Array.isArray(row.folder)) {
+    return row.folder.map((f) => (typeof f === "object" ? f.name || f.title || f.folder_name : f)).filter(Boolean).join(" / ");
+  }
+  if (row.folder && typeof row.folder === "object") {
+    if (row.folder.name) return row.folder.name;
+    if (row.folder.title) return row.folder.title;
+    if (row.folder.folder_name) return row.folder.folder_name;
+    if (row.folder.path) return row.folder.path;
+  }
+  if (typeof row.folder_title === "string" && row.folder_title) return row.folder_title;
+  if (typeof row.parent_folder_name === "string" && row.parent_folder_name) return row.parent_folder_name;
+  return "—";
+}
+
 export default function DocDocumentGrid({
   documents = [],
   loading = false,
+  view,
+  showFolder = "auto",
   showReviewedBy = "auto",
   showApprovedBy = "auto",
   showActions = false,
@@ -58,6 +82,12 @@ export default function DocDocumentGrid({
 }) {
   const anyReviewed = showReviewedBy === true || (showReviewedBy === "auto" && documents.some(showReviewedByColumn));
   const anyApproved = showApprovedBy === true || (showApprovedBy === "auto" && documents.some(showApprovedByColumn));
+  const anyFolder =
+    showFolder === true ||
+    (showFolder === "auto" && documents.some((d) => getFolderName(d) !== "—")) ||
+    view === "shared_with_me" ||
+    view === "shared_by_me";
+
   const showYourAction = authorActions || showActions || Boolean(onRevoke);
 
   const columns = [
@@ -65,11 +95,25 @@ export default function DocDocumentGrid({
       title: "Document name",
       dataIndex: "title",
       key: "title",
+      width: 250,
       render: (title, row) => (
         <Link href={`/m/docq/documents/${row.id}`}>{title || "Untitled"}</Link>
       ),
     },
     { title: "Doc type", dataIndex: "doc_type", key: "doc_type", width: 100 },
+  ];
+
+  if (anyFolder) {
+    columns.push({
+      title: "Folder",
+      key: "folder",
+      width: 140,
+      ellipsis: true,
+      render: (_, row) => getFolderName(row),
+    });
+  }
+
+  columns.push(
     {
       title: "Versions",
       key: "versions",
@@ -99,8 +143,19 @@ export default function DocDocumentGrid({
       width: 110,
       render: formatDate,
     },
-    { title: "Author", dataIndex: "author_email", key: "author_email", ellipsis: true },
-  ];
+    { title: "Author", dataIndex: "author_email", key: "author_email", ellipsis: true }
+  );
+
+  if (view === "shared_with_me" || view === "shared_by_me") {
+    columns.push({
+      title: "Share Details",
+      dataIndex: "description",
+      key: "description",
+      width: 220,
+      ellipsis: true,
+      render: (desc) => desc || "—",
+    });
+  }
 
   if (anyReviewed) {
     columns.push({ title: "Reviewed by", dataIndex: "reviewed_by", key: "reviewed_by", ellipsis: true, render: (v) => v || "—" });

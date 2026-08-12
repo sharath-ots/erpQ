@@ -69,10 +69,6 @@ export default function DocFileRegister() {
   const [projects, setProjects] = useState([]);
   const [registerForm] = Form.useForm();
 
-  // FIX: Declare activeUploads so batch upload tracking works correctly
-  const activeUploads = useRef(0);
-  const uploadQueue = useRef(Promise.resolve());
-
   const loadFolder = useCallback(async (parentId, nextTrail) => {
     setLoading(true);
     setSelectedRowKeys([]);
@@ -101,6 +97,32 @@ export default function DocFileRegister() {
       setLoading(false);
     }
   }, []);
+
+  // --- NEW: Concurrent Upload Manager ---
+  const MAX_CONCURRENT_UPLOADS = 4; // Upload 4 files at the same time
+  const pendingUploads = useRef([]);
+  const activeUploadsCount = useRef(0);
+
+  const processUploadQueue = useCallback(() => {
+    // Keep starting uploads until we hit our limit of 4
+    while (pendingUploads.current.length > 0 && activeUploadsCount.current < MAX_CONCURRENT_UPLOADS) {
+      const nextTask = pendingUploads.current.shift();
+      activeUploadsCount.current++;
+
+      nextTask().finally(() => {
+        activeUploadsCount.current--;
+        processUploadQueue(); // Grab the next file in line
+
+        // Check if the entire batch is completely finished
+        if (activeUploadsCount.current === 0 && pendingUploads.current.length === 0) {
+          setUploading(false);
+          setUploadModalOpen(false);
+          message.success("Upload complete");
+          loadFolder(folderId || rootId, trail);
+        }
+      });
+    }
+  }, [folderId, rootId, trail, loadFolder]);
 
   useEffect(() => {
     loadFolder(null);
@@ -141,6 +163,22 @@ export default function DocFileRegister() {
       message.warning("Enter a folder name");
       return;
     }
+
+    const isDuplicate = items.some((item) => {
+      const itemName = String(item.name || item.title || item.dumpTitle || "");
+      return item.kind === "folder" && itemName.toLowerCase() === name.toLowerCase();
+    });
+
+    if (isDuplicate) {
+      Modal.warning({
+        title: "Folder already exists",
+        content: `A folder named “${name}” already exists in this location. Please choose a different name.`,
+        okText: "OK",
+        centered: true,
+      });
+      return; // Stop here!
+    }
+
     setCreatingFolder(true);
     try {
       const res = await apiFetch(docPath("/scratch/folders"), {
@@ -163,8 +201,40 @@ export default function DocFileRegister() {
     }
   }
 
-  async function onUpload(file) {
-    activeUploads.current++;
+  // NEW: Prevents duplicate error spam if dragging a folder with 50 files
+  const duplicateWarnings = useRef(new Set());
+
+  // 👇 UPDATED: Removed 'async' keyword so Ant Design handles the rejection properly 👇
+  function onUpload(file) {
+    // Figure out the actual top-level name being uploaded
+    const isFolderUpload = !!file.webkitRelativePath;
+    const topLevelName = isFolderUpload ? file.webkitRelativePath.split('/')[0] : file.name;
+    const kind = isFolderUpload ? "folder" : "file";
+
+    // 👇 UPDATED: Crash-proof duplicate check 👇
+    const isDuplicate = items.some((item) => {
+      const itemName = String(item.name || item.title || item.dumpTitle || "");
+      return itemName.toLowerCase() === topLevelName.toLowerCase() && item.kind === kind;
+    });
+
+    if (isDuplicate) {
+      if (!duplicateWarnings.current.has(topLevelName)) {
+        duplicateWarnings.current.add(topLevelName);
+        
+        Modal.warning({
+          title: "Item already exists",
+          content: `The ${kind} “${topLevelName}” already exists in this folder.`,
+          okText: "Understood",
+          centered: true,
+        });
+        
+        // Clear the warning lock after 5 seconds so it doesn't spam them
+        setTimeout(() => duplicateWarnings.current.delete(topLevelName), 5000);
+      }
+      return false; // Skip the upload entirely!
+    }
+
+    // 2. Safely start the loading state only if it passes the check
     setUploading(true);
 
     const uploadTask = async () => {
@@ -186,9 +256,7 @@ export default function DocFileRegister() {
         });
 
         const json = await res.json();
-        if (!res.ok) {
-          throw new Error(errText(json, res));
-        }
+        if (!res.ok) throw new Error(errText(json, res));
         return json;
       } catch (e) {
         message.error(`Failed on “${file.name}”: ${e.message || e}`);
@@ -196,22 +264,11 @@ export default function DocFileRegister() {
       }
     };
 
-    uploadQueue.current = uploadQueue.current
-      .then(uploadTask)
-      .catch((error) => {
-        console.error("Upload queue error:", error);
-      })
-      .finally(() => {
-        activeUploads.current--;
-        if (activeUploads.current === 0) {
-          setUploading(false);
-          setUploadModalOpen(false);
-          message.success("Upload complete");
-          loadFolder(folderId || rootId, trail);
-        }
-      });
-
-    return false;
+    // Add to the waiting list and tell the queue manager to start working
+    pendingUploads.current.push(uploadTask);
+    processUploadQueue();
+    
+    return false; // Prevent default Ant Design upload behavior
   }
 
   async function ensureDocument(file) {

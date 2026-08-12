@@ -265,136 +265,144 @@ export async function scratchRoutes(app, { pool }) {
   });
 
   // ==========================================
-// DELETE FOLDER
-// ZOHO WORKDRIVE + POSTGRES
-// ==========================================
-app.delete("/api/v1/docs/scratch/folders/:id", async (request, reply) => {
-  const actor = requireJwt(request);
-  const folderId = String(request.params.id).trim();
+  // DELETE FOLDER
+  // ZOHO WORKDRIVE + POSTGRES
+  // ==========================================
+  app.delete("/api/v1/docs/scratch/folders/:id", async (request, reply) => {
+    const actor = requireJwt(request);
+    const folderId = String(request.params.id).trim();
 
-  try {
-    if (!folderId) {
-      return reply.code(400).send({
-        error: "folder_id_required",
-      });
-    }
+    try {
+      if (!folderId) {
+        return reply.code(400).send({
+          error: "folder_id_required",
+        });
+      }
 
-    const token = await getZohoAccessToken(pool, actor.email);
+      const token = await getZohoAccessToken(pool, actor.email);
 
-    // Move the folder to Zoho WorkDrive Trash.
-    // WorkDrive handles the folder and its contents.
-    await trashWorkdriveItem(token, folderId);
+      // Move the folder to Zoho WorkDrive Trash.
+      // WorkDrive handles the folder and its contents.
+      await trashWorkdriveItem(token, folderId);
 
-    // Remove local scratch-folder record.
-    await pool
-      .query(
-        `
-          DELETE FROM scratch_folders
-          WHERE id = $1
-             OR workdrive_folder_id = $1
-        `,
-        [folderId]
-      )
-      .catch(() => {});
+      // 1) NEW: Delete the folder share records so it disappears from "Shared by me"
+      await pool
+        .query(
+          `DELETE FROM folder_shares WHERE folder_id = $1`,
+          [folderId]
+        )
+        .catch((e) => request.log?.warn(e, "Failed to delete folder shares"));
 
-    return reply.send({
-      ok: true,
-      message: "Folder deleted successfully.",
-    });
-  } catch (e) {
-    request.log.error(e, "Folder deletion error");
-    return sendError(reply, e);
-  }
-});
-
-
-// ==========================================
-// DELETE FILE / DUMP
-// ZOHO WORKDRIVE + POSTGRES
-// ==========================================
-app.delete("/api/v1/docs/scratch/files/:id", async (request, reply) => {
-  const actor = requireJwt(request);
-  const fileId = String(request.params.id).trim();
-
-  try {
-    if (!fileId) {
-      return reply.code(400).send({
-        error: "file_id_required",
-      });
-    }
-
-    let file = null;
-
-    // First try WorkDrive file ID.
-    let dbRes = await pool.query(
-      `
-        SELECT *
-        FROM documents
-        WHERE workdrive_file_id = $1
-          AND zone = 'scratch'
-      `,
-      [fileId]
-    );
-
-    file = dbRes.rows[0];
-
-    // If not found, try internal document UUID.
-    if (!file) {
-      try {
-        dbRes = await pool.query(
+      // 2) Remove local scratch-folder record.
+      await pool
+        .query(
           `
-            SELECT *
-            FROM documents
-            WHERE id = $1::uuid
-              AND zone = 'scratch'
+            DELETE FROM scratch_folders
+            WHERE id = $1
+              OR workdrive_folder_id = $1
           `,
-          [fileId]
+          [folderId]
+        )
+        .catch(() => {});
+
+      return reply.send({
+        ok: true,
+        message: "Folder deleted successfully.",
+      });
+    } catch (e) {
+      request.log?.error(e, "Folder deletion error");
+      return sendError(reply, e);
+    }
+  });
+
+
+  // ==========================================
+  // DELETE FILE / DUMP
+  // ZOHO WORKDRIVE + POSTGRES
+  // ==========================================
+  app.delete("/api/v1/docs/scratch/files/:id", async (request, reply) => {
+    const actor = requireJwt(request);
+    const fileId = String(request.params.id).trim();
+
+    try {
+      if (!fileId) {
+        return reply.code(400).send({
+          error: "file_id_required",
+        });
+      }
+
+      let file = null;
+
+      // First try WorkDrive file ID.
+      let dbRes = await pool.query(
+        `
+          SELECT *
+          FROM documents
+          WHERE workdrive_file_id = $1
+            AND zone = 'scratch'
+        `,
+        [fileId]
+      );
+
+      file = dbRes.rows[0];
+
+      // If not found, try internal document UUID.
+      if (!file) {
+        try {
+          dbRes = await pool.query(
+            `
+              SELECT *
+              FROM documents
+              WHERE id = $1::uuid
+                AND zone = 'scratch'
+            `,
+            [fileId]
+          );
+
+          file = dbRes.rows[0];
+        } catch (_) {
+          // Ignore invalid UUID.
+        }
+      }
+
+      const token = await getZohoAccessToken(pool, actor.email);
+      const workdriveFileId = file?.workdrive_file_id || fileId;
+
+      if (workdriveFileId) {
+        // Move the WorkDrive file to Trash.
+        await trashWorkdriveItem(token, workdriveFileId);
+      }
+
+      // Delete local database records
+      if (file) {
+        // 1) NEW: Delete document shares so it disappears from "Shared by me"
+        await pool.query(
+          `DELETE FROM document_shares WHERE document_id = $1`,
+          [file.id]
+        ).catch((e) => request.log?.warn(e, "Failed to delete document shares"));
+
+        // 2) Delete local version records
+        await pool.query(
+          `DELETE FROM document_versions WHERE document_id = $1`,
+          [file.id]
         );
 
-        file = dbRes.rows[0];
-      } catch (_) {
-        // Ignore invalid UUID.
+        // 3) Delete local document record
+        await pool.query(
+          `DELETE FROM documents WHERE id = $1`,
+          [file.id]
+        );
       }
+
+      return reply.send({
+        ok: true,
+        message: "File deleted successfully.",
+      });
+    } catch (e) {
+      request.log?.error(e, "File deletion error");
+      return sendError(reply, e);
     }
-
-    const token = await getZohoAccessToken(pool, actor.email);
-
-    const workdriveFileId = file?.workdrive_file_id || fileId;
-
-    if (workdriveFileId) {
-      // Move the WorkDrive file to Trash.
-      await trashWorkdriveItem(token, workdriveFileId);
-    }
-
-    // Delete local version records first.
-    if (file) {
-      await pool.query(
-        `
-          DELETE FROM document_versions
-          WHERE document_id = $1
-        `,
-        [file.id]
-      );
-
-      // Delete local document record.
-      await pool.query(
-        `
-          DELETE FROM documents
-          WHERE id = $1
-        `,
-        [file.id]
-      );
-    }
-
-    return reply.send({
-      ok: true,
-      message: "File deleted successfully.",
-    });
-  } catch (e) {
-    request.log.error(e, "File deletion error");
-    return sendError(reply, e);
-  }
-});
+  });
 }
 
 /**
@@ -667,29 +675,14 @@ export async function uploadScratchWithPersonalFolder(pool, request, reply) {
   }
 }
 
-
 /**
- * Create/find a nested folder path starting from an arbitrary parent folder.
- *
- * Example:
- *
- * parentId = currently selected WorkDrive folder
- * path     = "Project/Reports/2026"
- *
- * Result:
- *
- * selected folder
- *   └── Project
- *       └── Reports
- *           └── 2026
- *
- * Returns the deepest folder.
+ * Create/find a nested folder path with IN-MEMORY CACHING and MUTEX LOCKS
+ * to prevent Zoho API rate-limiting and race condition crashes.
  */
-async function ensureFolderPathFromParent(
-  accessToken,
-  parentId,
-  pathStr
-) {
+const folderResolutionCache = new Map(); 
+const folderCreationLocks = new Map(); // NEW: Prevents Zoho from crashing on concurrent folder uploads
+
+async function ensureFolderPathFromParent(accessToken, parentId, pathStr) {
   const parts = String(pathStr || "")
     .replace(/\\/g, "/")
     .split("/")
@@ -697,46 +690,53 @@ async function ensureFolderPathFromParent(
     .filter(Boolean);
 
   let currentParentId = parentId;
-
-  let last = {
-    id: parentId,
-    name: "Current Folder",
-    kind: "folder",
-  };
+  let last = { id: parentId, name: "Current Folder", kind: "folder" };
 
   for (const name of parts) {
-    /*
-     * Check whether this folder already exists.
-     */
-    const listed = await listFolderItems(
-      accessToken,
-      currentParentId
-    );
-
-    const hit = (listed.items || []).find(
-      (item) =>
-        item.kind === "folder" &&
-        String(item.name || "")
-          .trim()
-          .toLowerCase() === name.toLowerCase()
-    );
-
-    /*
-     * Folder already exists.
-     */
-    if (hit) {
-      last = hit;
-      currentParentId = hit.id;
+    const cacheKey = `${currentParentId}-${name.toLowerCase()}`;
+    
+    // 1. If it's fully cached, use it immediately
+    if (folderResolutionCache.has(cacheKey)) {
+      last = folderResolutionCache.get(cacheKey);
+      currentParentId = last.id;
       continue;
     }
 
-    /*
-     * Folder doesn't exist — create it.
-     */
-    last = await createWorkdriveFolder(accessToken, {
-      parentId: currentParentId,
-      name,
-    });
+    // 2. If another file is currently creating this exact folder, WAIT for it!
+    if (folderCreationLocks.has(cacheKey)) {
+      last = await folderCreationLocks.get(cacheKey);
+      currentParentId = last.id;
+      continue;
+    }
+
+    // 3. Lock this folder path so other files wait instead of querying Zoho
+    let resolveLock;
+    const lockPromise = new Promise((resolve) => { resolveLock = resolve; });
+    folderCreationLocks.set(cacheKey, lockPromise);
+
+    try {
+      const listed = await listFolderItems(accessToken, currentParentId);
+      const hit = (listed.items || []).find(
+        (item) =>
+          item.kind === "folder" &&
+          String(item.name || "").trim().toLowerCase() === name.toLowerCase()
+      );
+
+      if (hit) {
+        last = hit;
+      } else {
+        last = await createWorkdriveFolder(accessToken, {
+          parentId: currentParentId,
+          name,
+        });
+      }
+
+      folderResolutionCache.set(cacheKey, last);
+      resolveLock(last); // Release the lock, pass the folder down to waiting files
+    } catch (e) {
+      folderCreationLocks.delete(cacheKey);
+      throw e;
+    }
 
     currentParentId = last.id;
   }

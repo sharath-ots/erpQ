@@ -109,6 +109,7 @@ export default function DocListView({
         <DocDocumentGrid
           documents={docs}
           loading={loading}
+          view={view}
           showActions={showActions}
           authorActions={authorActions}
           onSubmit={(row) => runTransition("submit", row, {})}

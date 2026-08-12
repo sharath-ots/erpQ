@@ -17,6 +17,7 @@ COPY aiQ ./aiQ
 COPY comDash ./comDash
 WORKDIR /repo/comDash
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_OPTIONS="--dns-result-order=ipv4first"
 RUN npm run build
 
 FROM node:20-alpine AS runner

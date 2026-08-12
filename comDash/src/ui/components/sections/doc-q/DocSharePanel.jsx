@@ -59,12 +59,13 @@ export default function DocSharePanel({ items = [], open, onClose, onChanged }) 
     try {
       for (const item of items) {
         const basePath = item.type === "folder" ? `/scratch/folders/${item.id}` : `/documents/${item.id}`;
-        
+
         const res = await apiFetch(docPath(`${basePath}/shares`), {
           method: "POST",
           body: JSON.stringify({ 
             granteeEmail: values.granteeEmail, 
-            permission: values.permission || "read"
+            permission: values.permission || "read",
+            folderName: item.name || item.title || item.folder_name || item.attributes?.name || "Shared Folder"
           }),
         });
         
@@ -92,7 +93,7 @@ export default function DocSharePanel({ items = [], open, onClose, onChanged }) 
     if (!isSingleItem) return;
     try {
       const basePath = singleItem.type === "folder" ? `/scratch/folders/${singleItem.id}` : `/documents/${singleItem.id}`;
-      const res = await apiFetch(docPath(`${basePath}/shares/${shareId}`), { method: "DELETE" });
+      const res = await apiFetch(docPath(`${basePath}/shares/${shareId}`), { method: "DELETE", body: JSON.stringify({}) });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
         throw new Error(json.error || json.detail || `Server error: ${res.status}`);

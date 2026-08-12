@@ -12,7 +12,7 @@ import {
 // HELPER: Generate a fresh 1-hour Admin Access Token using the Refresh Token
 // =========================================================================
 async function getAdminAccessToken() {
-  const refreshToken = process.env.AUTHQ_ZOHO_ADMIN_REFRESH_TOKEN || "1000.31efe4cc216b16d96b59dcfbf79ae037.e15b5f2e843a129727886a4be59b77f6";
+  const refreshToken = process.env.AUTHQ_ZOHO_ADMIN_REFRESH_TOKEN;
   const clientId = process.env.AUTHQ_ZOHO_CLIENT_ID;
   const clientSecret = process.env.AUTHQ_ZOHO_CLIENT_SECRET;
   
@@ -109,7 +109,7 @@ export async function sharesRoutes(app, { pool }) {
 
       if (granteeEmail && doc.workdrive_file_id) {
         try {
-          const token = await getAdminAccessToken();
+          const token = await getZohoAccessToken(pool, actor.email);
           const created = await createWorkdrivePermission(token, {
             resourceId: doc.workdrive_file_id,
             email: granteeEmail,
@@ -150,7 +150,7 @@ export async function sharesRoutes(app, { pool }) {
 
       if (share && share.workdrive_permission_id && share.workdrive_permission_id !== "internal-db-only") {
         try {
-          const token = await getAdminAccessToken();
+          const token = await getZohoAccessToken(pool, actor.email);
           await deleteWorkdrivePermission(token, share.workdrive_permission_id);
         } catch (err) {
           request.log?.warn("Failed to delete permission from Zoho, but removing from DB anyway.");
@@ -193,6 +193,8 @@ export async function sharesRoutes(app, { pool }) {
       const granteeEmail = request.body?.granteeEmail ? normalizeEmail(request.body.granteeEmail) : null;
       const permission = String(request.body?.permission || "read").trim();
 
+      const folderName = request.body?.folderName ? String(request.body.folderName).trim() : "Shared Folder";
+
       if (!granteeEmail) return reply.code(400).send({ error: "grantee_required", detail: "Please provide an email to share with." });
 
       let workdrivePermissionId = "internal-db-only";
@@ -214,9 +216,9 @@ export async function sharesRoutes(app, { pool }) {
 
       const shareId = crypto.randomUUID();
       await pool.query(
-        `insert into folder_shares (id, folder_id, grantee_email, permission, granted_by_email, workdrive_permission_id)
-         values ($1, $2, $3, $4, $5, $6)`,
-        [shareId, folderId, granteeEmail, permission, normalizeEmail(actor.email), workdrivePermissionId]
+        `insert into folder_shares (id, folder_id, grantee_email, permission, granted_by_email, workdrive_permission_id, folder_name)
+         values ($1, $2, $3, $4, $5, $6, $7)`,
+        [shareId, folderId, granteeEmail, permission, normalizeEmail(actor.email), workdrivePermissionId, folderName]
       );
       
       return reply.send({ ok: true, message: "Folder shared successfully" });
