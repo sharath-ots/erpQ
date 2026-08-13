@@ -2,7 +2,7 @@
 export const DOCQ_BASE_NAV = [
   { key: "docq-my", label: "My documents", path: "/m/docq/my-documents" },
   { key: "docq-new", label: "Create documents", path: "/m/docq/new" },
-  { key: "docq-register", label: "All my dump files", path: "/m/docq/register" },
+  { key: "docq-register", label: "Uncontrolled Repository", path: "/m/docq/register" },
   { key: "docq-shared-with-me", label: "Shared with me", path: "/m/docq/shared-with-me" },
   { key: "docq-shared-by-me", label: "Shared by me", path: "/m/docq/shared-by-me" },
   { key: "docq-changes", label: "Revision", path: "/m/docq/changes-requested" },

@@ -15,9 +15,11 @@ import {
   Typography,
   Upload,
   message,
+  Progress,
 } from "antd";
 import {
   ArrowLeftOutlined,
+  DeleteOutlined,
   FileOutlined,
   FolderOpenOutlined,
   FolderOutlined,
@@ -31,7 +33,7 @@ import {
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/apigate";
+import { apiFetch, getAccessToken } from "@/lib/apigate";
 import { docPath } from "./docQApi";
 import DocSharePanel from "./DocSharePanel";
 
@@ -54,13 +56,21 @@ export default function DocFileRegister() {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [creatingFolder, setCreatingFolder] = useState(false);
+  
+  // Progress Bar States
   const [uploading, setUploading] = useState(false);
+  const [overallProgress, setOverallProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState("active");
+  const totalBytesRef = useRef(0);
+  const loadedBytesRef = useRef({});
 
-  // Sharing states
+  // Sharing & Bulk Actions states
   const [shareItems, setShareItems] = useState([]); 
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
   const [sharingBulk, setSharingBulk] = useState(false);
+  const [deletingBulk, setDeletingBulk] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   // Registering states
   const [registerFile, setRegisterFile] = useState(null);
@@ -98,27 +108,32 @@ export default function DocFileRegister() {
     }
   }, []);
 
-  // --- NEW: Concurrent Upload Manager ---
-  const MAX_CONCURRENT_UPLOADS = 4; // Upload 4 files at the same time
+  const MAX_CONCURRENT_UPLOADS = 4;
   const pendingUploads = useRef([]);
   const activeUploadsCount = useRef(0);
 
   const processUploadQueue = useCallback(() => {
-    // Keep starting uploads until we hit our limit of 4
     while (pendingUploads.current.length > 0 && activeUploadsCount.current < MAX_CONCURRENT_UPLOADS) {
       const nextTask = pendingUploads.current.shift();
       activeUploadsCount.current++;
 
       nextTask().finally(() => {
         activeUploadsCount.current--;
-        processUploadQueue(); // Grab the next file in line
+        processUploadQueue();
 
-        // Check if the entire batch is completely finished
         if (activeUploadsCount.current === 0 && pendingUploads.current.length === 0) {
-          setUploading(false);
-          setUploadModalOpen(false);
-          message.success("Upload complete");
-          loadFolder(folderId || rootId, trail);
+          setOverallProgress(100);
+          setUploadStatus("success");
+          
+          setTimeout(() => {
+            setUploading(false);
+            setUploadModalOpen(false);
+            setOverallProgress(0);
+            totalBytesRef.current = 0;
+            loadedBytesRef.current = {};
+            message.success("Upload complete");
+            loadFolder(folderId || rootId, trail);
+          }, 750);
         }
       });
     }
@@ -176,7 +191,7 @@ export default function DocFileRegister() {
         okText: "OK",
         centered: true,
       });
-      return; // Stop here!
+      return;
     }
 
     setCreatingFolder(true);
@@ -201,17 +216,13 @@ export default function DocFileRegister() {
     }
   }
 
-  // NEW: Prevents duplicate error spam if dragging a folder with 50 files
   const duplicateWarnings = useRef(new Set());
 
-  // 👇 UPDATED: Removed 'async' keyword so Ant Design handles the rejection properly 👇
   function onUpload(file) {
-    // Figure out the actual top-level name being uploaded
     const isFolderUpload = !!file.webkitRelativePath;
     const topLevelName = isFolderUpload ? file.webkitRelativePath.split('/')[0] : file.name;
     const kind = isFolderUpload ? "folder" : "file";
 
-    // 👇 UPDATED: Crash-proof duplicate check 👇
     const isDuplicate = items.some((item) => {
       const itemName = String(item.name || item.title || item.dumpTitle || "");
       return itemName.toLowerCase() === topLevelName.toLowerCase() && item.kind === kind;
@@ -220,22 +231,29 @@ export default function DocFileRegister() {
     if (isDuplicate) {
       if (!duplicateWarnings.current.has(topLevelName)) {
         duplicateWarnings.current.add(topLevelName);
-        
         Modal.warning({
           title: "Item already exists",
           content: `The ${kind} “${topLevelName}” already exists in this folder.`,
           okText: "Understood",
           centered: true,
         });
-        
-        // Clear the warning lock after 5 seconds so it doesn't spam them
         setTimeout(() => duplicateWarnings.current.delete(topLevelName), 5000);
       }
-      return false; // Skip the upload entirely!
+      return false;
     }
 
-    // 2. Safely start the loading state only if it passes the check
+    // Reset tracking metrics safely if starting a fresh batch
+    if (!uploading && activeUploadsCount.current === 0 && pendingUploads.current.length === 0) {
+      setUploadStatus("active");
+      setOverallProgress(0);
+      totalBytesRef.current = 0;
+      loadedBytesRef.current = {};
+    }
+
     setUploading(true);
+    
+    totalBytesRef.current += file.size || 0;
+    loadedBytesRef.current[file.uid] = 0;
 
     const uploadTask = async () => {
       try {
@@ -250,25 +268,55 @@ export default function DocFileRegister() {
           form.append("folderId", rootId);
         }
 
-        const res = await apiFetch(docPath("/scratch/upload"), {
-          method: "POST",
-          body: form,
+        const json = await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", docPath("/scratch/upload"));
+
+          const token = getAccessToken();
+          if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+              loadedBytesRef.current[file.uid] = e.loaded;
+              
+              const currentTotalLoaded = Object.values(loadedBytesRef.current).reduce((a, b) => a + b, 0);
+              let percent = Math.round((currentTotalLoaded / totalBytesRef.current) * 100);
+              if (percent >= 100) percent = 99; 
+              
+              setOverallProgress(percent);
+            }
+          };
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              loadedBytesRef.current[file.uid] = file.size;
+              try { resolve(JSON.parse(xhr.responseText)); } catch (err) { resolve({}); }
+            } else {
+              try {
+                const errJson = JSON.parse(xhr.responseText);
+                reject(new Error(errJson.detail || errJson.error || xhr.statusText));
+              } catch (err) {
+                reject(new Error(xhr.statusText));
+              }
+            }
+          };
+
+          xhr.onerror = () => reject(new Error("Network Error"));
+          xhr.send(form);
         });
 
-        const json = await res.json();
-        if (!res.ok) throw new Error(errText(json, res));
         return json;
       } catch (e) {
+        setUploadStatus("exception");
         message.error(`Failed on “${file.name}”: ${e.message || e}`);
         return null;
       }
     };
 
-    // Add to the waiting list and tell the queue manager to start working
     pendingUploads.current.push(uploadTask);
     processUploadQueue();
-    
-    return false; // Prevent default Ant Design upload behavior
+
+    return false;
   }
 
   async function ensureDocument(file) {
@@ -323,13 +371,57 @@ export default function DocFileRegister() {
     }
   }
 
+  async function onDeleteSelected() {
+    if (!selectedRows.length) return;
+    
+    setDeletingBulk(true);
+    
+    const keysToDelete = new Set(selectedRowKeys);
+    setItems((prevItems) => prevItems.filter((item) => !keysToDelete.has(item.id)));
+
+    try {
+      const promises = selectedRows.map((row) => {
+        const isFolder = row.kind === "folder";
+        const endpoint = isFolder 
+          ? docPath(`/scratch/folders/${row.id}`) 
+          : docPath(`/scratch/files/${row.id}`);
+
+        return apiFetch(endpoint, {
+          method: "DELETE",
+          body: JSON.stringify({}),
+        }).then(async (res) => {
+          if (!res.ok) {
+            const json = await res.json().catch(() => ({}));
+            throw new Error(json.detail || json.error || "Delete failed");
+          }
+        });
+      });
+
+      const results = await Promise.allSettled(promises);
+      const failures = results.filter(r => r.status === "rejected");
+
+      if (failures.length > 0) {
+        message.warning(`${results.length - failures.length} deleted, but ${failures.length} failed.`);
+      } else {
+        message.success(`${selectedRows.length} items deleted successfully`);
+      }
+    } catch (e) {
+      message.error(`Bulk delete error: ${e.message}`);
+    } finally {
+      setDeletingBulk(false);
+      setBulkDeleteOpen(false);
+      setSelectedRowKeys([]);
+      setSelectedRows([]);
+      loadFolder(folderId || rootId, trail);
+    }
+  }
+
   async function onDelete(row) {
     const isFolder = row.kind === "folder";
     const endpoint = isFolder 
       ? docPath(`/scratch/folders/${row.id}`) 
       : docPath(`/scratch/files/${row.id}`);
 
-    // Optimistically remove from UI immediately
     setItems((prevItems) => prevItems.filter((item) => item.id !== row.id));
 
     try {
@@ -432,7 +524,7 @@ export default function DocFileRegister() {
       width: 120,
       render: (_, row) => {
         if (row.kind === "folder") return "—";
-        return row.registered ? <Tag color="green">Registered</Tag> : <Tag>Dump</Tag>;
+        return row.registered ? <Tag color="green">Registered</Tag> : <Tag>Temp</Tag>;
       },
     },
     {
@@ -529,25 +621,32 @@ export default function DocFileRegister() {
         extra={
           <Space wrap>
             {selectedRowKeys.length > 0 && (
-              <Button 
-                type="primary" 
-                ghost 
-                icon={<ShareAltOutlined />} 
-                onClick={onShareSelected}
-                loading={sharingBulk}
-              >
-                Share {selectedRowKeys.length} selected
-              </Button>
+              <>
+                <Button 
+                  type="primary" 
+                  ghost 
+                  icon={<ShareAltOutlined />} 
+                  onClick={onShareSelected}
+                  loading={sharingBulk}
+                >
+                  Share {selectedRowKeys.length} selected
+                </Button>
+                <Button 
+                  danger 
+                  icon={<DeleteOutlined />} 
+                  onClick={() => setBulkDeleteOpen(true)}
+                >
+                  Delete {selectedRowKeys.length} selected
+                </Button>
+              </>
             )}
             <Button icon={<ReloadOutlined />} onClick={() => loadFolder(folderId, trail)}>
-              Refresh
             </Button>
             <Button
               icon={<PlusOutlined />}
               onClick={() => setCreateOpen(true)}
               disabled={!folderId && !rootId}
             >
-              New folder
             </Button>
             <Button
               type="primary"
@@ -555,7 +654,6 @@ export default function DocFileRegister() {
               onClick={() => setUploadModalOpen(true)}
               disabled={!folderId && !rootId}
             >
-              Upload
             </Button>
           </Space>
         }
@@ -580,6 +678,18 @@ export default function DocFileRegister() {
               ? { onDoubleClick: () => openFolder(row), style: { cursor: "pointer" } }
               : {}
           }
+          footer={() => {
+            const folderCount = items.filter(item => item.kind === "folder").length;
+            const fileCount = items.filter(item => item.kind !== "folder").length;
+            
+            if (items.length === 0) return null;
+
+            return (
+              <Typography.Text type="secondary" style={{ fontSize: '13px' }}>
+                {folderCount} folder{folderCount !== 1 ? 's' : ''} and {fileCount} file{fileCount !== 1 ? 's' : ''}
+              </Typography.Text>
+            );
+          }}
         />
       </Card>
 
@@ -587,9 +697,17 @@ export default function DocFileRegister() {
       <Modal
         title={`Upload to “${currentName}”`}
         open={uploadModalOpen}
-        onCancel={() => !uploading && setUploadModalOpen(false)}
+        onCancel={() => {
+          if (!uploading) {
+            setUploadModalOpen(false);
+          }
+        }}
         footer={
-          <Button onClick={() => setUploadModalOpen(false)} disabled={uploading}>
+          <Button onClick={() => {
+            setUploadModalOpen(false);
+            setUploading(false);
+            setOverallProgress(0);
+          }} disabled={uploading}>
             Cancel
           </Button>
         }
@@ -614,6 +732,27 @@ export default function DocFileRegister() {
             </p>
           </Upload.Dragger>
         </div>
+
+        {uploading && (
+          <div style={{ marginTop: 24, padding: "0 12px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <Typography.Text type="secondary" strong>
+                {overallProgress === 100 ? "Finalizing upload..." : "Uploading batch..."}
+              </Typography.Text>
+              <Typography.Text type="secondary">{overallProgress}%</Typography.Text>
+            </div>
+            <Progress
+              percent={overallProgress}
+              status={uploadStatus}
+              showInfo={false}
+              size={["100%", 10]}
+              strokeColor={{
+                '0%': '#108ee9',
+                '100%': '#87d068',
+              }}
+            />
+          </div>
+        )}
 
         <div style={{ marginTop: 24, textAlign: "center", borderTop: "1px solid #f0f0f0", paddingTop: 16 }}>
           <Typography.Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
@@ -701,6 +840,22 @@ export default function DocFileRegister() {
             Copy &amp; register
           </Button>
         </Form>
+      </Modal>
+
+      {/* Bulk Delete Confirmation Modal */}
+      <Modal
+        title={`Delete ${selectedRowKeys.length} items?`}
+        open={bulkDeleteOpen}
+        onOk={onDeleteSelected}
+        confirmLoading={deletingBulk}
+        onCancel={() => setBulkDeleteOpen(false)}
+        okText="Yes, delete"
+        okButtonProps={{ danger: true }}
+        centered
+      >
+        <Typography.Text>
+          Are you sure you want to delete the selected items.
+        </Typography.Text>
       </Modal>
 
       <DocSharePanel
