@@ -689,15 +689,6 @@ export async function createWorkdriveFolder(accessToken, { parentId, name }) {
         },
       },
     },
-    {
-      path: `/workdrive/api/v1/files/${encodeURIComponent(parentId)}/files`,
-      body: {
-        data: {
-          attributes: { name, type: "folder" },
-          type: "files",
-        },
-      },
-    },
   ];
 
   let lastErr = null;
