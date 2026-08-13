@@ -285,6 +285,9 @@ export async function scratchRoutes(app, { pool }) {
       // WorkDrive handles the folder and its contents.
       await trashWorkdriveItem(token, folderId);
 
+      folderResolutionCache.clear();
+      folderCreationLocks.clear();
+
       // 1) NEW: Delete the folder share records so it disappears from "Shared by me"
       await pool
         .query(
@@ -733,6 +736,7 @@ async function ensureFolderPathFromParent(accessToken, parentId, pathStr) {
 
       folderResolutionCache.set(cacheKey, last);
       resolveLock(last); // Release the lock, pass the folder down to waiting files
+      folderCreationLocks.delete(cacheKey);
     } catch (e) {
       folderCreationLocks.delete(cacheKey);
       throw e;
