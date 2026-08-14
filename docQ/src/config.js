@@ -86,12 +86,13 @@ export const env = {
   scratchRootFolderId: opt("DOCQ_SCRATCH_ROOT", ""),
   managedRootFolderId: opt("DOCQ_MANAGED_ROOT", ""),
 
-  /** Shared library parent (Team Folder / workspace id). Empty = first accessible team workspace. */
+  /** Shared library parent — prefer the General folder resource id (from WorkDrive URL). */
   sharedParentFolderId: opt("DOCQ_SHARED_PARENT_FOLDER_ID", ""),
   /**
-   * Intermediate folder under the Team Folder that holds Org_Folder + Temp_Folder.
-   * Path: Team Folder → {vaultLibraryFolderName} → Org_Folder / Temp_Folder
-   * Set empty to place Org/Temp directly under DOCQ_SHARED_PARENT_FOLDER_ID.
+   * Intermediate folder under a Team Folder that holds Org_Folder + Temp_Folder.
+   * Path: Team Folder → General → Org_Folder / Temp_Folder
+   * If DOCQ_SHARED_PARENT_FOLDER_ID is already General, Org/Temp are found directly.
+   * Zoho R602: do not use Team Folder root as create parent — use General's folder id.
    */
   vaultLibraryFolderName: opt("DOCQ_VAULT_LIBRARY_FOLDER_NAME", "General"),
   managedFolderName: opt("DOCQ_MANAGED_FOLDER_NAME", "Managed Org Folder"),
