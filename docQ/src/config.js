@@ -88,6 +88,12 @@ export const env = {
 
   /** Shared library parent (Team Folder / workspace id). Empty = first accessible team workspace. */
   sharedParentFolderId: opt("DOCQ_SHARED_PARENT_FOLDER_ID", ""),
+  /**
+   * Intermediate folder under the Team Folder that holds Org_Folder + Temp_Folder.
+   * Path: Team Folder → {vaultLibraryFolderName} → Org_Folder / Temp_Folder
+   * Set empty to place Org/Temp directly under DOCQ_SHARED_PARENT_FOLDER_ID.
+   */
+  vaultLibraryFolderName: opt("DOCQ_VAULT_LIBRARY_FOLDER_NAME", "General"),
   managedFolderName: opt("DOCQ_MANAGED_FOLDER_NAME", "Managed Org Folder"),
   dumpFolderName: opt("DOCQ_DUMP_FOLDER_NAME", "Shared Dump Folder"),
 

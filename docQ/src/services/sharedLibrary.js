@@ -59,7 +59,7 @@ async function ensureNamedFolder(accessToken, parentId, folderName) {
 
     const e = new Error(
       err.message ||
-        `Cannot create "${folderName}" under the vault Team Folder. Confirm DOCQ_SHARED_PARENT_FOLDER_ID and that the service Zoho account is Admin on that Team Folder.`,
+        `Cannot create "${folderName}" under the vault. Confirm DOCQ_SHARED_PARENT_FOLDER_ID and that the service Zoho account is Admin on that Team Folder.`,
     );
     e.statusCode = err.statusCode === 403 ? 403 : 502;
     e.code = "shared_folder_create_denied";
@@ -69,7 +69,39 @@ async function ensureNamedFolder(accessToken, parentId, folderName) {
 }
 
 /**
- * Ensure Managed vault folder (+ optional dump folder name) exist under the Team Folder.
+ * Resolve where Org_Folder / Temp_Folder live.
+ *
+ * Canonical path: Team Folder → General → Org_Folder / Temp_Folder
+ *
+ * Compatibility:
+ * - If Org_Folder or Temp_Folder already sit directly under the configured parent
+ *   (parent is already "General"), use that parent as the library root.
+ * - Else ensure/find DOCQ_VAULT_LIBRARY_FOLDER_NAME (default "General") under the parent.
+ * - If DOCQ_VAULT_LIBRARY_FOLDER_NAME is empty, use the Team Folder parent directly.
+ */
+async function resolveLibraryRoot(accessToken, teamParentId) {
+  const managedName = env.managedFolderName;
+  const dumpName = env.dumpFolderName;
+
+  const managedDirect = await findChildFolderByName(accessToken, teamParentId, managedName, {
+    team: true,
+  });
+  if (managedDirect?.id) return teamParentId;
+
+  const dumpDirect = await findChildFolderByName(accessToken, teamParentId, dumpName, {
+    team: true,
+  });
+  if (dumpDirect?.id) return teamParentId;
+
+  const libraryName = String(env.vaultLibraryFolderName || "").trim();
+  if (!libraryName) return teamParentId;
+
+  const libraryFolder = await ensureNamedFolder(accessToken, teamParentId, libraryName);
+  return libraryFolder.id;
+}
+
+/**
+ * Ensure Managed vault folder (+ dump folder) exist under Team Folder → General.
  * Recreates children if WorkDrive folders were deleted but DB still held stale ids.
  *
  * Vault model: Team Folder members should be service-account only; end users get
@@ -90,20 +122,32 @@ export async function ensureSharedLibrary(pool, accessToken, actorEmail, jwtUser
 
   const tenant = await upsertTenant(pool, cfg);
   const me = await fetchWorkdriveMe(accessToken);
-  const parentId = await resolveSharedParent(accessToken, me, cfg);
+  const teamParentId = await resolveSharedParent(accessToken, me, cfg);
 
-  if (!(await folderAlive(accessToken, parentId))) {
+  if (!(await folderAlive(accessToken, teamParentId))) {
     const e = new Error(
-      `Vault parent Team Folder "${parentId}" is missing or inaccessible to the service account. Update DOCQ_SHARED_PARENT_FOLDER_ID and ensure the service account is a Team Folder Admin.`,
+      `Vault Team Folder "${teamParentId}" is missing or inaccessible to the service account. Update DOCQ_SHARED_PARENT_FOLDER_ID and ensure the service account is a Team Folder Admin.`,
     );
     e.statusCode = 412;
     e.code = "shared_parent_missing";
     throw e;
   }
 
+  const libraryRootId = await resolveLibraryRoot(accessToken, teamParentId);
+
+  if (!(await folderAlive(accessToken, libraryRootId))) {
+    const e = new Error(
+      `Vault library folder "${libraryRootId}" (expected Team Folder → General) is inaccessible. Check DOCQ_SHARED_PARENT_FOLDER_ID / DOCQ_VAULT_LIBRARY_FOLDER_NAME.`,
+    );
+    e.statusCode = 412;
+    e.code = "shared_parent_missing";
+    throw e;
+  }
+
+  // Cache key is the library root (General), where Org_Folder / Temp_Folder live.
   const { rows: cached } = await pool.query(
     `select * from workdrive_library where tenant_id = $1 and parent_folder_id = $2`,
-    [tenant.id, parentId],
+    [tenant.id, libraryRootId],
   );
 
   let managedId =
@@ -121,12 +165,26 @@ export async function ensureSharedLibrary(pool, accessToken, actorEmail, jwtUser
     dumpId = null;
   }
 
+  // Prefer finding existing Org_Folder / Temp_Folder under General even if cache empty.
   if (!managedId) {
-    const folder = await ensureNamedFolder(accessToken, parentId, env.managedFolderName);
+    const existing = await findChildFolderByName(accessToken, libraryRootId, env.managedFolderName, {
+      team: true,
+    });
+    if (existing?.id) managedId = existing.id;
+  }
+  if (!dumpId) {
+    const existing = await findChildFolderByName(accessToken, libraryRootId, env.dumpFolderName, {
+      team: true,
+    });
+    if (existing?.id) dumpId = existing.id;
+  }
+
+  if (!managedId) {
+    const folder = await ensureNamedFolder(accessToken, libraryRootId, env.managedFolderName);
     managedId = folder.id;
   }
   if (!dumpId) {
-    const folder = await ensureNamedFolder(accessToken, parentId, env.dumpFolderName);
+    const folder = await ensureNamedFolder(accessToken, libraryRootId, env.dumpFolderName);
     dumpId = folder.id;
   }
 
@@ -139,7 +197,7 @@ export async function ensureSharedLibrary(pool, accessToken, actorEmail, jwtUser
        dump_folder_id = excluded.dump_folder_id,
        ensured_by_email = excluded.ensured_by_email,
        ensured_at = now()`,
-    [tenant.id, parentId, managedId, dumpId, actorEmail],
+    [tenant.id, libraryRootId, managedId, dumpId, actorEmail],
   );
 
   await pool.query(
@@ -149,19 +207,20 @@ export async function ensureSharedLibrary(pool, accessToken, actorEmail, jwtUser
        dump_folder_id = $4,
        updated_at = now()
      where id = $1`,
-    [tenant.id, parentId, managedId, dumpId],
+    [tenant.id, libraryRootId, managedId, dumpId],
   );
 
-  // Drop obsolete cache rows (e.g. parent_folder_id = 'root') for this tenant.
+  // Drop obsolete cache rows (wrong parent / old team-root rows) for this tenant.
   await pool.query(
     `delete from workdrive_library
      where tenant_id = $1 and parent_folder_id is distinct from $2`,
-    [tenant.id, parentId],
+    [tenant.id, libraryRootId],
   );
 
   return {
     tenantId: tenant.id,
-    parentFolderId: parentId,
+    parentFolderId: libraryRootId,
+    teamParentFolderId: teamParentId,
     managedFolderId: managedId,
     dumpFolderId: dumpId,
     created: true,
