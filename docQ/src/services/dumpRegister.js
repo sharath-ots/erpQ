@@ -12,6 +12,7 @@ import {
 } from "./workdrive.js";
 import { ensureSharedLibrary } from "./sharedLibrary.js";
 import { grantVaultFileAccess } from "./vaultAccess.js";
+import { ensureProjectDocTypeFolder } from "./projectFolders.js";
 
 async function resolveManagedParent(pool, serviceToken, actor) {
   const serviceEmail = env.serviceZohoEmail || actor.email;
@@ -117,6 +118,13 @@ export async function registerDumpToManaged(pool, actor, {
   let parentId;
   let resolvedProjectId = null;
   const serviceToken = await getServiceZohoAccessToken(pool);
+  const docTypeKey = String(docType || "general").trim() || "general";
+  const { rows: typeRows } = await pool.query(
+    `select * from doc_type_definitions where doc_type = $1 and active = true`,
+    [docTypeKey],
+  );
+  const docTypeDef = typeRows[0] || null;
+
   if (projectId) {
     const { rows: projRows } = await pool.query(
       `select id, workdrive_folder_id from projects where id = $1 and active = true`,
@@ -130,6 +138,15 @@ export async function registerDumpToManaged(pool, actor, {
     resolvedProjectId = projRows[0].id;
     parentId = projRows[0].workdrive_folder_id
       || (await resolveManagedParent(pool, serviceToken, actor));
+    if (projRows[0].workdrive_folder_id) {
+      const typeFolder = await ensureProjectDocTypeFolder(
+        serviceToken,
+        projRows[0].workdrive_folder_id,
+        docTypeKey,
+        docTypeDef,
+      );
+      parentId = typeFolder.id;
+    }
   } else {
     parentId = await resolveManagedParent(pool, serviceToken, actor);
   }

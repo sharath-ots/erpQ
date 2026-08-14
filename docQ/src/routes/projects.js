@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { requireJwt, isDocAdmin, normalizeEmail, sendError } from "../lib/auth.js";
 import { getServiceZohoAccessToken } from "../services/zohoAuth.js";
 import { ensureSharedLibrary } from "../services/sharedLibrary.js";
-import { createWorkdriveFolder, findChildFolderByName } from "../services/workdrive.js";
+import { ensureNamedFolder } from "../services/projectFolders.js";
 import { env } from "../config.js";
 
 async function ensureProjectFolder(pool, actor, projectKey, projectName) {
@@ -11,11 +11,7 @@ async function ensureProjectFolder(pool, actor, projectKey, projectName) {
   const library = await ensureSharedLibrary(pool, serviceToken, serviceEmail, actor);
   const parentId = library.managedFolderId;
   const folderName = String(projectName || projectKey).trim().slice(0, 80);
-  const existing = await findChildFolderByName(serviceToken, parentId, folderName, {
-    team: true,
-  });
-  if (existing?.id) return existing;
-  return createWorkdriveFolder(serviceToken, { parentId, name: folderName });
+  return ensureNamedFolder(serviceToken, parentId, folderName);
 }
 
 export async function projectsRoutes(app, { pool }) {

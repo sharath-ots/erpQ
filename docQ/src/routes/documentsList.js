@@ -12,6 +12,7 @@ import {
 import { uploadWorkdriveFile } from "../services/workdrive.js";
 import { ensureSharedLibrary } from "../services/sharedLibrary.js";
 import { grantVaultFileAccess } from "../services/vaultAccess.js";
+import { ensureProjectDocTypeFolder } from "../services/projectFolders.js";
 import { normalizeMetadataInput, recordMetadataHistory } from "../services/documentMetadata.js";
 import { env } from "../config.js";
 import { computeNextAction } from "../lib/documentDisplay.js";
@@ -306,10 +307,22 @@ export async function documentsListRoutes(app, { pool }) {
       let projectId = null;
       const projectField = String(fields.projectId || fields.project_id || "").trim();
       if (projectField) {
-        const { rows: projRows } = await pool.query(`select id, workdrive_folder_id from projects where id = $1 and active = true`, [projectField]);
+        const { rows: projRows } = await pool.query(
+          `select id, workdrive_folder_id from projects where id = $1 and active = true`,
+          [projectField],
+        );
         if (!projRows[0]) return reply.code(400).send({ error: "project_not_found" });
         projectId = projRows[0].id;
-        if (projRows[0].workdrive_folder_id) parentId = projRows[0].workdrive_folder_id;
+        if (projRows[0].workdrive_folder_id) {
+          // Org_Folder → Project → {DocType} → file
+          const typeFolder = await ensureProjectDocTypeFolder(
+            serviceToken,
+            projRows[0].workdrive_folder_id,
+            meta.doc_type || docType,
+            docTypeDef,
+          );
+          parentId = typeFolder.id;
+        }
       }
 
       const uploaded = await uploadWorkdriveFile(serviceToken, { parentId, filename: file.filename, buffer: file.buffer, contentType: file.mimetype });
