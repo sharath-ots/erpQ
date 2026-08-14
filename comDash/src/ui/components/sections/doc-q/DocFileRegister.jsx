@@ -56,6 +56,7 @@ export default function DocFileRegister() {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [creatingFolder, setCreatingFolder] = useState(false);
+  const [uploadErrorMessage, setUploadErrorMessage] = useState(null);
   
   // Progress Bar States
   const [uploading, setUploading] = useState(false);
@@ -228,18 +229,17 @@ export default function DocFileRegister() {
       return itemName.toLowerCase() === topLevelName.toLowerCase() && item.kind === kind;
     });
 
+    // 1. FRONTEND CHECK: Trigger the React State Modal
     if (isDuplicate) {
       if (!duplicateWarnings.current.has(topLevelName)) {
         duplicateWarnings.current.add(topLevelName);
-        Modal.warning({
-          title: "Item already exists",
-          content: `The ${kind} “${topLevelName}” already exists in this folder.`,
-          okText: "Understood",
-          centered: true,
-        });
+        
+        // Use standard React state instead of Antd imperative methods
+        setUploadErrorMessage(`The ${kind} “${topLevelName}” already exists.`);
+        
         setTimeout(() => duplicateWarnings.current.delete(topLevelName), 5000);
       }
-      return false;
+      return false; // Prevent the upload completely
     }
 
     // Reset tracking metrics safely if starting a fresh batch
@@ -294,7 +294,12 @@ export default function DocFileRegister() {
             } else {
               try {
                 const errJson = JSON.parse(xhr.responseText);
-                reject(new Error(errJson.detail || errJson.error || xhr.statusText));
+                
+                if (xhr.status === 409 || errJson.error === "duplicate") {
+                   reject(new Error(`The ${kind} “${topLevelName}” already exists, so it cannot be uploaded.`));
+                } else {
+                   reject(new Error(errJson.detail || errJson.error || xhr.statusText));
+                }
               } catch (err) {
                 reject(new Error(xhr.statusText));
               }
@@ -308,7 +313,8 @@ export default function DocFileRegister() {
         return json;
       } catch (e) {
         setUploadStatus("exception");
-        message.error(`Failed on “${file.name}”: ${e.message || e}`);
+        // Trigger React State Modal for backend errors too
+        setUploadErrorMessage(e.message || `Failed to upload “${file.name}”`);
         return null;
       }
     };
@@ -855,6 +861,25 @@ export default function DocFileRegister() {
       >
         <Typography.Text>
           Are you sure you want to delete the selected items.
+        </Typography.Text>
+      </Modal>
+
+      <Modal
+        title={
+          <span style={{ color: '#ff4d4f' }}>
+            Upload Blocked
+          </span>
+        }
+        open={!!uploadErrorMessage}
+        onOk={() => setUploadErrorMessage(null)}
+        onCancel={() => setUploadErrorMessage(null)}
+        okText="Understood"
+        cancelButtonProps={{ style: { display: 'none' } }} // Hide the cancel button
+        centered
+        zIndex={3000} // Extreme high z-index guarantees it sits above the drag-and-drop modal
+      >
+        <Typography.Text style={{ fontSize: '16px' }}>
+          {uploadErrorMessage}
         </Typography.Text>
       </Modal>
 
