@@ -306,9 +306,9 @@ services:
       start_period: 30s
   
   db:
-    image: pgvector/pgvector:pg16   # <--- Use this instead of postgres:16
+    image: pgvector/pgvector:pg16
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}

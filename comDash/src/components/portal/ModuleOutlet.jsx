@@ -13,14 +13,14 @@ import ViewLeadScreen from "../../../../crmQ/src/ui/ViewLeadScreen";
 import EditLeadPage from "../../../../crmQ/pages/crm/lead-list/edit/[id]";
 import DocDashboard from "../../ui/components/sections/doc-q/DocDashboard";
 import DocWorkflowsAdmin from "../../ui/components/sections/doc-q/DocWorkflowsAdmin";
-import DocFileRegister from "../../ui/components/sections/doc-q/DocFileRegister";
+import DocFileRegister from "../../../../docQ/src/pages/UploadDocumentList";
 import DocErpNextLinker from "../../ui/components/sections/doc-q/DocErpNextLinker";
-import DocLibrary from "../../ui/components/sections/doc-q/DocLibrary";
+import DocLibrary from "../../../../docQ/src/pages/DocLibrary";
 import DocMyDocuments from "../../ui/components/sections/doc-q/DocMyDocuments";
 import DocWorkflowSetup from "../../ui/components/sections/doc-q/DocWorkflowSetup";
 import DocInbox from "../../ui/components/sections/doc-q/DocInbox";
-import DocNewUpload from "../../ui/components/sections/doc-q/DocNewUpload";
-import DocDetail from "../../ui/components/sections/doc-q/DocDetail";
+import DocNewUpload from "../../../../docQ/src/pages/CreateNewDocument";
+import DocDetail from "../../../../docQ/src/pages/DocDetail";
 import DocTypeAdmin from "../../ui/components/sections/doc-q/DocTypeAdmin";
 import DocProjectsAdmin from "../../ui/components/sections/doc-q/DocProjectsAdmin";
 import { useThemeMode } from '../../ui/hooks/useThemeMode';
@@ -36,6 +36,7 @@ import ViewOpportunityScreen from "../../../../crmQ/src/ui/ViewOpportunityScreen
 import { usePortalMenu } from "./PortalMenuProvider";
 import { useERPUser } from '../../ui/providers/ERPUserProvider';
 import ChatPage from "../../../../crmQ/ai/chat-bot/ChatPage";
+import DocListView from "../../../../docQ/src/pages/DocListView";
 
 const HrqShell = dynamic(
   () => import("@cityq/hrq").then((m) => ({ default: m.HrqShell })),
@@ -184,10 +185,10 @@ export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskB
 
   if (/^\/m\/docq/i.test(pathname)) {
     const normalized = pathname.replace(/^\/m\/docq/i, "/m/docq").replace(/\/$/, "");
-    if (normalized === "/m/docq") return <DocMyDocuments />;
+    if (normalized === "/m/docq") return <DocListView />;
     if (normalized === "/m/docq/scratch" || normalized === "/m/docq/register") return <DocFileRegister />;
     if (normalized === "/m/docq/documents") return <DocLibrary view="all" />;
-    if (normalized === "/m/docq/my-documents") return <DocMyDocuments />;
+    if (normalized === "/m/docq/my-documents") return <DocListView />;
     if (normalized === "/m/docq/shared-with-me") return <DocLibrary view="shared_with_me" />;
     if (normalized === "/m/docq/shared-by-me") return <DocLibrary view="shared_by_me" />;
     if (normalized === "/m/docq/changes-requested") return <DocLibrary view="changes_requested" />;

@@ -7,7 +7,7 @@ import postgres from "postgres";
 import crypto from "crypto";
 
 // Connect to exposed Docker port on localhost
-const connectionString = "postgresql://postgres:erpq-postgres@localhost:5432/erpq";
+const connectionString = "postgresql://postgres:erpq-postgres@localhost:5433/erpq";
 const client = postgres(connectionString, { prepare: false });
 const db = drizzle(client);
 

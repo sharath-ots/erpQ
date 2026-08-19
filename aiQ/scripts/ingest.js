@@ -7,7 +7,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 // 🔴 Update your database password here!
-const connectionString = "postgresql://postgres:erpq-postgres@localhost:5432/erpq";
+const connectionString = "postgresql://postgres:erpq-postgres@localhost:5433/erpq";
 const client = postgres(connectionString, { prepare: false });
 const db = drizzle(client);
 

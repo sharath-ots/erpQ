@@ -15,6 +15,7 @@ COPY purQ ./purQ
 COPY supplierQ ./supplierQ
 COPY aiQ ./aiQ
 COPY comDash ./comDash
+COPY docQ ./docQ
 WORKDIR /repo/comDash
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--dns-result-order=ipv4first"
