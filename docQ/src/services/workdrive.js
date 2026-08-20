@@ -414,35 +414,45 @@ export async function uploadWorkdriveFile(accessToken, {
   filename,
   buffer,
   contentType = "application/octet-stream",
+  fileSize, // <--- NEW PARAMETER
 }) {
   if (!parentId) {
     const e = new Error("parent_folder_required");
     e.statusCode = 400;
     throw e;
   }
-
   const region = workdriveRegion();
   const auth = { Authorization: `Zoho-oauthtoken ${accessToken}` };
   let lastErr = null;
+  const isStream = typeof buffer.pipe === 'function';
 
-  // Stream upload (required for EU; also works on other DCs).
+  // 1. Primary: Zoho Stream Upload Endpoint
   try {
+    const headers = {
+      ...auth,
+      "Content-Type": contentType,
+      "x-filename": encodeURIComponent(filename),
+      "x-parent_id": parentId,
+      "upload-id": crypto.randomUUID(),
+      "x-streammode": "1",
+      "override-name-exist": "true",
+    };
+
+    // Inject Content-Length if available to prevent Zoho 502 Bad Gateway on large files
+    if (fileSize) {
+      headers["Content-Length"] = String(fileSize);
+    }
+
     const res = await fetch(
       `${uploadStreamRoot()}/workdrive-api/v1/stream/upload`,
       {
         method: "POST",
-        headers: {
-          ...auth,
-          "Content-Type": contentType,
-          "x-filename": encodeURIComponent(filename),
-          "x-parent_id": parentId,
-          "upload-id": crypto.randomUUID(),
-          "x-streammode": "1",
-          "override-name-exist": "true",
-        },
+        headers,
         body: buffer,
+        duplex: "half", // Strictly required by Node fetch for streams
       },
     );
+    
     const json = await readUploadJson(res);
     if (res.ok) {
       const parsed = parseUploadResponse(json, filename);
@@ -457,6 +467,15 @@ export async function uploadWorkdriveFile(accessToken, {
     lastErr = err;
   }
 
+  // Safety Check: A stream can only be read once. If it failed above, we cannot fallback.
+  if (isStream && lastErr) {
+    const e = new Error(lastErr.message || "workdrive_stream_upload_failed");
+    e.statusCode = 502;
+    e.detail = `WorkDrive Stream Error: ${lastErr.message}`;
+    throw e;
+  }
+
+  // 2. Fallback: Multipart Upload (Only runs if 'buffer' is a raw Buffer and the first attempt failed)
   const multipartAttempts = [
     {
       url: `${legacyWorkdriveRoot()}/api/v1/upload`,
@@ -497,11 +516,11 @@ export async function uploadWorkdriveFile(accessToken, {
     }
   }
 
-  const e = lastErr || new Error("workdrive_upload_failed");
+  const e = new Error(lastErr?.message || "workdrive_upload_failed");
   e.statusCode = 502;
-  e.detail = region !== "com"
-    ? `WorkDrive upload failed for ${region} DC. Ensure OAuth scopes include WorkDrive.files.CREATE and re-consent Zoho login.`
-    : "WorkDrive upload failed. Ensure OAuth scopes include WorkDrive.files.CREATE and re-consent Zoho login.";
+  e.detail = lastErr?.message
+    ? `WorkDrive Error: ${lastErr.message}`
+    : `WorkDrive upload failed for ${region} DC.`;
   throw e;
 }
 

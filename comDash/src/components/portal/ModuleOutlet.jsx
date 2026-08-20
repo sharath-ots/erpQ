@@ -185,10 +185,10 @@ export function ModuleOutlet({ menuItems: menuItemsProp = [], deskBaseUrl: deskB
 
   if (/^\/m\/docq/i.test(pathname)) {
     const normalized = pathname.replace(/^\/m\/docq/i, "/m/docq").replace(/\/$/, "");
-    if (normalized === "/m/docq") return <DocListView />;
+    if (normalized === "/m/docq") return <DocLibrary view="all" />;
     if (normalized === "/m/docq/scratch" || normalized === "/m/docq/register") return <DocFileRegister />;
     if (normalized === "/m/docq/documents") return <DocLibrary view="all" />;
-    if (normalized === "/m/docq/my-documents") return <DocListView />;
+    if (normalized === "/m/docq/my-documents") return <DocLibrary view="my" />;
     if (normalized === "/m/docq/shared-with-me") return <DocLibrary view="shared_with_me" />;
     if (normalized === "/m/docq/shared-by-me") return <DocLibrary view="shared_by_me" />;
     if (normalized === "/m/docq/changes-requested") return <DocLibrary view="changes_requested" />;

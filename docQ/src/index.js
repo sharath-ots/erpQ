@@ -23,7 +23,7 @@ import { orgRoutes } from "./routes/org.js";
 const app = Fastify({ logger: true });
 
 await app.register(cors, { origin: true, credentials: true });
-await app.register(multipart, { limits: { fileSize: 100 * 1024 * 1024 } });
+await app.register(multipart, { limits: { fileSize: 1024 * 1024 * 1024 } });
 
 await app.register(jwt, {
   secret: process.env.CITYQ_JWT_SECRET || process.env.JWT_SECRET || "dev-change-me",

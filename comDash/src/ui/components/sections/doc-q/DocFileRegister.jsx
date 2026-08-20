@@ -1,40 +1,31 @@
 "use client";
 
-import {
-  Breadcrumb,
-  Button,
-  Card,
-  Form,
-  Input,
-  Modal,
-  Popconfirm,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Typography,
-  Upload,
-  message,
-  Progress,
-} from "antd";
-import {
-  ArrowLeftOutlined,
-  DeleteOutlined,
-  FileOutlined,
-  FolderOpenOutlined,
-  FolderOutlined,
-  HomeOutlined,
-  InboxOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-  ShareAltOutlined,
-  UploadOutlined,
-} from "@ant-design/icons";
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch, getAccessToken } from "@/lib/apigate";
-import { docPath } from "./docQApi";
+import NextLink from "next/link";
+
+// MUI & Aurora Imports
+import {
+  Box,
+  Button,
+  Breadcrumbs,
+  Card as MuiCard,
+  CardContent,
+  Chip,
+  Link,
+  Stack,
+  Typography,
+} from "@mui/material";
+// Make sure this path points to your Iconify component correctly!
+import IconifyIcon from "../../../comDash/src/ui/components/base/IconifyIcon"; 
+import { CommonDataGrid } from "../components/common/CustomTable";
+
+// Antd Imports (Kept specifically for Modals/Forms/Upload logic to not break your core functions)
+import { Form, Input, Modal, Popconfirm, Select, Upload, message, Progress } from "antd";
+import { FolderOpenOutlined, InboxOutlined } from "@ant-design/icons";
+
+import { apiFetch, getAccessToken } from "../../../comDash/src/lib/apigate";
+import { docPath } from "../lib/docQApi";
 import DocSharePanel from "./DocSharePanel";
 
 function errText(json, res) {
@@ -109,34 +100,57 @@ export default function DocFileRegister() {
     }
   }, []);
 
-  const MAX_CONCURRENT_UPLOADS = 4;
+  const MAX_CONCURRENT_UPLOADS = 1;
   const pendingUploads = useRef([]);
   const activeUploadsCount = useRef(0);
 
   const processUploadQueue = useCallback(() => {
     while (pendingUploads.current.length > 0 && activeUploadsCount.current < MAX_CONCURRENT_UPLOADS) {
-      const nextTask = pendingUploads.current.shift();
+      // Peek at the next task instead of removing it entirely yet
+      const nextTask = pendingUploads.current[0]; 
       activeUploadsCount.current++;
-
-      nextTask().finally(() => {
+      
+      nextTask().then((result) => {
+        // Success! Remove from queue.
+        pendingUploads.current.shift();
         activeUploadsCount.current--;
         processUploadQueue();
-
-        if (activeUploadsCount.current === 0 && pendingUploads.current.length === 0) {
-          setOverallProgress(100);
-          setUploadStatus("success");
+        checkCompletion();
+      }).catch((err) => {
+        activeUploadsCount.current--;
+        
+        // If it's a Rate Limit error, PAUSE and RETRY instead of failing
+        if (err.message && err.message.includes("Rate Limit")) {
+          setUploadStatus("active");
+          message.warning("Zoho API rate limit reached. Pausing for 20 seconds...", 5);
           
+          // Wait 20 seconds, then process the exact same file again
           setTimeout(() => {
-            setUploading(false);
-            setUploadModalOpen(false);
-            setOverallProgress(0);
-            totalBytesRef.current = 0;
-            loadedBytesRef.current = {};
-            message.success("Upload complete");
-            loadFolder(folderId || rootId, trail);
-          }, 750);
+            processUploadQueue();
+          }, 20000); 
+        } else {
+          // Normal error (like duplicate file). Remove from queue and continue.
+          pendingUploads.current.shift();
+          processUploadQueue();
+          checkCompletion();
         }
       });
+    }
+
+    function checkCompletion() {
+      if (activeUploadsCount.current === 0 && pendingUploads.current.length === 0) {
+        setOverallProgress(100);
+        setUploadStatus("success");
+        setTimeout(() => {
+          setUploading(false);
+          setUploadModalOpen(false);
+          setOverallProgress(0);
+          totalBytesRef.current = 0;
+          loadedBytesRef.current = {};
+          message.success("Upload queue finished.");
+          loadFolder(folderId || rootId, trail);
+        }, 750);
+      }
     }
   }, [folderId, rootId, trail, loadFolder]);
 
@@ -229,20 +243,15 @@ export default function DocFileRegister() {
       return itemName.toLowerCase() === topLevelName.toLowerCase() && item.kind === kind;
     });
 
-    // 1. FRONTEND CHECK: Trigger the React State Modal
     if (isDuplicate) {
       if (!duplicateWarnings.current.has(topLevelName)) {
         duplicateWarnings.current.add(topLevelName);
-        
-        // Use standard React state instead of Antd imperative methods
         setUploadErrorMessage(`The ${kind} “${topLevelName}” already exists.`);
-        
         setTimeout(() => duplicateWarnings.current.delete(topLevelName), 5000);
       }
-      return false; // Prevent the upload completely
+      return false; 
     }
 
-    // Reset tracking metrics safely if starting a fresh batch
     if (!uploading && activeUploadsCount.current === 0 && pendingUploads.current.length === 0) {
       setUploadStatus("active");
       setOverallProgress(0);
@@ -295,10 +304,18 @@ export default function DocFileRegister() {
               try {
                 const errJson = JSON.parse(xhr.responseText);
                 
+                // SAFELY EXTRACT THE ERROR MESSAGE
+                let errMsg = errJson.detail || errJson.message || errJson.error || xhr.statusText;
+                if (typeof errMsg === 'object') {
+                  errMsg = JSON.stringify(errMsg); // Prevent [object Object]
+                }
+
                 if (xhr.status === 409 || errJson.error === "duplicate") {
-                   reject(new Error(`The ${kind} “${topLevelName}” already exists, so it cannot be uploaded.`));
+                   reject(new Error(`The ${kind} "${topLevelName}" already exists, so it cannot be uploaded.`));
+                } else if (xhr.status === 429) {
+                   reject(new Error(`Zoho Rate Limit hit. ${errMsg}`));
                 } else {
-                   reject(new Error(errJson.detail || errJson.error || xhr.statusText));
+                   reject(new Error(errMsg));
                 }
               } catch (err) {
                 reject(new Error(xhr.statusText));
@@ -313,7 +330,6 @@ export default function DocFileRegister() {
         return json;
       } catch (e) {
         setUploadStatus("exception");
-        // Trigger React State Modal for backend errors too
         setUploadErrorMessage(e.message || `Failed to upload “${file.name}”`);
         return null;
       }
@@ -500,394 +516,451 @@ export default function DocFileRegister() {
     }
   }
 
+  const handleSelectionChange = (keys) => {
+    setSelectedRowKeys(keys);
+    const rows = items.filter(item => keys.includes(item.id));
+    setSelectedRows(rows);
+  };
+
+  // ----------------------------------------------------------------------
+  // Aurora Styled Columns
+  // ----------------------------------------------------------------------
   const columns = [
     {
-      title: "Name",
-      dataIndex: "name",
-      key: "name",
+      id: "name",
+      label: "Name",
+      numeric: false,
       render: (name, row) =>
         row.kind === "folder" ? (
-          <a onClick={() => openFolder(row)}>
-            <FolderOutlined style={{ marginRight: 8, color: "#faad14" }} />
+          <Link 
+            component="button" 
+            variant="body2" 
+            underline="hover"
+            onClick={(e) => { e.stopPropagation(); openFolder(row); }}
+            sx={{ display: 'flex', alignItems: 'center', color: 'text.primary', fontWeight: 500 }}
+          >
+            <IconifyIcon icon="material-symbols:folder-rounded" sx={{ color: 'warning.main', mr: 1, fontSize: 20 }} />
             {name}
-          </a>
+          </Link>
         ) : (
-          <span>
-            <FileOutlined style={{ marginRight: 8 }} />
-            {name}
-          </span>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <IconifyIcon icon="material-symbols:draft-outline-rounded" sx={{ color: 'text.secondary', mr: 1, fontSize: 20 }} />
+            <Typography variant="body2" color="text.primary">{name}</Typography>
+          </Box>
         ),
     },
     {
-      title: "Type",
-      key: "kind",
-      width: 90,
-      render: (_, row) => (row.kind === "folder" ? "Folder" : "File"),
+      id: "kind",
+      label: "Type",
+      numeric: false,
+      render: (_, row) => (
+        <Typography variant="body2" color="text.secondary">
+          {row.kind === "folder" ? "Folder" : "File"}
+        </Typography>
+      ),
     },
     {
-      title: "Status",
-      key: "registered",
-      width: 120,
+      id: "registered",
+      label: "Status",
+      numeric: false,
       render: (_, row) => {
-        if (row.kind === "folder") return "—";
-        return row.registered ? <Tag color="green">Registered</Tag> : <Tag>Temp</Tag>;
+        if (row.kind === "folder") return <Typography variant="body2" color="text.secondary">—</Typography>;
+        return row.registered 
+          ? <Chip label="Registered" color="success" size="small" variant="soft" /> 
+          : <Chip label="Temp" color="default" size="small" variant="soft" />;
       },
     },
     {
-      title: "Actions",
-      key: "actions",
-      width: 280,
+      id: "actions",
+      label: "Actions",
+      numeric: false,
       render: (_, row) => {
         if (row.kind === "folder") {
           return (
-            <Space size="middle">
-              <a onClick={() => openFolder(row)}>Open</a>
-              <a onClick={() => onShare(row)}>Share</a>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Link component="button" variant="body2" underline="hover" onClick={(e) => { e.stopPropagation(); openFolder(row); }}>Open</Link>
+              <Link component="button" variant="body2" underline="hover" onClick={(e) => { e.stopPropagation(); onShare(row); }}>Share</Link>
               <Popconfirm
                 title="Delete folder and contents?"
-                onConfirm={() => onDelete(row)}
+                onConfirm={(e) => { e.stopPropagation(); onDelete(row); }}
+                onCancel={(e) => e.stopPropagation()}
                 okText="Delete"
                 okButtonProps={{ danger: true }}
               >
-                <a style={{ color: "#ff4d4f" }}>Delete</a>
+                <Link component="button" variant="body2" underline="hover" color="error" onClick={(e) => e.stopPropagation()}>Delete</Link>
               </Popconfirm>
-            </Space>
+            </Stack>
           );
         }
         return (
-          <Space size="middle" wrap>
+          <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
             {row.permalink ? (
-              <a href={row.permalink} target="_blank" rel="noreferrer">
+              <Link href={row.permalink} target="_blank" rel="noreferrer" variant="body2" underline="hover" onClick={(e) => e.stopPropagation()}>
                 Open
-              </a>
+              </Link>
             ) : (
-              <Typography.Text type="secondary">Open</Typography.Text>
+              <Typography variant="body2" color="text.disabled">Open</Typography>
             )}
-            <a onClick={() => onShare(row)}>Share</a>
+            
+            <Link component="button" variant="body2" underline="hover" onClick={(e) => { e.stopPropagation(); onShare(row); }}>Share</Link>
+            
             {row.registered && row.managedDocumentId ? (
-              <Link href={`/m/docq/documents/${row.managedDocumentId}`}>
+              <Link component={NextLink} href={`/m/docq/documents/${row.managedDocumentId}`} variant="body2" underline="hover" onClick={(e) => e.stopPropagation()}>
                 View managed
               </Link>
             ) : (
-              <a onClick={() => openRegister(row)}>Register</a>
+              <Link component="button" variant="body2" underline="hover" onClick={(e) => { e.stopPropagation(); openRegister(row); }}>Register</Link>
             )}
+
             <Popconfirm
               title="Delete file?"
-              onConfirm={() => onDelete(row)}
+              onConfirm={(e) => { e.stopPropagation(); onDelete(row); }}
+              onCancel={(e) => e.stopPropagation()}
               okText="Delete"
               okButtonProps={{ danger: true }}
             >
-              <a style={{ color: "#ff4d4f" }}>Delete</a>
+              <Link component="button" variant="body2" underline="hover" color="error" onClick={(e) => e.stopPropagation()}>Delete</Link>
             </Popconfirm>
-          </Space>
+          </Stack>
         );
       },
     },
   ];
 
   const currentName = trail[trail.length - 1]?.name || "My Folders";
+  
+  // ----------------------------------------------------------------------
+  // Aurora Styled Action Buttons
+  // ----------------------------------------------------------------------
+  const actionNodeButtons = (
+    <Stack direction="row" sx={{ gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+      {selectedRowKeys.length > 0 && (
+        <>
+          <Button 
+            variant="outlined" 
+            color="primary"
+            startIcon={<IconifyIcon icon="material-symbols:share-outline" />}
+            onClick={onShareSelected}
+            disabled={sharingBulk}
+          >
+            Share
+          </Button>
+          <Button 
+            variant="outlined" 
+            color="error"
+            startIcon={<IconifyIcon icon="material-symbols:delete-outline" />} 
+            onClick={() => setBulkDeleteOpen(true)}
+          >
+            Delete
+          </Button>
+        </>
+      )}
+      
+      <Button 
+        variant="soft" 
+        color="secondary" 
+        sx={{ minWidth: 0, width: 36, height: 36, p: 0 }}
+        onClick={() => loadFolder(folderId, trail)}
+      >
+        <IconifyIcon icon="material-symbols:refresh-rounded" sx={{ fontSize: 20 }} />
+      </Button>
+      
+      <Button 
+        variant="soft" 
+        color="primary" 
+        sx={{ minWidth: 0, width: 36, height: 36, p: 0 }}
+        onClick={() => setCreateOpen(true)} 
+        disabled={!folderId && !rootId}
+      >
+        <IconifyIcon icon="material-symbols:create-new-folder-outline-rounded" sx={{ fontSize: 20 }} />
+      </Button>
+      
+      <Button 
+        variant="contained" 
+        color="primary" 
+        sx={{ minWidth: 0, width: 36, height: 36, p: 0 }}
+        onClick={() => setUploadModalOpen(true)} 
+        disabled={!folderId && !rootId}
+      >
+        <IconifyIcon icon="material-symbols:upload-rounded" sx={{ fontSize: 20 }} />
+      </Button>
+    </Stack>
+  );
+
+  // ----------------------------------------------------------------------
+  // Aurora Styled Breadcrumbs Node
+  // ----------------------------------------------------------------------
+  const tableTitleNode = (
+    <Stack direction="row" alignItems="center" spacing={1.5}>
+      {/* Conditionally hide the Up button if at the root */}
+      {trail.length > 1 && (
+        <Button
+          variant="soft"
+          color="secondary"
+          size="small"
+          onClick={goUp}
+          startIcon={<IconifyIcon icon="material-symbols:arrow-back-rounded" />}
+        >
+          Up
+        </Button>
+      )}
+
+      <Breadcrumbs separator={<IconifyIcon icon="material-symbols:chevron-right-rounded" sx={{ fontSize: 16 }} />}>
+        {trail.map((t, i) => {
+          const isLast = i === trail.length - 1;
+          const content = (
+            <Stack direction="row" alignItems="center" spacing={0.5}>
+              {i === 0 && <IconifyIcon icon="material-symbols:home-outline-rounded" sx={{ fontSize: 18 }} />}
+              <Typography 
+                variant={isLast ? "subtitle2" : "body2"} 
+                fontWeight={isLast ? 600 : 400} 
+                color={isLast ? "text.primary" : "text.secondary"}
+              >
+                {t.name}
+              </Typography>
+            </Stack>
+          );
+
+          return isLast ? (
+            <Box key={i}>{content}</Box>
+          ) : (
+            <Link 
+              key={i} 
+              component="button" 
+              variant="body2" 
+              underline="hover" 
+              onClick={() => goToTrail(i)}
+            >
+              {content}
+            </Link>
+          );
+        })}
+      </Breadcrumbs>
+    </Stack>
+  );
 
   return (
-    <Card title="All my dump files">
-      <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
-        Browse your personal WorkDrive folders. Upload here, then{" "}
-        <strong>Register</strong> to copy a file into managed documents (the dump
-        file stays; it is marked Registered so you do not register twice).
-      </Typography.Paragraph>
+    <MuiCard elevation={0} sx={{ border: '1px solid', borderColor: 'divider', mb: 3 }}>
+      <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+        
+        {/* Adjusted Typography Layout to remove excessive empty space */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h5" fontWeight={700} gutterBottom>
+            All my dump files
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Browse your personal WorkDrive folders. Upload here, then <strong>Register</strong> to copy a file into managed documents (the dump file stays; it is marked Registered so you do not register twice).
+          </Typography>
+        </Box>
 
-      <Card
-        size="small"
-        title={
-          <Space wrap>
-            <Button
-              icon={<ArrowLeftOutlined />}
-              disabled={trail.length <= 1}
-              onClick={goUp}
-            >
-              Up
-            </Button>
-            <Breadcrumb
-              items={trail.map((t, i) => ({
-                title:
-                  i === trail.length - 1 ? (
-                    <span>
-                      {i === 0 ? <HomeOutlined style={{ marginRight: 4 }} /> : null}
-                      {t.name}
-                    </span>
-                  ) : (
-                    <a onClick={() => goToTrail(i)}>
-                      {i === 0 ? <HomeOutlined style={{ marginRight: 4 }} /> : null}
-                      {t.name}
-                    </a>
-                  ),
-              }))}
-            />
-          </Space>
-        }
-        extra={
-          <Space wrap>
-            {selectedRowKeys.length > 0 && (
-              <>
-                <Button 
-                  type="primary" 
-                  ghost 
-                  icon={<ShareAltOutlined />} 
-                  onClick={onShareSelected}
-                  loading={sharingBulk}
-                >
-                  Share {selectedRowKeys.length} selected
-                </Button>
-                <Button 
-                  danger 
-                  icon={<DeleteOutlined />} 
-                  onClick={() => setBulkDeleteOpen(true)}
-                >
-                  Delete {selectedRowKeys.length} selected
-                </Button>
-              </>
-            )}
-            <Button icon={<ReloadOutlined />} onClick={() => loadFolder(folderId, trail)}>
-            </Button>
-            <Button
-              icon={<PlusOutlined />}
-              onClick={() => setCreateOpen(true)}
-              disabled={!folderId && !rootId}
-            >
-            </Button>
-            <Button
-              type="primary"
-              icon={<UploadOutlined />}
-              onClick={() => setUploadModalOpen(true)}
-              disabled={!folderId && !rootId}
-            >
-            </Button>
-          </Space>
-        }
-      >
-        <Table
-          size="middle"
-          rowKey="id"
-          loading={loading}
-          dataSource={items}
-          columns={columns}
-          pagination={false}
-          locale={{ emptyText: "This folder is empty." }}
-          rowSelection={{
-            selectedRowKeys,
-            onChange: (keys, rows) => {
-              setSelectedRowKeys(keys);
-              setSelectedRows(rows);
-            },
-          }}
-          onRow={(row) =>
-            row.kind === "folder"
-              ? { onDoubleClick: () => openFolder(row), style: { cursor: "pointer" } }
-              : {}
-          }
-          footer={() => {
-            const folderCount = items.filter(item => item.kind === "folder").length;
-            const fileCount = items.filter(item => item.kind !== "folder").length;
-            
-            if (items.length === 0) return null;
-
-            return (
-              <Typography.Text type="secondary" style={{ fontSize: '13px' }}>
-                {folderCount} folder{folderCount !== 1 ? 's' : ''} and {fileCount} file{fileCount !== 1 ? 's' : ''}
-              </Typography.Text>
-            );
-          }}
+        <CommonDataGrid 
+            title={tableTitleNode}
+            headCells={columns}
+            rows={items}
+            loading={loading}
+            defaultPageSize={10}
+            onRowClick={(row) => row.kind === "folder" ? openFolder(row) : {}}
+            actionNode={actionNodeButtons}
+            selectedRowKeys={selectedRowKeys}
+            onSelectionChange={handleSelectionChange}
         />
-      </Card>
-
-      {/* Upload Popup Modal */}
-      <Modal
-        title={`Upload to “${currentName}”`}
-        open={uploadModalOpen}
-        onCancel={() => {
-          if (!uploading) {
-            setUploadModalOpen(false);
-          }
-        }}
-        footer={
-          <Button onClick={() => {
-            setUploadModalOpen(false);
-            setUploading(false);
-            setOverallProgress(0);
-          }} disabled={uploading}>
-            Cancel
-          </Button>
-        }
-        destroyOnClose
-      >
-        <div style={{ marginTop: 16 }}>
-          <Upload.Dragger
-            multiple
-            beforeUpload={onUpload}
-            showUploadList={false}
-            disabled={uploading}
-            style={{ padding: "24px 0", background: "#fafafa" }}
-          >
-            <p className="ant-upload-drag-icon" style={{ margin: 0, fontSize: 36, color: '#1677ff' }}>
-              <InboxOutlined />
-            </p>
-            <p className="ant-upload-text" style={{ marginTop: 12 }}>
-              Click or drag files here to upload
-            </p>
-            <p className="ant-upload-hint">
-              Supports single or bulk file upload.
-            </p>
-          </Upload.Dragger>
-        </div>
-
-        {uploading && (
-          <div style={{ marginTop: 24, padding: "0 12px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-              <Typography.Text type="secondary" strong>
-                {overallProgress === 100 ? "Finalizing upload..." : "Uploading batch..."}
-              </Typography.Text>
-              <Typography.Text type="secondary">{overallProgress}%</Typography.Text>
-            </div>
-            <Progress
-              percent={overallProgress}
-              status={uploadStatus}
-              showInfo={false}
-              size={["100%", 10]}
-              strokeColor={{
-                '0%': '#108ee9',
-                '100%': '#87d068',
-              }}
-            />
-          </div>
+        
+        {items.length > 0 && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {items.filter(item => item.kind === "folder").length} folder(s) and {items.filter(item => item.kind !== "folder").length} file(s)
+            </Typography>
         )}
 
-        <div style={{ marginTop: 24, textAlign: "center", borderTop: "1px solid #f0f0f0", paddingTop: 16 }}>
-          <Typography.Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
-            Want to upload an entire folder structure?
-          </Typography.Text>
-          <Upload
-            beforeUpload={onUpload}
-            showUploadList={false}
-            multiple
-            directory
-            disabled={uploading}
-          >
-            <Button icon={<FolderOpenOutlined />} loading={uploading}>
-              Select Folder to Upload
+        {/* Upload Popup Modal */}
+        <Modal
+          title={`Upload to “${currentName}”`}
+          open={uploadModalOpen}
+          onCancel={() => {
+            if (!uploading) {
+              setUploadModalOpen(false);
+            }
+          }}
+          footer={
+            <Button variant="outlined" onClick={() => {
+              setUploadModalOpen(false);
+              setUploading(false);
+              setOverallProgress(0);
+            }} disabled={uploading}>
+              Cancel
             </Button>
-          </Upload>
-        </div>
-      </Modal>
+          }
+          destroyOnClose
+        >
+          <div style={{ marginTop: 16 }}>
+            <Upload.Dragger
+              multiple
+              beforeUpload={onUpload}
+              showUploadList={false}
+              disabled={uploading}
+              style={{ padding: "24px 0", background: "#fafafa" }}
+            >
+              <p className="ant-upload-drag-icon" style={{ margin: 0, fontSize: 36, color: '#1677ff' }}>
+                <InboxOutlined />
+              </p>
+              <p className="ant-upload-text" style={{ marginTop: 12 }}>
+                Click or drag files here to upload
+              </p>
+              <p className="ant-upload-hint">
+                Supports single or bulk file upload.
+              </p>
+            </Upload.Dragger>
+          </div>
 
-      {/* New Folder Modal */}
-      <Modal
-        title={`New folder in “${currentName}”`}
-        open={createOpen}
-        onOk={createFolder}
-        confirmLoading={creatingFolder}
-        onCancel={() => {
-          setCreateOpen(false);
-          setNewFolderName("");
-        }}
-        okText="Create"
-      >
-        <Input
-          autoFocus
-          placeholder="Folder name"
-          value={newFolderName}
-          onChange={(e) => setNewFolderName(e.target.value)}
-          onPressEnter={createFolder}
+          {uploading && (
+            <div style={{ marginTop: 24, padding: "0 12px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <Typography variant="body2" fontWeight={600} color="text.secondary">
+                  {overallProgress === 100 ? "Finalizing upload..." : "Uploading batch..."}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">{overallProgress}%</Typography>
+              </div>
+              <Progress
+                percent={overallProgress}
+                status={uploadStatus}
+                showInfo={false}
+                size={["100%", 10]}
+                strokeColor={{
+                  '0%': '#108ee9',
+                  '100%': '#87d068',
+                }}
+              />
+            </div>
+          )}
+
+          <div style={{ marginTop: 24, textAlign: "center", borderTop: "1px solid #f0f0f0", paddingTop: 16 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+              Want to upload an entire folder structure?
+            </Typography>
+            <Upload
+              beforeUpload={onUpload}
+              showUploadList={false}
+              multiple
+              directory
+              disabled={uploading}
+            >
+              <Button variant="outlined" startIcon={<FolderOpenOutlined />} disabled={uploading}>
+                Select Folder to Upload
+              </Button>
+            </Upload>
+          </div>
+        </Modal>
+
+        {/* New Folder Modal */}
+        <Modal
+          title={`New folder in “${currentName}”`}
+          open={createOpen}
+          onOk={createFolder}
+          confirmLoading={creatingFolder}
+          onCancel={() => {
+            setCreateOpen(false);
+            setNewFolderName("");
+          }}
+          okText="Create"
+        >
+          <Input
+            autoFocus
+            placeholder="Folder name"
+            value={newFolderName}
+            onChange={(e) => setNewFolderName(e.target.value)}
+            onPressEnter={createFolder}
+          />
+        </Modal>
+
+        {/* Register Modal */}
+        <Modal
+          title="Register into managed documents"
+          open={Boolean(registerFile)}
+          onCancel={() => {
+            setRegisterFile(null);
+            registerForm.resetFields();
+          }}
+          footer={null}
+          destroyOnClose
+        >
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Creates a <strong>copy</strong> in the managed vault. Your dump file stays
+            here and will show as Registered.
+          </Typography>
+          <Form form={registerForm} layout="vertical" onFinish={submitRegister}>
+            <Form.Item name="title" label="Title" rules={[{ required: true }]}>
+              <Input />
+            </Form.Item>
+            <Form.Item name="docType" label="Document type" rules={[{ required: true }]}>
+              <Select
+                options={(docTypes.length
+                  ? docTypes
+                  : [{ doc_type: "general", label: "General" }]
+                ).map((t) => ({
+                  value: t.doc_type,
+                  label: t.label || t.doc_type,
+                }))}
+              />
+            </Form.Item>
+            <Form.Item name="projectId" label="Project (optional)">
+              <Select
+                allowClear
+                placeholder="Managed vault root if empty"
+                options={projects.map((p) => ({
+                  value: p.id,
+                  label: p.name || p.project_key,
+                }))}
+              />
+            </Form.Item>
+            <Form.Item name="description" label="Description">
+              <Input.TextArea rows={2} />
+            </Form.Item>
+            <Button variant="contained" color="primary" fullWidth onClick={() => registerForm.submit()} disabled={registering}>
+              Copy &amp; register
+            </Button>
+          </Form>
+        </Modal>
+
+        {/* Bulk Delete Confirmation Modal */}
+        <Modal
+          title={`Delete ${selectedRowKeys.length} items?`}
+          open={bulkDeleteOpen}
+          onOk={onDeleteSelected}
+          confirmLoading={deletingBulk}
+          onCancel={() => setBulkDeleteOpen(false)}
+          okText="Yes, delete"
+          okButtonProps={{ danger: true }}
+          centered
+        >
+          <Typography variant="body1">
+            Are you sure you want to delete the selected items?
+          </Typography>
+        </Modal>
+
+        <Modal
+          title={
+            <span style={{ color: '#ff4d4f' }}>
+              Upload Blocked
+            </span>
+          }
+          open={!!uploadErrorMessage}
+          onOk={() => setUploadErrorMessage(null)}
+          onCancel={() => setUploadErrorMessage(null)}
+          okText="Understood"
+          cancelButtonProps={{ style: { display: 'none' } }}
+          centered
+          zIndex={3000}
+        >
+          <Typography variant="body1">
+            {uploadErrorMessage}
+          </Typography>
+        </Modal>
+
+        <DocSharePanel
+          items={shareItems}
+          open={shareItems.length > 0}
+          onClose={() => setShareItems([])}
         />
-      </Modal>
-
-      {/* Register Modal */}
-      <Modal
-        title="Register into managed documents"
-        open={Boolean(registerFile)}
-        onCancel={() => {
-          setRegisterFile(null);
-          registerForm.resetFields();
-        }}
-        footer={null}
-        destroyOnClose
-      >
-        <Typography.Paragraph type="secondary">
-          Creates a <strong>copy</strong> in the managed vault. Your dump file stays
-          here and will show as Registered.
-        </Typography.Paragraph>
-        <Form form={registerForm} layout="vertical" onFinish={submitRegister}>
-          <Form.Item name="title" label="Title" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="docType" label="Document type" rules={[{ required: true }]}>
-            <Select
-              options={(docTypes.length
-                ? docTypes
-                : [{ doc_type: "general", label: "General" }]
-              ).map((t) => ({
-                value: t.doc_type,
-                label: t.label || t.doc_type,
-              }))}
-            />
-          </Form.Item>
-          <Form.Item name="projectId" label="Project (optional)">
-            <Select
-              allowClear
-              placeholder="Managed vault root if empty"
-              options={projects.map((p) => ({
-                value: p.id,
-                label: p.name || p.project_key,
-              }))}
-            />
-          </Form.Item>
-          <Form.Item name="description" label="Description">
-            <Input.TextArea rows={2} />
-          </Form.Item>
-          <Button type="primary" htmlType="submit" loading={registering} block>
-            Copy &amp; register
-          </Button>
-        </Form>
-      </Modal>
-
-      {/* Bulk Delete Confirmation Modal */}
-      <Modal
-        title={`Delete ${selectedRowKeys.length} items?`}
-        open={bulkDeleteOpen}
-        onOk={onDeleteSelected}
-        confirmLoading={deletingBulk}
-        onCancel={() => setBulkDeleteOpen(false)}
-        okText="Yes, delete"
-        okButtonProps={{ danger: true }}
-        centered
-      >
-        <Typography.Text>
-          Are you sure you want to delete the selected items.
-        </Typography.Text>
-      </Modal>
-
-      <Modal
-        title={
-          <span style={{ color: '#ff4d4f' }}>
-            Upload Blocked
-          </span>
-        }
-        open={!!uploadErrorMessage}
-        onOk={() => setUploadErrorMessage(null)}
-        onCancel={() => setUploadErrorMessage(null)}
-        okText="Understood"
-        cancelButtonProps={{ style: { display: 'none' } }} // Hide the cancel button
-        centered
-        zIndex={3000} // Extreme high z-index guarantees it sits above the drag-and-drop modal
-      >
-        <Typography.Text style={{ fontSize: '16px' }}>
-          {uploadErrorMessage}
-        </Typography.Text>
-      </Modal>
-
-      <DocSharePanel
-        items={shareItems}
-        open={shareItems.length > 0}
-        onClose={() => setShareItems([])}
-      />
-    </Card>
+      </CardContent>
+    </MuiCard>
   );
 }

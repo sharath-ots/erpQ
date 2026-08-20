@@ -185,6 +185,17 @@ export function CommonDataGrid({
         setRowsPerPage(parseInt(event.target.value, 10));
         setPage(0);
     };
+    const handleShowAllToggle = () => {
+        if (rowsPerPage === rows.length) {
+            // If already showing all, revert back to default
+            setRowsPerPage(defaultPageSize);
+            setPage(0);
+        } else {
+            // Otherwise, set rows per page to the total number of items
+            setRowsPerPage(rows.length > 0 ? rows.length : defaultPageSize);
+            setPage(0);
+        }
+    };
     const handleChangeDense = (event) => setDense(event.target.checked);
 
     const isSelected = (id) => selected.indexOf(id) !== -1;
@@ -278,6 +289,7 @@ export function CommonDataGrid({
                             {...props} 
                             onPrevClick={() => handleChangePage(null, page - 1)} 
                             onNextClick={() => handleChangePage(null, page + 1)}
+                            onShowAllClick={handleShowAllToggle}
                         />
                     }
                 />

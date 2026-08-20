@@ -35,7 +35,7 @@ import IconifyIcon from "../../../comDash/src/ui/components/base/IconifyIcon";
 // Sub-components
 import DocMetadataPanel from "./DocMetadataPanel";
 import DocWorkflowBanner from "./DocWorkflowBanner";
-import DocSharePanel from "../../../comDash/src/ui/components/sections/doc-q/DocSharePanel";
+import DocSharePanel from "./DocSharePanel";
 import DocRevokePanel from "../../../comDash/src/ui/components/sections/doc-q/DocRevokePanel";
 import { versionLabel } from "./DocDocumentGrid";
 import SharedFolderBrowser from "./SharedFolderBrowser";

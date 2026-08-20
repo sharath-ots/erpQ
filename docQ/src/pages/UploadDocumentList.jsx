@@ -1,5 +1,4 @@
 "use client";
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import NextLink from "next/link";
@@ -16,22 +15,21 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-// Make sure this path points to your Iconify component correctly!
+
 import IconifyIcon from "../../../comDash/src/ui/components/base/IconifyIcon"; 
 import { CommonDataGrid } from "../components/common/CustomTable";
 
-// Antd Imports (Kept specifically for Modals/Forms/Upload logic to not break your core functions)
+// Antd Imports
 import { Form, Input, Modal, Popconfirm, Select, Upload, message, Progress } from "antd";
 import { FolderOpenOutlined, InboxOutlined } from "@ant-design/icons";
-
 import { apiFetch, getAccessToken } from "../../../comDash/src/lib/apigate";
 import { docPath } from "../lib/docQApi";
-//import DocSharePanel from "./DocSharePanel";
+import DocSharePanel from "./DocSharePanel";
 
 function errText(json, res) {
   return [json?.error || res?.statusText, json?.detail, json?.code]
     .filter(Boolean)
-    .join(" — ");
+    .join(" | ");
 }
 
 export default function DocFileRegister() {
@@ -41,20 +39,31 @@ export default function DocFileRegister() {
   const [trail, setTrail] = useState([{ id: null, name: "My Folders" }]);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Modal states
   const [createOpen, setCreateOpen] = useState(false);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [uploadErrorMessage, setUploadErrorMessage] = useState(null);
-  
-  // Progress Bar States
+
+  // Progress Bar & Batch States
   const [uploading, setUploading] = useState(false);
   const [overallProgress, setOverallProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState("active");
+  const [uploadText, setUploadText] = useState("Preparing upload...");
+  
+  // Smart Dropzone States
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef(null);
+
+  // Refs for tracking synchronous batches safely
+  const isBatchActive = useRef(false);
   const totalBytesRef = useRef(0);
   const loadedBytesRef = useRef({});
+  const totalFilesRef = useRef(0);
+  const processedFilesRef = useRef(0);
+  const highestProgressRef = useRef(0); // <-- FIX 1: Prevents rubber-banding progress bar
 
   // Sharing & Bulk Actions states
   const [shareItems, setShareItems] = useState([]); 
@@ -100,36 +109,295 @@ export default function DocFileRegister() {
     }
   }, []);
 
-  const MAX_CONCURRENT_UPLOADS = 4;
+  const MAX_CONCURRENT_UPLOADS = 2;
   const pendingUploads = useRef([]);
   const activeUploadsCount = useRef(0);
 
+  // 1. THE QUEUE PROCESSOR
   const processUploadQueue = useCallback(() => {
+    if (activeUploadsCount.current === 0 && pendingUploads.current.length === 0) {
+      if (totalBytesRef.current > 0 && isBatchActive.current) {
+        setOverallProgress(100);
+        setUploadStatus("success");
+        setUploadText("Finalizing upload...");
+        isBatchActive.current = false; 
+        
+        setTimeout(() => {
+          setUploading(false);
+          setUploadModalOpen(false);
+          setOverallProgress(0);
+          highestProgressRef.current = 0; // Reset highest progress
+          totalBytesRef.current = 0;
+          loadedBytesRef.current = {};
+          processedFilesRef.current = 0;
+          totalFilesRef.current = 0;
+          loadFolder(folderId || rootId, trail);
+        }, 1000);
+      }
+      return;
+    }
+
     while (pendingUploads.current.length > 0 && activeUploadsCount.current < MAX_CONCURRENT_UPLOADS) {
-      const nextTask = pendingUploads.current.shift();
+      const nextTask = pendingUploads.current.shift(); 
       activeUploadsCount.current++;
-
-      nextTask().finally(() => {
-        activeUploadsCount.current--;
-        processUploadQueue();
-
-        if (activeUploadsCount.current === 0 && pendingUploads.current.length === 0) {
-          setOverallProgress(100);
-          setUploadStatus("success");
+      
+      nextTask()
+        .then(() => {
+          activeUploadsCount.current--;
+          setTimeout(() => { processUploadQueue(); }, 50); 
+        })
+        .catch((err) => {
+          activeUploadsCount.current--;
+          const errMsg = String(err?.message || "");
           
-          setTimeout(() => {
-            setUploading(false);
-            setUploadModalOpen(false);
-            setOverallProgress(0);
-            totalBytesRef.current = 0;
-            loadedBytesRef.current = {};
-            message.success("Upload complete");
-            loadFolder(folderId || rootId, trail);
-          }, 750);
-        }
-      });
+          if (
+            errMsg.includes("429") || 
+            errMsg.includes("Rate Limit") ||
+            errMsg.includes("401") ||
+            errMsg.includes("500") ||
+            errMsg.includes("502") ||
+            errMsg.includes("504") ||
+            errMsg.includes("Network Error")
+          ) {
+            setUploadStatus("exception");
+            setUploadText("Pausing for 20s to recover...");
+            
+            pendingUploads.current.unshift(nextTask);
+            
+            setTimeout(() => {
+              setUploadStatus("active");
+              processUploadQueue();
+            }, 20000);
+          } else {
+            setTimeout(() => { processUploadQueue(); }, 50); 
+          }
+        });
     }
   }, [folderId, rootId, trail, loadFolder]);
+
+  // 2. SMART DROP HANDLER
+  const handleCustomDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const itemsList = e.dataTransfer.items;
+    if (!itemsList) return;
+
+    const extractedFiles = [];
+
+    const readEntry = async (entry, path = "") => {
+      if (entry.isFile) {
+        const file = await new Promise((resolve) => entry.file(resolve));
+        // Only prepend path if the file is ACTUALLY inside a folder
+        file.customRelativePath = path ? path + file.name : file.name; 
+        extractedFiles.push(file);
+      } else if (entry.isDirectory) {
+        const dirReader = entry.createReader();
+        const readAll = async () => {
+          let allEntries = [];
+          let read = async () => {
+            const entries = await new Promise((resolve) => dirReader.readEntries(resolve));
+            if (entries.length > 0) {
+              allEntries = allEntries.concat(entries);
+              await read();
+            }
+          };
+          await read();
+          return allEntries;
+        };
+        const entries = await readAll();
+        for (const child of entries) {
+          await readEntry(child, path + entry.name + "/"); 
+        }
+      }
+    };
+
+    for (let i = 0; i < itemsList.length; i++) {
+      const item = itemsList[i];
+      if (item.kind === 'file') {
+        const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+        if (entry) {
+          await readEntry(entry);
+        } else {
+          const f = item.getAsFile();
+          if (f) extractedFiles.push(f);
+        }
+      }
+    }
+
+    // Initiate Batch
+    if (extractedFiles.length > 0) {
+       startBatchUpload(extractedFiles);
+    }
+  };
+
+  // 3. FILE PICKER HANDLER (Fix 2: For when users click the box instead of drag)
+  const handleFileInput = (e) => {
+    if (!e.target.files) return;
+    const filesArray = Array.from(e.target.files);
+    
+    // Attach standard webkit path if available, otherwise just filename
+    filesArray.forEach(f => {
+       f.customRelativePath = f.webkitRelativePath || f.name;
+    });
+
+    startBatchUpload(filesArray);
+    e.target.value = null; 
+  };
+
+
+  // 4. BATCH UPLOAD INITIALIZER (Fix 3: Checks duplicates BEFORE starting queue)
+  function startBatchUpload(filesArray) {
+    if (!isBatchActive.current) {
+      isBatchActive.current = true;
+      setUploadStatus("active");
+      setOverallProgress(0);
+      highestProgressRef.current = 0;
+      totalBytesRef.current = 0;
+      loadedBytesRef.current = {};
+      totalFilesRef.current = 0;
+      processedFilesRef.current = 0;
+      activeUploadsCount.current = 0;
+      pendingUploads.current = [];
+      setUploading(true);
+    }
+
+    filesArray.forEach(file => {
+      const actualPath = file.customRelativePath || file.name;
+      const isFolderUpload = actualPath.includes('/');
+      const topLevelName = isFolderUpload ? actualPath.split('/')[0] : file.name;
+      const kind = isFolderUpload ? "folder" : "file";
+
+      const isDuplicate = items.some((item) => {
+        const itemName = String(item.name || item.title || item.dumpTitle || "");
+        return itemName.toLowerCase() === topLevelName.toLowerCase() && item.kind === kind;
+      });
+
+      if (isDuplicate) {
+        if (!duplicateWarnings.current.has(topLevelName)) {
+          duplicateWarnings.current.add(topLevelName);
+          setUploadErrorMessage(`The ${kind} "${topLevelName}" already exists. Delete it first to re-upload.`);
+          setTimeout(() => duplicateWarnings.current.delete(topLevelName), 5000);
+        }
+        return; // Skip this file, but continue batch
+      }
+
+      totalBytesRef.current += file.size || 0;
+      loadedBytesRef.current[file.uid] = 0;
+      totalFilesRef.current += 1;
+
+      const uploadTask = async () => {
+        try {
+          setUploadText(`Processing file ${processedFilesRef.current + 1} of ${totalFilesRef.current}...`);
+          
+          const form = new FormData();
+          form.append("file", file);
+          if (actualPath) form.append("webkitRelativePath", actualPath);
+          if (folderId) form.append("folderId", folderId);
+          else if (rootId) form.append("folderId", rootId);
+
+          const json = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", docPath("/scratch/upload"));
+            const token = getAccessToken();
+            if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+
+            let uploadStartTime = Date.now();
+            let zohoInterval = null;
+
+            const updateGlobalProgress = (eLoaded, eTotal) => {
+              const completedFiles = processedFilesRef.current;
+              const totalFiles = totalFilesRef.current || 1;
+              
+              // Calculate how far along the *current* file is (0 to 1)
+              const currentFileFraction = eTotal > 0 ? Math.min(eLoaded / eTotal, 1) : 0;
+              
+              // Total progress across the entire batch
+              const totalProgressFraction = (completedFiles + currentFileFraction) / totalFiles;
+              let percent = Math.round(totalProgressFraction * 100);
+              
+              // Cap at 99% until fully finished by Zoho
+              if (percent >= 100) percent = 99;
+              if (percent < 0) percent = 0;
+              
+              // Ensure the bar never moves backward
+              if (percent > highestProgressRef.current) {
+                highestProgressRef.current = percent;
+              }
+              
+              setOverallProgress(highestProgressRef.current);
+            };
+
+            xhr.upload.onprogress = (e) => {
+              if (e.lengthComputable) {
+                loadedBytesRef.current[file.uid] = e.loaded / 2;
+                updateGlobalProgress(e.loaded, e.total);
+
+                if (e.loaded >= e.total && !zohoInterval) {
+                  const duration = Date.now() - uploadStartTime;
+                  const tickTime = Math.max(duration / 20, 200); 
+                  let simulatedExtra = 0;
+                  
+                  zohoInterval = setInterval(() => {
+                    simulatedExtra += (file.size / 2) / 20; 
+                    if (simulatedExtra >= (file.size / 2) * 0.95) {
+                      clearInterval(zohoInterval); 
+                    }
+                    loadedBytesRef.current[file.uid] = (e.total / 2) + simulatedExtra;
+                    updateGlobalProgress();
+                  }, tickTime);
+                }
+              }
+            };
+
+            xhr.onload = () => {
+              if (zohoInterval) clearInterval(zohoInterval);
+              
+              if (xhr.status >= 200 && xhr.status < 300) {
+                loadedBytesRef.current[file.uid] = file.size; 
+                updateGlobalProgress();
+                try { resolve(JSON.parse(xhr.responseText)); } catch (err) { resolve({}); }
+              } else {
+                try {
+                  const errJson = JSON.parse(xhr.responseText);
+                  let errMsg = errJson.detail || errJson.message || errJson.error || xhr.statusText;
+                  if (typeof errMsg === 'object') errMsg = JSON.stringify(errMsg);
+
+                  if (xhr.status === 409 || errJson.error === "duplicate") {
+                     reject(new Error(`Duplicate file.`));
+                  } else if (xhr.status === 429) {
+                     reject(new Error(`Rate Limit: ${errMsg}`));
+                  } else {
+                     reject(new Error(errMsg));
+                  }
+                } catch (err) {
+                  reject(new Error(xhr.statusText));
+                }
+              }
+            };
+
+            xhr.onerror = () => {
+              if (zohoInterval) clearInterval(zohoInterval);
+              reject(new Error("Network Error"));
+            };
+            
+            xhr.send(form);
+          });
+          return json;
+        } catch (e) {
+          throw e;
+        } finally {
+          processedFilesRef.current += 1; 
+        }
+      };
+
+      pendingUploads.current.push(uploadTask);
+    });
+
+    processUploadQueue();
+  }
+
 
   useEffect(() => {
     loadFolder(null);
@@ -153,12 +421,10 @@ export default function DocFileRegister() {
     const next = [...trail, { id: folder.id, name: folder.name || "Folder" }];
     loadFolder(folder.id, next);
   }
-
   function goToTrail(index) {
     const next = trail.slice(0, index + 1);
     loadFolder(next[next.length - 1]?.id || null, next);
   }
-
   function goUp() {
     if (trail.length <= 1) return;
     goToTrail(trail.length - 2);
@@ -170,22 +436,19 @@ export default function DocFileRegister() {
       message.warning("Enter a folder name");
       return;
     }
-
     const isDuplicate = items.some((item) => {
       const itemName = String(item.name || item.title || item.dumpTitle || "");
       return item.kind === "folder" && itemName.toLowerCase() === name.toLowerCase();
     });
-
     if (isDuplicate) {
       Modal.warning({
         title: "Folder already exists",
-        content: `A folder named “${name}” already exists in this location. Please choose a different name.`,
+        content: `A folder named "${name}" already exists in this location. Please choose a different name.`,
         okText: "OK",
         centered: true,
       });
       return;
     }
-
     setCreatingFolder(true);
     try {
       const res = await apiFetch(docPath("/scratch/folders"), {
@@ -197,7 +460,7 @@ export default function DocFileRegister() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(errText(json, res));
-      message.success(`Folder “${name}” created`);
+      message.success(`Folder "${name}" created`);
       setNewFolderName("");
       setCreateOpen(false);
       loadFolder(folderId || rootId, trail);
@@ -206,107 +469,6 @@ export default function DocFileRegister() {
     } finally {
       setCreatingFolder(false);
     }
-  }
-
-  const duplicateWarnings = useRef(new Set());
-
-  function onUpload(file) {
-    const isFolderUpload = !!file.webkitRelativePath;
-    const topLevelName = isFolderUpload ? file.webkitRelativePath.split('/')[0] : file.name;
-    const kind = isFolderUpload ? "folder" : "file";
-
-    const isDuplicate = items.some((item) => {
-      const itemName = String(item.name || item.title || item.dumpTitle || "");
-      return itemName.toLowerCase() === topLevelName.toLowerCase() && item.kind === kind;
-    });
-
-    if (isDuplicate) {
-      if (!duplicateWarnings.current.has(topLevelName)) {
-        duplicateWarnings.current.add(topLevelName);
-        setUploadErrorMessage(`The ${kind} “${topLevelName}” already exists.`);
-        setTimeout(() => duplicateWarnings.current.delete(topLevelName), 5000);
-      }
-      return false; 
-    }
-
-    if (!uploading && activeUploadsCount.current === 0 && pendingUploads.current.length === 0) {
-      setUploadStatus("active");
-      setOverallProgress(0);
-      totalBytesRef.current = 0;
-      loadedBytesRef.current = {};
-    }
-
-    setUploading(true);
-    
-    totalBytesRef.current += file.size || 0;
-    loadedBytesRef.current[file.uid] = 0;
-
-    const uploadTask = async () => {
-      try {
-        const form = new FormData();
-        form.append("file", file);
-        if (file.webkitRelativePath) {
-          form.append("webkitRelativePath", file.webkitRelativePath);
-        }
-        if (folderId) {
-          form.append("folderId", folderId);
-        } else if (rootId) {
-          form.append("folderId", rootId);
-        }
-
-        const json = await new Promise((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.open("POST", docPath("/scratch/upload"));
-
-          const token = getAccessToken();
-          if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-
-          xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-              loadedBytesRef.current[file.uid] = e.loaded;
-              
-              const currentTotalLoaded = Object.values(loadedBytesRef.current).reduce((a, b) => a + b, 0);
-              let percent = Math.round((currentTotalLoaded / totalBytesRef.current) * 100);
-              if (percent >= 100) percent = 99; 
-              
-              setOverallProgress(percent);
-            }
-          };
-
-          xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              loadedBytesRef.current[file.uid] = file.size;
-              try { resolve(JSON.parse(xhr.responseText)); } catch (err) { resolve({}); }
-            } else {
-              try {
-                const errJson = JSON.parse(xhr.responseText);
-                if (xhr.status === 409 || errJson.error === "duplicate") {
-                   reject(new Error(`The ${kind} “${topLevelName}” already exists, so it cannot be uploaded.`));
-                } else {
-                   reject(new Error(errJson.detail || errJson.error || xhr.statusText));
-                }
-              } catch (err) {
-                reject(new Error(xhr.statusText));
-              }
-            }
-          };
-
-          xhr.onerror = () => reject(new Error("Network Error"));
-          xhr.send(form);
-        });
-
-        return json;
-      } catch (e) {
-        setUploadStatus("exception");
-        setUploadErrorMessage(e.message || `Failed to upload “${file.name}”`);
-        return null;
-      }
-    };
-
-    pendingUploads.current.push(uploadTask);
-    processUploadQueue();
-
-    return false;
   }
 
   async function ensureDocument(file) {
@@ -421,7 +583,6 @@ export default function DocFileRegister() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.detail || json.error || "Delete failed");
-
       message.success(`${isFolder ? "Folder" : "File"} deleted successfully`);
       loadFolder(folderId || rootId, trail);
     } catch (e) {
@@ -490,9 +651,6 @@ export default function DocFileRegister() {
     setSelectedRows(rows);
   };
 
-  // ----------------------------------------------------------------------
-  // Aurora Styled Columns
-  // ----------------------------------------------------------------------
   const columns = [
     {
       id: "name",
@@ -532,7 +690,7 @@ export default function DocFileRegister() {
       label: "Status",
       numeric: false,
       render: (_, row) => {
-        if (row.kind === "folder") return <Typography variant="body2" color="text.secondary">—</Typography>;
+        if (row.kind === "folder") return <Typography variant="body2" color="text.secondary"> </Typography>;
         return row.registered 
           ? <Chip label="Registered" color="success" size="small" variant="soft" /> 
           : <Chip label="Temp" color="default" size="small" variant="soft" />;
@@ -579,7 +737,6 @@ export default function DocFileRegister() {
             ) : (
               <Link component="button" variant="body2" underline="hover" onClick={(e) => { e.stopPropagation(); openRegister(row); }}>Register</Link>
             )}
-
             <Popconfirm
               title="Delete file?"
               onConfirm={(e) => { e.stopPropagation(); onDelete(row); }}
@@ -596,10 +753,7 @@ export default function DocFileRegister() {
   ];
 
   const currentName = trail[trail.length - 1]?.name || "My Folders";
-  
-  // ----------------------------------------------------------------------
-  // Aurora Styled Action Buttons
-  // ----------------------------------------------------------------------
+
   const actionNodeButtons = (
     <Stack direction="row" sx={{ gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
       {selectedRowKeys.length > 0 && (
@@ -655,12 +809,8 @@ export default function DocFileRegister() {
     </Stack>
   );
 
-  // ----------------------------------------------------------------------
-  // Aurora Styled Breadcrumbs Node
-  // ----------------------------------------------------------------------
   const tableTitleNode = (
     <Stack direction="row" alignItems="center" spacing={1.5}>
-      {/* Conditionally hide the Up button if at the root */}
       {trail.length > 1 && (
         <Button
           variant="soft"
@@ -672,7 +822,6 @@ export default function DocFileRegister() {
           Up
         </Button>
       )}
-
       <Breadcrumbs separator={<IconifyIcon icon="material-symbols:chevron-right-rounded" sx={{ fontSize: 16 }} />}>
         {trail.map((t, i) => {
           const isLast = i === trail.length - 1;
@@ -688,7 +837,6 @@ export default function DocFileRegister() {
               </Typography>
             </Stack>
           );
-
           return isLast ? (
             <Box key={i}>{content}</Box>
           ) : (
@@ -711,7 +859,6 @@ export default function DocFileRegister() {
     <MuiCard elevation={0} sx={{ border: '1px solid', borderColor: 'divider', mb: 3 }}>
       <CardContent sx={{ p: { xs: 2, md: 3 } }}>
         
-        {/* Adjusted Typography Layout to remove excessive empty space */}
         <Box sx={{ mb: 3 }}>
           <Typography variant="h5" fontWeight={700} gutterBottom>
             All my dump files
@@ -739,9 +886,8 @@ export default function DocFileRegister() {
             </Typography>
         )}
 
-        {/* Upload Popup Modal */}
         <Modal
-          title={`Upload to “${currentName}”`}
+          title={`Upload to "${currentName}"`}
           open={uploadModalOpen}
           onCancel={() => {
             if (!uploading) {
@@ -759,31 +905,50 @@ export default function DocFileRegister() {
           }
           destroyOnClose
         >
+          {/* THE NEW SMART DROPZONE */}
           <div style={{ marginTop: 16 }}>
-            <Upload.Dragger
-              multiple
-              beforeUpload={onUpload}
-              showUploadList={false}
-              disabled={uploading}
-              style={{ padding: "24px 0", background: "#fafafa" }}
+            <div
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
+              onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }}
+              onDrop={handleCustomDrop}
+              onClick={() => {
+                if (!uploading) fileInputRef.current?.click();
+              }}
+              style={{
+                border: isDragging ? "2px dashed #1677ff" : "1px dashed #d9d9d9",
+                backgroundColor: isDragging ? "#e6f4ff" : "#fafafa",
+                padding: "32px 0",
+                textAlign: "center",
+                borderRadius: "8px",
+                cursor: uploading ? "not-allowed" : "pointer",
+                transition: "all 0.3s ease",
+                opacity: uploading ? 0.6 : 1
+              }}
             >
-              <p className="ant-upload-drag-icon" style={{ margin: 0, fontSize: 36, color: '#1677ff' }}>
+              <input 
+                type="file" 
+                multiple 
+                ref={fileInputRef} 
+                style={{ display: "none" }} 
+                onChange={handleFileInput} 
+              />
+              <p style={{ margin: 0, fontSize: 36, color: isDragging ? '#1677ff' : '#4096ff' }}>
                 <InboxOutlined />
               </p>
-              <p className="ant-upload-text" style={{ marginTop: 12 }}>
-                Click or drag files here to upload
+              <p style={{ marginTop: 12, fontSize: 16, color: "var(--mui-palette-text-primary)" }}>
+                Click or drag files & folders here to upload
               </p>
-              <p className="ant-upload-hint">
-                Supports single or bulk file upload.
+              <p style={{ margin: 0, fontSize: 14, color: "var(--mui-palette-text-secondary)" }}>
+                Smart upload preserves your folder hierarchy perfectly.
               </p>
-            </Upload.Dragger>
+            </div>
           </div>
 
           {uploading && (
             <div style={{ marginTop: 24, padding: "0 12px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                 <Typography variant="body2" fontWeight={600} color="text.secondary">
-                  {overallProgress === 100 ? "Finalizing upload..." : "Uploading batch..."}
+                  {overallProgress === 100 ? "Finalizing upload..." : (uploadText || "Uploading batch...")}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">{overallProgress}%</Typography>
               </div>
@@ -805,11 +970,14 @@ export default function DocFileRegister() {
               Want to upload an entire folder structure?
             </Typography>
             <Upload
-              beforeUpload={onUpload}
+              beforeUpload={(f) => { 
+                f.customRelativePath = f.webkitRelativePath || f.name; 
+                startBatchUpload([f]); 
+                return false; 
+              }}
               showUploadList={false}
               multiple
               directory
-              disabled={uploading}
             >
               <Button variant="outlined" startIcon={<FolderOpenOutlined />} disabled={uploading}>
                 Select Folder to Upload
@@ -820,7 +988,7 @@ export default function DocFileRegister() {
 
         {/* New Folder Modal */}
         <Modal
-          title={`New folder in “${currentName}”`}
+          title={`New folder in "${currentName}"`}
           open={createOpen}
           onOk={createFolder}
           confirmLoading={creatingFolder}
@@ -923,11 +1091,11 @@ export default function DocFileRegister() {
           </Typography>
         </Modal>
 
-        {/* <DocSharePanel
+        <DocSharePanel
           items={shareItems}
           open={shareItems.length > 0}
           onClose={() => setShareItems([])}
-        /> */}
+        />
       </CardContent>
     </MuiCard>
   );

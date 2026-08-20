@@ -1,4 +1,8 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import crypto from "node:crypto";
+import { pipeline } from "node:stream/promises";
 import { requireJwt, normalizeEmail, sendError } from "../lib/auth.js";
 import { getZohoAccessToken } from "../services/zohoAuth.js";
 import {
@@ -410,158 +414,89 @@ export async function scratchRoutes(app, { pool }) {
 
 /**
  * Multipart scratch upload that preserves the complete folder hierarchy.
- *
- * Example:
- *
- * Project/
- *   File1.pdf
- *   Reports/
- *     File2.pdf
- *     2026/
- *       File3.pdf
- *
- * When "Project" is selected for upload, the structure is recreated
- * inside the currently selected WorkDrive folder.
+ * Uses Disk Streaming to prevent Memory (RAM) exhaustion on large folder uploads.
  */
 export async function uploadScratchWithPersonalFolder(pool, request, reply) {
   const actor = requireJwt(request);
 
   const fields = {};
   let filePart = null;
+  let tempFilePath = null;
 
   for await (const part of request.parts()) {
     if (part.type === "file") {
-      const chunks = [];
-
-      for await (const chunk of part.file) {
-        chunks.push(chunk);
-      }
+      // 1. Stream the incoming browser upload to disk to save RAM
+      tempFilePath = path.join(os.tmpdir(), `docq-upload-${crypto.randomUUID()}.tmp`);
+      await pipeline(part.file, fs.createWriteStream(tempFilePath));
 
       filePart = {
         filename: part.filename || "upload.bin",
         mimetype: part.mimetype || "application/octet-stream",
-        buffer: Buffer.concat(chunks),
+        filepath: tempFilePath,
       };
     } else if (part.fieldname) {
       fields[part.fieldname] = part.value;
     }
   }
 
-  if (!filePart?.buffer?.length) {
-    return reply.code(400).send({
-      error: "file_required",
-    });
+  if (!filePart?.filepath) {
+    if (tempFilePath) await fs.promises.unlink(tempFilePath).catch(() => {});
+    return reply.code(400).send({ error: "file_required" });
   }
 
   try {
     const accessToken = await getZohoAccessToken(pool, actor.email);
 
-    const { rootId } = await resolvePersonalRoot(accessToken);
-
     /*
-     * The folder where the user selected "Upload".
-     *
-     * If folderId exists, upload inside that folder.
-     * Otherwise upload inside My Folders.
+     * THE FIX: Only query Zoho for the Personal Root if the frontend
+     * didn't provide a folderId. This saves HUNDREDS of API calls 
+     * per minute during batch folder uploads!
      */
-    let parentId = fields.folderId
-      ? String(fields.folderId).trim()
-      : rootId;
-
+    let parentId = fields.folderId ? String(fields.folderId).trim() : null;
     if (!parentId) {
+      const { rootId } = await resolvePersonalRoot(accessToken);
       parentId = rootId;
     }
 
-    /*
-     * IMPORTANT:
-     *
-     * For directory uploads the browser sends:
-     *
-     *   Project/Reports/2026/report.pdf
-     *
-     * through webkitRelativePath.
-     *
-     * We use that path to recreate the entire folder hierarchy.
-     */
     const relativePath = String(
       fields.webkitRelativePath || filePart.filename || ""
     ).trim();
 
-    /*
-     * Convert Windows paths to "/" as well.
-     */
     const normalizedPath = relativePath
       .replace(/\\/g, "/")
       .replace(/^\/+/, "")
       .replace(/\/+/g, "/");
 
-    /*
-     * Split:
-     *
-     * Project/Reports/2026/report.pdf
-     *
-     * into:
-     *
-     * ["Project", "Reports", "2026", "report.pdf"]
-     */
     const pathParts = normalizedPath
       .split("/")
       .map((part) => part.trim())
       .filter(Boolean);
 
-    /*
-     * The last part is the actual filename.
-     */
     const filename =
       pathParts.length > 0
         ? pathParts[pathParts.length - 1]
         : filePart.filename;
 
-    /*
-     * Everything before the filename is the folder path.
-     *
-     * Example:
-     *
-     * Project/Reports/2026/report.pdf
-     *
-     * becomes:
-     *
-     * ["Project", "Reports", "2026"]
-     */
     const folderParts = pathParts.slice(0, -1);
 
-    /*
-     * Create/find the nested folder hierarchy.
-     *
-     * Starting from the folder where the user initiated the upload:
-     *
-     * selectedFolder
-     *   └── Project
-     *       └── Reports
-     *           └── 2026
-     */
     if (folderParts.length > 0) {
       const folderPath = folderParts.join("/");
-
       const finalFolder = await ensureFolderPathFromParent(
         accessToken,
         parentId,
         folderPath
       );
-
       parentId = finalFolder.id;
     }
 
-    /*
-     * Upload the file into the deepest folder.
-     */
+    const fileBuffer = await fs.promises.readFile(filePart.filepath);
+
     const uploaded = await uploadWorkdriveFile(accessToken, {
       parentId,
       filename,
-      buffer: filePart.buffer,
+      buffer: fileBuffer,
       contentType: filePart.mimetype,
     });
-
     /*
      * Create local document record.
      */
@@ -571,60 +506,22 @@ export async function uploadScratchWithPersonalFolder(pool, request, reply) {
     const { rows } = await pool.query(
       `
         insert into documents(
-          id,
-          workdrive_file_id,
-          workdrive_folder_id,
-          workdrive_permalink,
-          doc_type,
-          title,
-          state,
-          zone,
-          author_email,
-          created_by_email,
-          modified_by_email,
-          workflow_mode,
-          version,
-          version_label,
-          version_major,
-          version_minor,
-          dump_registered,
-          created_at,
-          updated_at
+          id, workdrive_file_id, workdrive_folder_id, workdrive_permalink,
+          doc_type, title, state, zone,
+          author_email, created_by_email, modified_by_email,
+          workflow_mode, version, version_label, version_major, version_minor,
+          dump_registered, created_at, updated_at
         )
         values (
-          $1,
-          $2,
-          $3,
-          $4,
-          'scratch',
-          $5,
-          'draft',
-          'scratch',
-          $6,
-          $6,
-          $6,
-          'none',
-          $7,
-          $8,
-          $9,
-          $10,
-          false,
-          now(),
-          now()
+          $1, $2, $3, $4, 'scratch', $5, 'draft', 'scratch',
+          $6, $6, $6, 'none', $7, $8, $9, $10,
+          false, now(), now()
         )
         returning *
       `,
       [
-        id,
-        uploaded.id,
-        parentId,
-        uploaded.permalink,
-        filename,
-        normalizeEmail(actor.email),
-        ver.version,
-        ver.label,
-        ver.major,
-        ver.minor,
+        id, uploaded.id, parentId, uploaded.permalink, filename,
+        normalizeEmail(actor.email), ver.version, ver.label, ver.major, ver.minor,
       ]
     );
 
@@ -634,35 +531,14 @@ export async function uploadScratchWithPersonalFolder(pool, request, reply) {
     await pool.query(
       `
         insert into document_versions(
-          document_id,
-          workdrive_file_id,
-          workdrive_permalink,
-          version,
-          version_label,
-          version_major,
-          version_minor,
-          uploaded_by_email
+          document_id, workdrive_file_id, workdrive_permalink,
+          version, version_label, version_major, version_minor, uploaded_by_email
         )
-        values (
-          $1,
-          $2,
-          $3,
-          $4,
-          $5,
-          $6,
-          $7,
-          $8
-        )
+        values ($1, $2, $3, $4, $5, $6, $7, $8)
       `,
       [
-        id,
-        uploaded.id,
-        uploaded.permalink || null,
-        ver.version,
-        ver.label,
-        ver.major,
-        ver.minor,
-        normalizeEmail(actor.email),
+        id, uploaded.id, uploaded.permalink || null, ver.version,
+        ver.label, ver.major, ver.minor, normalizeEmail(actor.email),
       ]
     );
 
@@ -675,6 +551,11 @@ export async function uploadScratchWithPersonalFolder(pool, request, reply) {
     });
   } catch (e) {
     return sendError(reply, e);
+  } finally {
+    // 4. Always delete the temp file from disk
+    if (tempFilePath) {
+      await fs.promises.unlink(tempFilePath).catch(() => {});
+    }
   }
 }
 

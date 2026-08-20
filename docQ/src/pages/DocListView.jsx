@@ -133,10 +133,10 @@ export default function DocListView({
         size="small"
         value={docType}
         onChange={(e) => setDocType(e.target.value)}
-        displayEmpty
+        SelectProps={{ displayEmpty: true }}
         sx={{ minWidth: 160 }}
       >
-        <MenuItem value=""><em>All Doc Types</em></MenuItem>
+        <MenuItem value="">All Doc Types</MenuItem>
         {["general","manual","contract","design","cad","spec","policy"].map((v) => (
           <MenuItem key={v} value={v} sx={{ textTransform: 'capitalize' }}>{v}</MenuItem>
         ))}
