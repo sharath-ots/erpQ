@@ -63,7 +63,8 @@ export default function DocFileRegister() {
   const loadedBytesRef = useRef({});
   const totalFilesRef = useRef(0);
   const processedFilesRef = useRef(0);
-  const highestProgressRef = useRef(0); // <-- FIX 1: Prevents rubber-banding progress bar
+  const highestProgressRef = useRef(0);
+  const duplicateWarnings = useRef(new Set());
 
   // Sharing & Bulk Actions states
   const [shareItems, setShareItems] = useState([]); 
@@ -263,6 +264,8 @@ export default function DocFileRegister() {
       setUploading(true);
     }
 
+    let validFilesAdded = false; // <--- ADDED: Track if we actually have files to upload
+
     filesArray.forEach(file => {
       const actualPath = file.customRelativePath || file.name;
       const isFolderUpload = actualPath.includes('/');
@@ -282,6 +285,8 @@ export default function DocFileRegister() {
         }
         return; // Skip this file, but continue batch
       }
+
+      validFilesAdded = true; // <--- ADDED: We have at least one valid file!
 
       totalBytesRef.current += file.size || 0;
       loadedBytesRef.current[file.uid] = 0;
@@ -306,25 +311,14 @@ export default function DocFileRegister() {
             let uploadStartTime = Date.now();
             let zohoInterval = null;
 
-            const updateGlobalProgress = (eLoaded, eTotal) => {
-              const completedFiles = processedFilesRef.current;
-              const totalFiles = totalFilesRef.current || 1;
+            const updateGlobalProgress = () => {
+              const currentTotalLoaded = Object.values(loadedBytesRef.current).reduce((a, b) => a + b, 0);
+              let percent = Math.round((currentTotalLoaded / totalBytesRef.current) * 100);
               
-              // Calculate how far along the *current* file is (0 to 1)
-              const currentFileFraction = eTotal > 0 ? Math.min(eLoaded / eTotal, 1) : 0;
-              
-              // Total progress across the entire batch
-              const totalProgressFraction = (completedFiles + currentFileFraction) / totalFiles;
-              let percent = Math.round(totalProgressFraction * 100);
-              
-              // Cap at 99% until fully finished by Zoho
-              if (percent >= 100) percent = 99;
-              if (percent < 0) percent = 0;
-              
-              // Ensure the bar never moves backward
               if (percent > highestProgressRef.current) {
-                highestProgressRef.current = percent;
+                 highestProgressRef.current = percent;
               }
+              if (highestProgressRef.current >= 100) highestProgressRef.current = 99;
               
               setOverallProgress(highestProgressRef.current);
             };
@@ -332,7 +326,7 @@ export default function DocFileRegister() {
             xhr.upload.onprogress = (e) => {
               if (e.lengthComputable) {
                 loadedBytesRef.current[file.uid] = e.loaded / 2;
-                updateGlobalProgress(e.loaded, e.total);
+                updateGlobalProgress();
 
                 if (e.loaded >= e.total && !zohoInterval) {
                   const duration = Date.now() - uploadStartTime;
@@ -394,6 +388,13 @@ export default function DocFileRegister() {
 
       pendingUploads.current.push(uploadTask);
     });
+
+    // <--- ADDED BLOCK: Abort instantly if no valid files were added
+    if (!validFilesAdded) {
+      setUploading(false);
+      isBatchActive.current = false;
+      return; 
+    }
 
     processUploadQueue();
   }
