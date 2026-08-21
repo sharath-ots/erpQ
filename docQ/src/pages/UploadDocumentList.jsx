@@ -936,11 +936,13 @@ export default function DocFileRegister() {
               <p style={{ margin: 0, fontSize: 36, color: isDragging ? '#1677ff' : '#4096ff' }}>
                 <InboxOutlined />
               </p>
-              <p style={{ marginTop: 12, fontSize: 16, color: "var(--mui-palette-text-primary)" }}>
-                Click or drag files & folders here to upload
+              <p style={{ marginTop: 12, fontSize: 16, color: "var(--mui-palette-text-primary)", fontWeight: 600 }}>
+                Click here to browse, or drag & drop files into this box
               </p>
-              <p style={{ margin: 0, fontSize: 14, color: "var(--mui-palette-text-secondary)" }}>
-                Smart upload preserves your folder hierarchy perfectly.
+              <p style={{ margin: 0, marginTop: 4, fontSize: 14, color: "var(--mui-palette-text-secondary)" }}>
+                You can drop loose files or entire folders. 
+                <br />
+                Smart upload will preserve your folder hierarchy perfectly.
               </p>
             </div>
           </div>

@@ -43,7 +43,7 @@ const Logo = ({ sx, viewBox = '0 0 26 40', showName = true, isShowcase = false, 
   if (isSupplierUser || isSupplierRoute) {
     logoHref = '/m/supplierq';
   } else if (isDocqRoute) {
-    logoHref = '/m/docq'; // 👈 ADDED: Link back to docq if inside the module
+    logoHref = '/m/docq/my-documents';
   }
 
   return (
