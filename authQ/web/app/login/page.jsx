@@ -95,12 +95,12 @@ async function handleLiveRouting(email, token, defaultDestUrl, provider) {
       finalUrl = new URL(`${base}/m/supplierq`);
     } else if (provider === "zoho") {
       // 🚀 Explicitly route Zoho logins to docq
-      finalUrl = new URL(`${base}/m/docq`);
+      finalUrl = new URL(`${base}/m/docq/my-documents`);
     } else if (provider === "email") {
       // 🚀 Explicitly route email logins to crmq
       finalUrl = new URL(`${base}/m/crmq`);
     } else if (roles.length === 0) {
-      finalUrl = new URL(`${base}/m/docq`);
+      finalUrl = new URL(`${base}/m/docq/my-documents`);
     } else {
       // Normal admins/users go to CRM if they don't have a specific deep link
       if (finalUrl.pathname === "/" || finalUrl.pathname === "/login") {
@@ -221,9 +221,9 @@ function LoginCard() {
   // 2. Zoho Return (DocQ Base - Without custom parameters)
   const zohoReturn = useMemo(() => {
     if (typeof window === "undefined") {
-      return encodeURIComponent(`${getComDashBase().replace(/\/$/, "")}/m/docq`);
+      return encodeURIComponent(`${getComDashBase().replace(/\/$/, "")}/m/docq/my-documents`);
     }
-    const baseDest = resolvePostLoginDestination("/m/docq").toString();
+    const baseDest = resolvePostLoginDestination("/m/docq/my-documents").toString();
     return encodeURIComponent(baseDest);
   }, []);
   
