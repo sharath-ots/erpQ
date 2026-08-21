@@ -74,6 +74,10 @@ export default function DocFileRegister() {
   const [deletingBulk, setDeletingBulk] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
+  // NEW: Clipboard for Cut/Copy/Paste
+  const [clipboard, setClipboard] = useState(null);
+  const [pasting, setPasting] = useState(false);
+
   // Registering states
   const [registerFile, setRegisterFile] = useState(null);
   const [registering, setRegistering] = useState(false);
@@ -646,6 +650,41 @@ export default function DocFileRegister() {
     }
   }
 
+  async function handlePaste() {
+    if (!clipboard || clipboard.items.length === 0) return;
+    setPasting(true);
+    
+    const targetFolder = folderId || rootId;
+    const endpoint = clipboard.action === 'cut' ? '/scratch/move' : '/scratch/copy';
+    
+    // UPDATED SAFETY CHECK: Prevent moving OR copying a folder into itself
+    if (clipboard.items.some(i => i.id === targetFolder)) {
+      message.error(`Cannot ${clipboard.action} a folder into its own contents`);
+      setPasting(false);
+      return;
+    }
+
+    try {
+      const res = await apiFetch(docPath(endpoint), {
+        method: "POST",
+        body: JSON.stringify({ items: clipboard.items, parentId: targetFolder })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || json.detail || "Paste failed");
+      
+      message.success(`Successfully ${clipboard.action === 'cut' ? 'moved' : 'copied'} items`);
+      
+      // If it was a cut action, clear the clipboard so they don't paste it twice
+      if (clipboard.action === 'cut') setClipboard(null);
+      
+      loadFolder(targetFolder, trail);
+    } catch (e) {
+      message.error(`Paste error: ${e.message}`);
+    } finally {
+      setPasting(false);
+    }
+  }
+
   const handleSelectionChange = (keys) => {
     setSelectedRowKeys(keys);
     const rows = items.filter(item => keys.includes(item.id));
@@ -757,10 +796,32 @@ export default function DocFileRegister() {
 
   const actionNodeButtons = (
     <Stack direction="row" sx={{ gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+      {items.length > 0 && (
+        <Typography variant="body2" color="text.secondary" sx={{ mr: 2, fontWeight: 500 }}>
+          {items.filter(item => item.kind === "folder").length} folder(s), {items.filter(item => item.kind !== "folder").length} file(s)
+        </Typography>
+      )}
+      
       {selectedRowKeys.length > 0 && (
         <>
           <Button 
             variant="outlined" 
+            color="primary"
+            startIcon={<IconifyIcon icon="material-symbols:content-cut-outline-rounded" />}
+            onClick={() => { setClipboard({ action: 'cut', items: selectedRows }); setSelectedRowKeys([]); setSelectedRows([]); message.success("Cut to clipboard"); }}
+          >
+            Cut
+          </Button>
+          <Button 
+            variant="outlined" 
+            color="primary"
+            startIcon={<IconifyIcon icon="material-symbols:content-copy-outline-rounded" />}
+            onClick={() => { setClipboard({ action: 'copy', items: selectedRows }); setSelectedRowKeys([]); setSelectedRows([]); message.success("Copied to clipboard"); }}
+          >
+            Copy
+          </Button>
+          <Button
+            variant="outlined"
             color="primary"
             startIcon={<IconifyIcon icon="material-symbols:share-outline" />}
             onClick={onShareSelected}
@@ -768,17 +829,47 @@ export default function DocFileRegister() {
           >
             Share
           </Button>
-          <Button 
-            variant="outlined" 
+          <Button
+            variant="outlined"
             color="error"
-            startIcon={<IconifyIcon icon="material-symbols:delete-outline" />} 
+            startIcon={<IconifyIcon icon="material-symbols:delete-outline" />}
             onClick={() => setBulkDeleteOpen(true)}
           >
             Delete
           </Button>
         </>
       )}
+
+      {/* Paste Button & Cancel Clipboard Button */}
+      {clipboard && clipboard.items.length > 0 && (
+        <Stack direction="row" sx={{ ml: 1, bgcolor: 'secondary.main', borderRadius: 1, overflow: 'hidden' }}>
+          <Button 
+            variant="contained" 
+            color="secondary"
+            startIcon={<IconifyIcon icon="material-symbols:content-paste-rounded" />}
+            onClick={handlePaste}
+            disabled={pasting}
+            sx={{ borderRadius: 0, boxShadow: 'none' }}
+          >
+            Paste ({clipboard.items.length})
+          </Button>
+          <Button 
+            variant="contained" 
+            color="secondary" 
+            onClick={() => setClipboard(null)}
+            disabled={pasting}
+            sx={{ minWidth: 0, px: 1, borderLeft: '1px solid rgba(255,255,255,0.2)', borderRadius: 0, boxShadow: 'none' }}
+          >
+            <IconifyIcon icon="material-symbols:close-rounded" />
+          </Button>
+        </Stack>
+      )}
       
+      {/* Divider if we have actions to separate them from the creation tools */}
+      {(selectedRowKeys.length > 0 || clipboard) && (
+        <Box sx={{ width: '1px', height: 24, bgcolor: 'divider', mx: 1 }} />
+      )}
+
       <Button 
         variant="soft" 
         color="secondary" 
@@ -864,9 +955,6 @@ export default function DocFileRegister() {
           <Typography variant="h5" fontWeight={700} gutterBottom>
             All my dump files
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Browse your personal WorkDrive folders. Upload here, then <strong>Register</strong> to copy a file into managed documents (the dump file stays; it is marked Registered so you do not register twice).
-          </Typography>
         </Box>
 
         <CommonDataGrid 
@@ -881,11 +969,11 @@ export default function DocFileRegister() {
             onSelectionChange={handleSelectionChange}
         />
         
-        {items.length > 0 && (
+        {/* {items.length > 0 && (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               {items.filter(item => item.kind === "folder").length} folder(s) and {items.filter(item => item.kind !== "folder").length} file(s)
             </Typography>
-        )}
+        )} */}
 
         <Modal
           title={`Upload to "${currentName}"`}

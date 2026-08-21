@@ -146,8 +146,8 @@ export default function DocListView({
 
   return (
     <>
-      <Card elevation={embedded ? 0 : 1} sx={{ border: embedded ? 'none' : '1px solid', borderColor: 'divider', mb: 3 }}>
-        <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+      <Card elevation={embedded ? 0 : 1} sx={{ border: embedded ? 'none' : '1px solid', borderColor: 'divider', mb: 0 }}>
+        <CardContent sx={{ p: { xs: 2, md: 3 }, "&:last-child": { pb: { xs: 2, md: 3 } } }}>
           
           {/* Header Section */}
           <Box sx={{ mb: 3 }}>
@@ -171,6 +171,7 @@ export default function DocListView({
             showActions={showActions}
             authorActions={authorActions}
             filterNode={tableFilters} // Maps to the left side of the table toolbar
+            emptyHint={emptyHint}
             onSubmit={(row) => runTransition("submit", row, {})}
             onResubmit={(row) => runTransition("resubmit", row, {})}
             onApprove={(row) => { setActionDoc(row); setActionType("approve"); setComment(""); }}
@@ -178,13 +179,6 @@ export default function DocListView({
             onRevoke={view === "revocable" ? (row) => setRevokeDoc(row) : undefined}
             onOpen={(row) => router.push(`/m/docq/documents/${row.id}`)}
           />
-
-          {!loading && !docs.length && emptyHint && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2, textAlign: 'center' }}>
-              {emptyHint}
-            </Typography>
-          )}
-
         </CardContent>
       </Card>
       

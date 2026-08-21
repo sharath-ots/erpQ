@@ -17,12 +17,15 @@ export async function orgRoutes(app, { pool }) {
   app.get("/api/v1/docs/org/users", async (request, reply) => {
     const actor = requireJwt(request);
     const q = request.query?.q ? String(request.query.q) : "";
-    const domainFromActor = normalizeEmail(actor.email).includes("@")
-      ? normalizeEmail(actor.email).split("@")[1]
-      : "";
-    // Default: same email domain as the logged-in user. Pass domain= to override, or domain=* for all.
-    const domainRaw = request.query?.domain != null ? String(request.query.domain) : domainFromActor;
-    const domain = domainRaw === "*" || domainRaw === "all" ? "" : domainRaw;
+
+    const domain = "versaq.eu";
+
+    // const domainFromActor = normalizeEmail(actor.email).includes("@")
+    //   ? normalizeEmail(actor.email).split("@")[1]
+    //   : "";
+    // // Default: same email domain as the logged-in user. Pass domain= to override, or domain=* for all.
+    // const domainRaw = request.query?.domain != null ? String(request.query.domain) : domainFromActor;
+    // const domain = domainRaw === "*" || domainRaw === "all" ? "" : domainRaw;
     const limit = Math.min(Number(request.query?.limit) || 100, 200);
     const users = await listErpUsers(pool, { q, limit, domain });
     return reply.send({

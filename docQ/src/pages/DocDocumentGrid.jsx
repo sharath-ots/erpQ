@@ -79,6 +79,7 @@ export default function DocDocumentGrid({
   authorActions = false,
   filterNode, // Controls the left side of the table toolbar
   actionNode, // Controls the right side of the table toolbar
+  emptyHint,
   onApprove,
   onRequestChanges,
   onSubmit,
@@ -107,14 +108,15 @@ export default function DocDocumentGrid({
         </Link>
       ),
     },
-    { 
-      id: "doc_type", 
-      label: "Doc Type", 
-      numeric: false,
+    {
+       id: "doc_type",
+       label: "Doc Type",
+       numeric: false,
       render: (type) => <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>{type}</Typography>
     },
   ];
 
+  /*
   if (anyFolder) {
     headCells.push({
       id: "folder",
@@ -123,14 +125,17 @@ export default function DocDocumentGrid({
       render: (_, row) => <Typography variant="body2" noWrap>{getFolderName(row)}</Typography>,
     });
   }
+  */
 
   headCells.push(
+    /*
     {
       id: "versions",
       label: "Versions",
       numeric: false,
       render: (_, row) => <VersionLinks doc={row} versions={row.versions} />,
     },
+    */
     {
       id: "status",
       label: "Status",
@@ -140,52 +145,68 @@ export default function DocDocumentGrid({
         return <Chip label={s.label} color={s.color} size="small" variant="soft" sx={{ borderRadius: 1 }} />;
       },
     },
+    /*
     {
       id: "workflow_stage",
       label: "Stage",
       numeric: false,
-      render: (v) => <Typography variant="body2">{v || "—"}</Typography>,
+      render: (v) => (
+        <Typography variant="body2">
+          {v === "adhoc_approval" ? "Approval" : (v || " ")}
+        </Typography>
+      ),
     },
+    */
+    /*
     {
       id: "created_at",
       label: "Date Created",
       numeric: false,
       render: (v) => <Typography variant="body2" color="text.secondary">{formatDate(v)}</Typography>,
     },
-    { 
-      id: "author_email", 
-      label: "Author", 
-      numeric: false,
-      render: (email) => <Typography variant="body2" noWrap>{email}</Typography> 
+    */
+    {
+       id: "author_email",
+       label: "Author",
+       numeric: false,
+      render: (email) => <Typography variant="body2" noWrap>{email}</Typography>
     }
   );
 
+  /*
   if (view === "shared_with_me" || view === "shared_by_me") {
     headCells.push({
       id: "description",
       label: "Share Details",
       numeric: false,
-      render: (desc) => <Typography variant="body2" noWrap>{desc || "—"}</Typography>,
+      render: (desc) => <Typography variant="body2" noWrap>{desc || " "}</Typography>,
     });
   }
+  */
 
+  /*
   if (anyReviewed) {
-    headCells.push({ 
-      id: "reviewed_by", 
-      label: "Reviewed By", 
-      numeric: false, 
-      render: (v) => <Typography variant="body2" noWrap>{v || "—"}</Typography> 
-    });
+    headCells.push({
+       id: "reviewed_by",
+       label: "Reviewed By",
+       numeric: false,
+       render: (v) => <Typography variant="body2" noWrap>{v || " "}</Typography>
+     });
   }
-  if (anyApproved) {
-    headCells.push({ 
-      id: "approved_by", 
-      label: "Approved By", 
-      numeric: false, 
-      render: (v) => <Typography variant="body2" noWrap>{v || "—"}</Typography> 
-    });
-  }
+  */
 
+  /*
+  if (anyApproved) {
+    headCells.push({
+       id: "approved_by",
+       label: "Approved By",
+       numeric: false,
+       render: (v) => <Typography variant="body2" noWrap>{v || " "}</Typography>
+     });
+  }
+  */
+
+  /*
   if (showYourAction) {
     headCells.push({
       id: "your_action",
@@ -236,10 +257,19 @@ export default function DocDocumentGrid({
         if (showActions && (row.next_action === "review" || row.next_action === "approve")) {
           return null;
         }
-        return meta.label !== "—" ? <Typography variant="body2" color="text.secondary">{meta.label}</Typography> : <Typography variant="body2">—</Typography>;
+        if (row.my_pending_task?.role === "author_routing") {
+          return (
+            <Stack spacing={0.5} alignItems="flex-start">
+              <Typography variant="caption" color="warning.main" fontWeight={600}>Raise for approval</Typography>
+              <Button size="small" variant="contained" color="primary" onClick={(e) => { e.stopPropagation(); onOpen?.(row); }}>Open</Button>
+            </Stack>
+          );
+        }
+        return meta.label !== " " ? <Typography variant="body2" color="text.secondary">{meta.label}</Typography> : <Typography variant="body2"> </Typography>;
       },
     });
   }
+  */
 
   headCells.push({
     id: "links",
@@ -267,6 +297,7 @@ export default function DocDocumentGrid({
       rows={documents} 
       loading={loading}
       defaultPageSize={10} 
+      emptyMsg={emptyHint}
     />
   );
 }

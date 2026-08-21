@@ -98,6 +98,9 @@ export async function sharesRoutes(app, { pool }) {
       }
 
       const granteeEmail = request.body?.granteeEmail ? normalizeEmail(request.body.granteeEmail) : null;
+      if (granteeEmail && !granteeEmail.endsWith("@versaq.eu")) {
+        return reply.code(403).send({ error: "forbidden", detail: "External sharing is disabled. Only @versaq.eu emails are allowed." });
+      }
       const granteeDepartment = request.body?.granteeDepartment ? String(request.body.granteeDepartment).trim() : null;
       const permission = String(request.body?.permission || "read").trim();
 
@@ -191,6 +194,9 @@ export async function sharesRoutes(app, { pool }) {
       const folderId = request.params.id; 
       
       const granteeEmail = request.body?.granteeEmail ? normalizeEmail(request.body.granteeEmail) : null;
+      if (granteeEmail && !granteeEmail.endsWith("@versaq.eu")) {
+        return reply.code(403).send({ error: "forbidden", detail: "External sharing is disabled. Only @versaq.eu emails are allowed." });
+      }
       const permission = String(request.body?.permission || "read").trim();
 
       const folderName = request.body?.folderName ? String(request.body.folderName).trim() : "Shared Folder";

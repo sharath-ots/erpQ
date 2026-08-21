@@ -277,12 +277,13 @@ const DocMetadataPanel = forwardRef(function DocMetadataPanel(
         </Alert>
       )}
 
+      {/* --- EDITABLE METADATA SECTION --- */}
       <Grid container spacing={3}>
-        
-        <Grid item xs={12} md={8}>
+        {/* Row 1: Primary Info */}
+        <Grid size={{ xs: 12, md: 8 }}>
           <StyledTextField
             fullWidth
-            label="Title"
+            label="Title *"
             size="small"
             required
             error={!!errors.title}
@@ -290,8 +291,7 @@ const DocMetadataPanel = forwardRef(function DocMetadataPanel(
             {...register("title", { required: "Title is required" })}
           />
         </Grid>
-
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Controller
             name="docType"
             control={control}
@@ -302,7 +302,7 @@ const DocMetadataPanel = forwardRef(function DocMetadataPanel(
                 select
                 fullWidth
                 size="small"
-                label="Document type"
+                label="Document type *"
                 required
                 error={!!errors.docType}
                 helperText={errors.docType?.message}
@@ -317,11 +317,11 @@ const DocMetadataPanel = forwardRef(function DocMetadataPanel(
           />
         </Grid>
 
-        <Grid item xs={12} md={4}>
+        {/* Row 2: Categorization */}
+        <Grid size={{ xs: 12, md: 4 }}>
           <StyledTextField fullWidth size="small" label="Department" {...register("department")} />
         </Grid>
-
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Controller
             name="classification"
             control={control}
@@ -342,12 +342,12 @@ const DocMetadataPanel = forwardRef(function DocMetadataPanel(
             )}
           />
         </Grid>
-
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <StyledTextField fullWidth size="small" label="Reference no." {...register("referenceNumber")} />
         </Grid>
 
-        <Grid item xs={12} md={6}>
+        {/* Row 3: Tags (Full Width to give chips room to breathe) */}
+        <Grid size={{ xs: 12 }}>
           <Controller
             name="tags"
             control={control}
@@ -371,21 +371,28 @@ const DocMetadataPanel = forwardRef(function DocMetadataPanel(
           />
         </Grid>
 
-        <Grid item xs={12} md={3}>
-          <StyledTextField fullWidth size="small" label="Author" value={doc.author_email || ""} disabled />
+        {/* Row 4: Description (Full Width) */}
+        <Grid size={{ xs: 12 }}>
+          <StyledTextField fullWidth multiline rows={4} label="Description" {...register("description")} />
         </Grid>
-
-        <Grid item xs={12} md={3}>
-          <StyledTextField fullWidth size="small" label="Created" value={formatDate(doc.created_at)} disabled />
-        </Grid>
-
-        <Grid item xs={12}>
-          <StyledTextField fullWidth multiline rows={3} label="Description" {...register("description")} />
-        </Grid>
-
       </Grid>
 
-      <Divider sx={{ my: 3 }} />
+      {/* --- SYSTEM INFORMATION SECTION --- */}
+      <Divider sx={{ my: 4, borderStyle: 'dashed' }} />
+      
+      <Typography variant="subtitle2" fontWeight={600} color="text.secondary" gutterBottom>
+        System Information
+      </Typography>
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <StyledTextField fullWidth size="small" label="Author" value={doc.author_email || ""} disabled />
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <StyledTextField fullWidth size="small" label="Created" value={formatDate(doc.created_at)} disabled />
+        </Grid>
+      </Grid>
+
+      <Divider sx={{ my: 4 }} />
 
       {/* Action Buttons */}
       <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">

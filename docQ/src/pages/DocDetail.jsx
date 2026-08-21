@@ -267,7 +267,17 @@ export default function DocDetail({ documentId }) {
             </Grid>
             <Grid item xs={6} sm={4} md={2}>
               <Typography variant="caption" color="text.secondary" display="block" gutterBottom>Workflow Stage</Typography>
-              {doc.workflow_stage ? <Chip label={doc.workflow_stage} color="info" size="small" variant="soft" sx={{ fontWeight: 600 }} /> : <Typography variant="body2" fontWeight={500}>—</Typography>}
+              {doc.workflow_stage ? (
+                <Chip 
+                  label={doc.workflow_stage === "adhoc_approval" ? "Approval" : doc.workflow_stage} 
+                  color="info" 
+                  size="small" 
+                  variant="soft" 
+                  sx={{ fontWeight: 600 }} 
+                />
+              ) : (
+                <Typography variant="body2" fontWeight={500}> </Typography>
+              )}
             </Grid>
             <Grid item xs={6} sm={4} md={2}>
               <Typography variant="caption" color="text.secondary" display="block" gutterBottom>Zone</Typography>

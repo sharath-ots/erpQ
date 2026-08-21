@@ -269,6 +269,161 @@ export async function scratchRoutes(app, { pool }) {
   });
 
   // ==========================================
+  // MOVE FILES / FOLDERS (CUT)
+  // ==========================================
+  app.post("/api/v1/docs/scratch/move", async (request, reply) => {
+    const actor = requireJwt(request);
+    const items = request.body?.items || [];
+    const parentId = request.body?.parentId;
+
+    if (!items.length || !parentId) {
+      return reply.code(400).send({ error: "items_and_parentId_required" });
+    }
+
+    try {
+      const token = await getZohoAccessToken(pool, actor.email);
+      const apiBase = env.workdriveApiBase.replace(/\/$/, "");
+
+      for (const item of items) {
+        if (item.id === parentId) {
+            throw new Error(`Cannot move folder "${item.name}" into itself.`);
+        }
+
+        const zohoRes = await fetch(`${apiBase}/workdrive/api/v1/files/${item.id}`, {
+          method: "PATCH",
+          headers: {
+            Authorization: `Zoho-oauthtoken ${token}`,
+            Accept: "application/vnd.api+json",
+            "Content-Type": "application/json", // <-- FIX: Changed to prevent Zoho 500 Crash
+          },
+          body: JSON.stringify({
+            data: {
+              id: String(item.id),
+              attributes: { parent_id: String(parentId) },
+              type: "files"
+            }
+          })
+        });
+
+        if (!zohoRes.ok) {
+           const errText = await zohoRes.text();
+           throw new Error(`Zoho Move Failed: ${errText}`);
+        }
+        
+        await pool.query(
+          `UPDATE documents SET workdrive_folder_id = $1 WHERE workdrive_file_id = $2 AND zone = 'scratch'`,
+          [parentId, item.id]
+        ).catch(() => {}); 
+      }
+
+      return reply.send({ ok: true });
+    } catch (e) {
+      request.log?.error(e, "Move error");
+      return sendError(reply, e);
+    }
+  });
+
+  // ==========================================
+  // COPY FILES / FOLDERS
+  // ==========================================
+  app.post("/api/v1/docs/scratch/copy", async (request, reply) => {
+    const actor = requireJwt(request);
+    const items = request.body?.items || [];
+    const parentId = request.body?.parentId;
+
+    if (!items.length || !parentId) {
+      return reply.code(400).send({ error: "items_and_parentId_required" });
+    }
+
+    try {
+      const token = await getZohoAccessToken(pool, actor.email);
+      const apiBase = env.workdriveApiBase.replace(/\/$/, "");
+
+      for (const item of items) {
+        if (item.id === parentId) {
+            throw new Error(`Cannot copy folder "${item.name}" into itself.`);
+        }
+
+        // 1. Copy the file
+        const zohoRes = await fetch(`${apiBase}/workdrive/api/v1/files/${item.id}/copy`, {
+          method: "POST",
+          headers: {
+            Authorization: `Zoho-oauthtoken ${token}`,
+            Accept: "application/vnd.api+json",
+            "Content-Type": "application/json", // <-- FIX: Changed to prevent Zoho 500 Crash
+          },
+          body: JSON.stringify({
+            data: {
+              attributes: { parent_id: String(parentId) },
+              type: "files"
+            }
+          })
+        });
+
+        if (!zohoRes.ok) {
+           const errText = await zohoRes.text();
+           let parsedErr = errText;
+           try {
+              const json = JSON.parse(errText);
+              parsedErr = json.errors?.[0]?.title || json.message || errText;
+           } catch (e) {}
+           throw new Error(parsedErr);
+        }
+        
+        const jsonResp = await zohoRes.json();
+        const newFile = jsonResp.data || jsonResp.data?.[0];
+
+        if (!newFile || !newFile.id) continue;
+
+        let finalName = item.name || item.title || "Copy";
+
+        // 2. If copied into the SAME folder, rename it to " - Copy" via a secondary PATCH request
+        if (item.parentId === parentId || item.parent_id === parentId) {
+            const parts = finalName.split(".");
+            if (parts.length > 1 && item.kind !== 'folder') {
+                const ext = parts.pop();
+                finalName = `${parts.join(".")} - Copy.${ext}`;
+            } else {
+                finalName = `${finalName} - Copy`;
+            }
+
+            await fetch(`${apiBase}/workdrive/api/v1/files/${newFile.id}`, {
+              method: "PATCH",
+              headers: {
+                Authorization: `Zoho-oauthtoken ${token}`,
+                Accept: "application/vnd.api+json",
+                "Content-Type": "application/json", // <-- FIX: Changed to prevent Zoho 500 Crash
+              },
+              body: JSON.stringify({
+                data: {
+                  id: String(newFile.id),
+                  attributes: { name: String(finalName) },
+                  type: "files"
+                }
+              })
+            });
+        }
+
+        // 3. Create local DB reference for the copied file
+        if (item.kind !== 'folder') {
+            await pool.query(
+              `INSERT INTO documents (
+                id, workdrive_file_id, workdrive_folder_id, workdrive_permalink, 
+                doc_type, title, state, zone, author_email, created_by_email, modified_by_email, created_at, updated_at
+              ) VALUES (gen_random_uuid(), $1, $2, $3, 'scratch', $4, 'draft', 'scratch', $5, $5, $5, now(), now())`,
+              [newFile.id, parentId, newFile.attributes?.permalink || null, finalName, actor.email]
+            ).catch(() => {});
+        }
+      }
+
+      return reply.send({ ok: true });
+    } catch (e) {
+      request.log?.error(e, "Copy error");
+      return sendError(reply, e);
+    }
+  });
+
+  // ==========================================
   // DELETE FOLDER
   // ZOHO WORKDRIVE + POSTGRES
   // ==========================================

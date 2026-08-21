@@ -167,7 +167,11 @@ export default function DocSharePanel({ items = [], open, onClose, onChanged }) 
             <Controller
               name="granteeEmail"
               control={control}
-              rules={{ required: "Please enter an email address." }}
+              rules={{ 
+                required: "Please enter an email address.",
+                validate: (value) => 
+                  value.toLowerCase().endsWith("@versaq.eu") || "Only @versaq.eu email addresses are allowed."
+              }}
               render={({ field: { value, onChange } }) => (
                 <Box>
                   <DocEmailSelect 

@@ -126,7 +126,8 @@ export function CommonDataGrid({
     actionNode,
     defaultPageSize = 5,
     selectedRowKeys,        
-    onSelectionChange       
+    onSelectionChange,
+    emptyMsg = "No items found"       
 }) {
     const [order, setOrder] = useState('asc');
     const [orderBy, setOrderBy] = useState(defaultSort);
@@ -235,7 +236,6 @@ export function CommonDataGrid({
                                 const rowId = row[uniqueKey];
                                 const isItemSelected = isSelected(rowId);
                                 const labelId = `enhanced-table-checkbox-${index}`;
-
                                 return (
                                     <TableRow
                                         hover
@@ -267,38 +267,51 @@ export function CommonDataGrid({
                                     </TableRow>
                                 );
                             })}
-                            {emptyRows > 0 && (
-                                <TableRow style={{ height: (dense ? 33 : 53) * emptyRows }}>
-                                    <TableCell colSpan={headCells.length + 1} />
+                            
+                            {/* NEW: Beautiful Empty State inside the table */}
+                            {rows.length === 0 && !loading && (
+                                <TableRow>
+                                    <TableCell colSpan={headCells.length + 1} align="center" sx={{ py: 8 }}>
+                                        <Typography variant="body1" color="text.secondary" fontWeight={500}>
+                                            {emptyMsg}
+                                        </Typography>
+                                    </TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
                     </Table>
                 </TableContainer>
                 
-                <TablePagination
-                    rowsPerPageOptions={[5, 10, 25]}
-                    component="div"
-                    count={rows.length}
-                    rowsPerPage={rowsPerPage}
-                    page={page}
-                    onPageChange={handleChangePage}
-                    onRowsPerPageChange={handleChangeRowsPerPage}
-                    ActionsComponent={(props) => 
-                        <CustomTablePaginationAction 
-                            {...props} 
-                            onPrevClick={() => handleChangePage(null, page - 1)} 
-                            onNextClick={() => handleChangePage(null, page + 1)}
-                            onShowAllClick={handleShowAllToggle}
-                        />
-                    }
-                />
+                {/* NEW: Hide pagination when empty */}
+                {rows.length > 0 && (
+                    <TablePagination
+                        rowsPerPageOptions={[5, 10, 25]}
+                        component="div"
+                        count={rows.length}
+                        rowsPerPage={rowsPerPage}
+                        page={page}
+                        onPageChange={handleChangePage}
+                        onRowsPerPageChange={handleChangeRowsPerPage}
+                        ActionsComponent={(props) => 
+                            <CustomTablePaginationAction
+                                {...props}
+                                onPrevClick={() => handleChangePage(null, page - 1)}
+                                onNextClick={() => handleChangePage(null, page + 1)}
+                                onShowAllClick={handleShowAllToggle}
+                            />
+                        }
+                    />
+                )}
             </Box>
-            <FormControlLabel
-                control={<Switch checked={dense} onChange={handleChangeDense} />}
-                label="Dense padding"
-                sx={{ ml: 1, mt: 1 }}
-            />
+            
+            {/* NEW: Hide switch when empty and remove margins */}
+            {rows.length > 0 && (
+                <FormControlLabel
+                    control={<Switch checked={dense} onChange={handleChangeDense} size="small" />}
+                    label={<Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>Dense padding</Typography>}
+                    sx={{ ml: 2, mt: 1, mb: 1 }}
+                />
+            )}
         </Box>
     );
 }

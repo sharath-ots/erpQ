@@ -7,8 +7,11 @@ import { docPath } from "../lib/docQApi";
 import StyledTextField from "../../../comDash/src/ui/components/styled/StyledTextField";
 import IconifyIcon from "../../../comDash/src/ui/components/base/IconifyIcon";
 
+// Change this function at the top of the file
 function looksLikeEmail(value) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+  const email = String(value || "").trim().toLowerCase();
+  // Enforce standard email format AND the versaq.eu domain
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.endsWith("@versaq.eu");
 }
 
 const filter = createFilterOptions();

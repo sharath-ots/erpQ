@@ -27,11 +27,17 @@ export default function DocWorkflowBanner({
   onTransition,
   onRevoke,
 }) {
-  const [submitOpen, setSubmitOpen] = useState(false);
+  //const [submitOpen, setSubmitOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   
   const [comment, setComment] = useState("");
-  const [firstApproverEmail, setFirstApproverEmail] = useState("");
+  const [reviewerEmail, setReviewerEmail] = useState("");
+  const [approverEmail, setApproverEmail] = useState("");
+  
+  const [submitReviewOpen, setSubmitReviewOpen] = useState(false);
+  const [reviewCompleteOpen, setReviewCompleteOpen] = useState(false);
+  const [raiseApprovalOpen, setRaiseApprovalOpen] = useState(false);
+  const [requestChangesOpen, setRequestChangesOpen] = useState(false);
 
   if (!doc) return null;
 
@@ -55,7 +61,7 @@ export default function DocWorkflowBanner({
       : "This document was revoked for revision. Update metadata/file as needed, then submit to re-enter the workflow.";
     severity = "error";
     actions = (
-      <Button variant="contained" color="error" disabled={loading} onClick={() => setSubmitOpen(true)}>
+      <Button variant="contained" color="error" disabled={loading} onClick={() => setSubmitReviewOpen(true)}>
         Submit revised document
       </Button>
     );
@@ -65,7 +71,7 @@ export default function DocWorkflowBanner({
       "This document is a draft. When metadata and file are complete, submit it to start the review workflow. Reviewers and approvers are assigned automatically from the document type workflow.";
     severity = "warning";
     actions = (
-      <Button variant="contained" color="warning" disabled={loading} onClick={() => setSubmitOpen(true)}>
+      <Button variant="contained" color="warning" disabled={loading} onClick={() => setSubmitReviewOpen(true)}>
         Submit for review
       </Button>
     );
@@ -84,26 +90,36 @@ export default function DocWorkflowBanner({
       </Button>
     );
   } else if (pendingTask) {
-    const roleLabel = pendingTask.role === "approver" ? "approval" : "review";
-    headline = `Action required — ${roleLabel}`;
-    description =
-      pendingTask.role === "approver"
-        ? "You are the current approver. Approve to advance or send back with review points."
-        : "You are assigned as reviewer. Complete your review or send back with review points.";
+    if (pendingTask.role === "author_routing") {
+      headline = "Review Complete - Ready for Final Approval";
+      description = "The reviewer has completed their check. You must now raise this document for final approval.";
+      severity = "warning";
+      actions = (
+        <Button variant="contained" color="primary" disabled={loading} onClick={() => setRaiseApprovalOpen(true)}>
+          Raise for Approval
+        </Button>
+      );
+  } else if (pendingTask.role === "reviewer" || pendingTask.role === "approver") {
+    const isApprover = pendingTask.role === "approver";
+    headline = `Action required — ${isApprover ? "Final Approval" : "Review"}`;
+    description = isApprover 
+      ? "You are the final approver. Approve to finalize the document, or send back with changes."
+      : "You are assigned as reviewer. Complete your review or send back with changes.";
     severity = "info";
     actions = (
       <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-        <Button variant="contained" color="primary" disabled={loading} onClick={() => onTransition("approve", {})}>
-          {pendingTask.role === "approver" ? "Approve" : "Approve review"}
+        <Button variant="contained" color="primary" disabled={loading} onClick={() => setReviewCompleteOpen(true)}>
+          {isApprover ? "Approve Document" : "Review Complete"}
         </Button>
-        <Button variant="outlined" color="primary" disabled={loading} onClick={() => setReviewOpen(true)}>
+        <Button variant="outlined" color="primary" disabled={loading} onClick={() => setRequestChangesOpen(true)}>
           Request changes
         </Button>
       </Box>
     );
   } else if (doc.state === "in_review") {
     headline = "In workflow";
-    description = `Waiting on ${doc.current_approver_email || "assignee(s)"}. Stage: ${doc.workflow_stage || "—"}.`;
+    const displayStage = doc.workflow_stage === "adhoc_approval" ? "Approval" : (doc.workflow_stage || " ");
+    description = `Waiting on ${doc.current_approver_email || "assignee(s)"}. Stage: ${displayStage}.`;
     severity = "info";
   } else if (doc.state === "approved") {
     headline = "Approved";
@@ -123,6 +139,7 @@ export default function DocWorkflowBanner({
       </Box>
     );
   }
+}
 
   if (!headline) return null;
 
@@ -143,7 +160,13 @@ export default function DocWorkflowBanner({
           {headline}
           <Chip label={status.label} color={status.color} size="small" variant="soft" sx={{ ml: 1, fontWeight: 600 }} />
           {doc.workflow_stage && (
-            <Chip label={doc.workflow_stage} color="info" size="small" variant="soft" sx={{ fontWeight: 600 }} />
+            <Chip 
+              label={doc.workflow_stage === "adhoc_approval" ? "Approval" : doc.workflow_stage} 
+              color="info" 
+              size="small" 
+              variant="soft" 
+              sx={{ fontWeight: 600 }} 
+            />
           )}
         </AlertTitle>
 
@@ -167,82 +190,72 @@ export default function DocWorkflowBanner({
         {actions && <Box sx={{ mt: 3 }}>{actions}</Box>}
       </Alert>
 
-      {/* Submit Modal */}
-      <Dialog open={submitOpen} onClose={() => setSubmitOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
-        <DialogTitle sx={{ fontWeight: 700 }}>Submit for review</DialogTitle>
+      {/* STAGE 1: Author Submits for Review */}
+      <Dialog open={submitReviewOpen} onClose={() => setSubmitReviewOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+        <DialogTitle sx={{ fontWeight: 700 }}>Submit for Review</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-            Workflow assignees come from the document type preset. Only pick a first approver if
-            no workflow is configured for this type.
-          </Typography>
-          <Stack direction="column" spacing={3}>
-            <Box>
-              <Typography variant="subtitle2" fontWeight={600} gutterBottom>First approver (optional)</Typography>
-              <DocEmailSelect 
-                initialUsers={users} 
-                value={firstApproverEmail} 
-                onChange={(val) => setFirstApproverEmail(val)} 
-              />
-            </Box>
-            <StyledTextField
-              fullWidth
-              multiline
-              rows={3}
-              label="Note (optional)"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-            />
-          </Stack>
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle2" fontWeight={600} gutterBottom>Reviewer Email</Typography>
+            <DocEmailSelect initialUsers={users} value={reviewerEmail} onChange={(val) => setReviewerEmail(val)} allowClear={false} />
+          </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 3, pt: 0 }}>
-          <Button color="inherit" onClick={() => setSubmitOpen(false)} sx={{ fontWeight: 600 }}>Cancel</Button>
-          <Button 
-            variant="contained" 
-            color="primary"
-            onClick={() => {
-              onTransition("submit", { comment, firstApproverEmail });
-              setSubmitOpen(false);
-            }}
-          >
-            Submit
-          </Button>
+        <DialogActions sx={{ p: 3 }}>
+          <Button color="inherit" onClick={() => setSubmitReviewOpen(false)}>Cancel</Button>
+          <Button variant="contained" color="primary" disabled={!reviewerEmail} onClick={() => {
+              onTransition("submit", { reviewerEmail });
+              setSubmitReviewOpen(false);
+          }}>Submit</Button>
         </DialogActions>
       </Dialog>
 
+      {/* STAGE 2: Reviewer/Approver Completes Task */}
+      <Dialog open={reviewCompleteOpen} onClose={() => setReviewCompleteOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+        <DialogTitle sx={{ fontWeight: 700 }}>Complete Task</DialogTitle>
+        <DialogContent>
+          <StyledTextField sx={{ mt: 2 }} fullWidth multiline rows={3} label="Note (Optional)" value={comment} onChange={(e) => setComment(e.target.value)} />
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+          <Button color="inherit" onClick={() => setReviewCompleteOpen(false)}>Cancel</Button>
+          <Button variant="contained" color="primary" onClick={() => {
+              onTransition("approve", { comment });
+              setReviewCompleteOpen(false);
+          }}>Confirm</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* STAGE 3: Author Raises for Final Approval */}
+      <Dialog open={raiseApprovalOpen} onClose={() => setRaiseApprovalOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+        <DialogTitle sx={{ fontWeight: 700 }}>Raise for Final Approval</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle2" fontWeight={600} gutterBottom>Final Approver Email</Typography>
+            <DocEmailSelect initialUsers={users} value={approverEmail} onChange={(val) => setApproverEmail(val)} allowClear={false} />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+          <Button color="inherit" onClick={() => setRaiseApprovalOpen(false)}>Cancel</Button>
+          <Button variant="contained" color="primary" disabled={!approverEmail} onClick={() => {
+              onTransition("approve", { approverEmail });
+              setRaiseApprovalOpen(false);
+          }}>Raise Approval</Button>
+        </DialogActions>
+      </Dialog>
+      
       {/* Request Changes Modal */}
-      <Dialog open={reviewOpen} onClose={() => setReviewOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+      <Dialog open={requestChangesOpen} onClose={() => setRequestChangesOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
         <DialogTitle sx={{ fontWeight: 700 }}>Request changes</DialogTitle>
         <DialogContent>
-          <StyledTextField
-            fullWidth
-            multiline
-            rows={5}
-            label="Review points (one per line)"
-            placeholder="Fix section 2&#10;Add signature block"
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            sx={{ mt: 2 }}
-          />
+          <StyledTextField fullWidth multiline rows={5} label="Review points (one per line)" placeholder="Fix section 2" value={comment} onChange={(e) => setComment(e.target.value)} sx={{ mt: 2 }} />
         </DialogContent>
         <DialogActions sx={{ p: 3, pt: 0 }}>
-          <Button color="inherit" onClick={() => setReviewOpen(false)} sx={{ fontWeight: 600 }}>Cancel</Button>
-          <Button 
-            variant="contained" 
-            color="warning"
-            disabled={!comment.trim()}
-            onClick={() => {
+          <Button color="inherit" onClick={() => setRequestChangesOpen(false)}>Cancel</Button>
+          <Button variant="contained" color="warning" disabled={!comment.trim()} onClick={() => {
               onTransition("request_changes", {
                 comment,
-                reviewPoints: String(comment || "")
-                  .split(/\n/)
-                  .map((s) => s.trim())
-                  .filter(Boolean),
+                reviewPoints: String(comment || "").split(/\n/).map((s) => s.trim()).filter(Boolean),
               });
-              setReviewOpen(false);
-            }}
-          >
-            Send back to author
-          </Button>
+              setRequestChangesOpen(false);
+            }}>Send back to author</Button>
         </DialogActions>
       </Dialog>
     </Box>

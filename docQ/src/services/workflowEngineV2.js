@@ -664,25 +664,66 @@ export async function applyTransitionV2(pool, opts) {
       }
 
       let definition = await loadWorkflowDefinition(pool, doc.doc_type);
+      // Ensure definition is a valid object
+      if (!definition || typeof definition !== "object") {
+        definition = { version: 2, stages: [] };
+      }
       let stages = workflowStages(definition);
 
-      if (!stages.length && firstApproverEmail) {
-        definition = {
-          version: 2,
-          stages: [
-            {
-              id: "approval",
-              label: "Approval",
-              role: TASK_ROLES.APPROVER,
-              mode: "sequential",
-              assignees: [{ type: "user", value: firstApproverEmail }],
-              allowSendBack: true,
-              sendBackTargets: ["author"],
-            },
-          ],
-        };
-        stages = definition.stages;
+      // 1. STAGE 1: Author submits to Reviewer
+      if (opts.reviewerEmail) {
+        const revEmail = normalizeEmail(opts.reviewerEmail);
+        stages = [{
+          id: "review",
+          label: "Review",
+          role: "reviewer", 
+          mode: "sequential",
+          assignees: [{ type: "user", value: revEmail }],
+          allowSendBack: true,
+          sendBackTargets: ["author"],
+        }];
+        
+        // CRITICAL FIX: Attach the stages back to the definition so it saves to the DB!
+        definition.stages = stages;
       }
+
+      // if (firstApproverEmail) {
+      //   const cleanEmail = normalizeEmail(firstApproverEmail);
+      //   if (!cleanEmail.endsWith("@versaq.eu")) {
+      //     const e = new Error("invalid_assignee");
+      //     e.statusCode = 403;
+      //     e.detail = "You can only assign internal staff as approvers.";
+      //     throw e;
+      //   }
+      //   const adhocStage = {
+      //     id: "approval",
+      //     label: "Approval",
+      //     role: TASK_ROLES.APPROVER, // or REVIEWER, depending on client exact need
+      //     mode: "sequential",
+      //     assignees: [{ type: "user", value: cleanEmail }],
+      //     allowSendBack: true,
+      //     sendBackTargets: ["author"],
+      //   };
+      //   stages = [adhocStage];
+      // }
+
+      // if (!stages.length && firstApproverEmail) {
+      //   definition = {
+      //     version: 2,
+      //     stages: [
+      //       {
+      //         id: "approval",
+      //         label: "Approval",
+      //         role: TASK_ROLES.APPROVER,
+      //         mode: "sequential",
+      //         assignees: [{ type: "user", value: firstApproverEmail }],
+      //         allowSendBack: true,
+      //         sendBackTargets: ["author"],
+      //       },
+      //     ],
+      //   };
+      //   stages = definition.stages;
+      // }
 
       if (!stages.length) {
         const e = new Error("workflow_not_configured");
@@ -818,6 +859,22 @@ export async function applyTransitionV2(pool, opts) {
         if (startIndex < 0) startIndex = 0;
       }
 
+      // -------------------------------------------------------------
+      // NEW: SELF-HEALING FIX FOR EXISTING DOCUMENTS
+      // If the snapshot forgot the assignee, fetch the previous reviewer
+      // -------------------------------------------------------------
+      if (!stages[startIndex].assignees || stages[startIndex].assignees.length === 0) {
+        const { rows: prevTasks } = await client.query(
+          "select assignee_email from workflow_tasks where document_id = $1 and stage_id = $2 order by created_at desc limit 1",
+          [doc.id, stages[startIndex].id]
+        );
+        if (prevTasks[0]) {
+          stages[startIndex].assignees = [{ type: "user", value: prevTasks[0].assignee_email }];
+          definition.stages = stages;
+          await client.query("update workflow_instances set definition_snapshot = $1 where id = $2", [JSON.stringify(definition), instance.id]);
+        }
+      }
+
       const org = await getOrgUser(pool, doc.author_email);
       await activateStage(client, pool, {
         instance,
@@ -857,16 +914,49 @@ export async function applyTransitionV2(pool, opts) {
         e.statusCode = 400;
         throw e;
       }
+
       const definition = parseDefinition(instance.definition_snapshot);
-      const stages = workflowStages(definition);
-      const result = await handleApprove(client, pool, {
-        doc,
-        instance,
-        definition,
-        stages,
-        actor,
-        comment,
-      });
+      let stages = workflowStages(definition);
+      const currentStage = stages[instance.current_stage_index];
+
+      // 2. STAGE 2 (COMPLETION): Reviewer finishes -> Route back to Author
+      if (currentStage && currentStage.role === "reviewer") {
+        const routingStage = {
+          id: `author_routing_${Date.now()}`,
+          label: "Pending Approval Submission",
+          role: "author_routing", // Custom role just for the Author
+          mode: "sequential",
+          assignees: [{ type: "user", value: doc.author_email }],
+          allowSendBack: false,
+        };
+        stages.push(routingStage);
+        definition.stages = stages;
+        await client.query("update workflow_instances set definition_snapshot = $1 where id = $2", [JSON.stringify(definition), instance.id]);
+      } 
+      
+      // 3. STAGE 3: Author raises to final Approver
+      else if (currentStage && currentStage.role === "author_routing") {
+        if (!opts.approverEmail) {
+          const e = new Error("approver_required");
+          e.statusCode = 400;
+          throw e;
+        }
+        const appEmail = normalizeEmail(opts.approverEmail);
+        const approvalStage = {
+          id: `approval_${Date.now()}`,
+          label: "Approval",
+          role: "approver", // Routes to "Documents for Approval"
+          mode: "sequential",
+          assignees: [{ type: "user", value: appEmail }],
+          allowSendBack: true,
+          sendBackTargets: ["author"],
+        };
+        stages.push(approvalStage);
+        definition.stages = stages;
+        await client.query("update workflow_instances set definition_snapshot = $1 where id = $2", [JSON.stringify(definition), instance.id]);
+      }
+
+      const result = await handleApprove(client, pool, { doc, instance, definition, stages, actor, comment });
       await client.query("commit");
       return result;
     }

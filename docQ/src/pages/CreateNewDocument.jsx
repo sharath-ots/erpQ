@@ -239,13 +239,21 @@ export default function DocNewUpload() {
           <FormSection title="Primary Details">
             <Grid container spacing={3}>
               <Grid size={{ xs: 12, md: 8 }}>
-                <TextField
-                  fullWidth
-                  label="Document Title"
-                  required
-                  error={!!errors.title}
-                  helperText={errors.title?.message}
-                  {...register("title")}
+                <Controller
+                  name="title"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      fullWidth
+                      label="Document Title"
+                      required
+                      error={!!errors.title}
+                      helperText={errors.title?.message}
+                      // This forces the label to move up when auto-filled
+                      InputLabelProps={{ shrink: field.value ? true : undefined }} 
+                    />
+                  )}
                 />
               </Grid>
               
