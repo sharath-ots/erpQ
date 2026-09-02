@@ -10,6 +10,7 @@ import {
   fetchWorkdriveMe,
   listFolderItems,
   uploadWorkdriveFile,
+  downloadWorkdriveFile,
 } from "../services/workdrive.js";
 import { env } from "../config.js";
 import { initialDraftVersion } from "../lib/versioning.js";
@@ -294,12 +295,12 @@ export async function scratchRoutes(app, { pool }) {
           headers: {
             Authorization: `Zoho-oauthtoken ${token}`,
             Accept: "application/vnd.api+json",
-            "Content-Type": "application/json", // <-- FIX: Changed to prevent Zoho 500 Crash
+            "Content-Type": "application/vnd.api+json", // Restored strict Zoho standard
           },
           body: JSON.stringify({
             data: {
-              id: String(item.id),
-              attributes: { parent_id: String(parentId) },
+              id: item.id,
+              attributes: { parent_id: parentId },
               type: "files"
             }
           })
@@ -330,6 +331,7 @@ export async function scratchRoutes(app, { pool }) {
     const actor = requireJwt(request);
     const items = request.body?.items || [];
     const parentId = request.body?.parentId;
+    const sourceFolder = request.body?.sourceFolder;
 
     if (!items.length || !parentId) {
       return reply.code(400).send({ error: "items_and_parentId_required" });
@@ -344,74 +346,94 @@ export async function scratchRoutes(app, { pool }) {
             throw new Error(`Cannot copy folder "${item.name}" into itself.`);
         }
 
-        // 1. Copy the file
-        const zohoRes = await fetch(`${apiBase}/workdrive/api/v1/files/${item.id}/copy`, {
-          method: "POST",
-          headers: {
-            Authorization: `Zoho-oauthtoken ${token}`,
-            Accept: "application/vnd.api+json",
-            "Content-Type": "application/json", // <-- FIX: Changed to prevent Zoho 500 Crash
-          },
-          body: JSON.stringify({
-            data: {
-              attributes: { parent_id: String(parentId) },
-              type: "files"
-            }
-          })
-        });
-
-        if (!zohoRes.ok) {
-           const errText = await zohoRes.text();
-           let parsedErr = errText;
-           try {
-              const json = JSON.parse(errText);
-              parsedErr = json.errors?.[0]?.title || json.message || errText;
-           } catch (e) {}
-           throw new Error(parsedErr);
-        }
+        const itemParent = item.parentId || item.parent_id || sourceFolder;
         
-        const jsonResp = await zohoRes.json();
-        const newFile = jsonResp.data || jsonResp.data?.[0];
-
-        if (!newFile || !newFile.id) continue;
-
+        let newFileId = null;
+        let newPermalink = null;
         let finalName = item.name || item.title || "Copy";
 
-        // 2. If copied into the SAME folder, rename it to " - Copy" via a secondary PATCH request
-        if (item.parentId === parentId || item.parent_id === parentId) {
+        // ========================================================
+        // SCENARIO 1: SAME FOLDER (The Bypass Method)
+        // ========================================================
+        if (itemParent === parentId) {
+            // We cannot use Zoho's /copy here because it crashes.
+            // Instead, we download it and upload it as a new file!
+            
+            if (item.kind === 'folder') {
+                throw new Error("Cannot duplicate an entire folder in the exact same location yet. Please paste folders in a different location.");
+            }
+
+            // Generate the " - Copy" name
             const parts = finalName.split(".");
-            if (parts.length > 1 && item.kind !== 'folder') {
+            if (parts.length > 1) {
                 const ext = parts.pop();
                 finalName = `${parts.join(".")} - Copy.${ext}`;
             } else {
                 finalName = `${finalName} - Copy`;
             }
 
-            await fetch(`${apiBase}/workdrive/api/v1/files/${newFile.id}`, {
-              method: "PATCH",
+            // Download the file into server memory
+            const downloaded = await downloadWorkdriveFile(token, item.id);
+            
+            // Upload it as a brand new file
+            const uploaded = await uploadWorkdriveFile(token, {
+                parentId: parentId,
+                filename: finalName,
+                buffer: downloaded.buffer,
+                contentType: downloaded.contentType,
+            });
+            
+            newFileId = uploaded.id;
+            newPermalink = uploaded.permalink || null;
+        } 
+        // ========================================================
+        // SCENARIO 2: DIFFERENT FOLDER (Standard Zoho API)
+        // ========================================================
+        else {
+            // Zoho Copy API requires the destination (parentId) in the URL
+            const zohoRes = await fetch(`${apiBase}/workdrive/api/v1/files/${parentId}/copy`, {
+              method: "POST",
               headers: {
                 Authorization: `Zoho-oauthtoken ${token}`,
                 Accept: "application/vnd.api+json",
-                "Content-Type": "application/json", // <-- FIX: Changed to prevent Zoho 500 Crash
+                "Content-Type": "application/vnd.api+json",
               },
               body: JSON.stringify({
-                data: {
-                  id: String(newFile.id),
-                  attributes: { name: String(finalName) },
-                  type: "files"
-                }
+                data: [
+                  {
+                    attributes: { resource_id: item.id },
+                    type: "files"
+                  }
+                ]
               })
             });
+            
+            if (!zohoRes.ok) {
+               const errText = await zohoRes.text();
+               throw new Error(`Zoho Copy Failed: ${errText}`);
+            }
+            
+            const jsonResp = await zohoRes.json();
+            
+            // Since the payload is sent as an array, Zoho returns the new file data in an array
+            const newFileData = Array.isArray(jsonResp.data) ? jsonResp.data[0] : jsonResp.data;
+            
+            if (newFileData && newFileData.id) {
+                newFileId = newFileData.id;
+                newPermalink = newFileData.attributes?.permalink || null;
+            }
         }
 
-        // 3. Create local DB reference for the copied file
-        if (item.kind !== 'folder') {
+        // ========================================================
+        // Create local DB reference for the copied file
+        // ========================================================
+        if (newFileId && item.kind !== 'folder') {
             await pool.query(
               `INSERT INTO documents (
                 id, workdrive_file_id, workdrive_folder_id, workdrive_permalink, 
                 doc_type, title, state, zone, author_email, created_by_email, modified_by_email, created_at, updated_at
               ) VALUES (gen_random_uuid(), $1, $2, $3, 'scratch', $4, 'draft', 'scratch', $5, $5, $5, now(), now())`,
-              [newFile.id, parentId, newFile.attributes?.permalink || null, finalName, actor.email]
+              [newFileId, parentId, newPermalink, finalName, actor.email]
             ).catch(() => {});
         }
       }
@@ -419,6 +441,57 @@ export async function scratchRoutes(app, { pool }) {
       return reply.send({ ok: true });
     } catch (e) {
       request.log?.error(e, "Copy error");
+      return sendError(reply, e);
+    }
+  });
+
+  // ==========================================
+  // RENAME FOLDER / FILE
+  // ==========================================
+  app.patch("/api/v1/docs/scratch/:type/:id", async (request, reply) => {
+    const actor = requireJwt(request);
+    const id = String(request.params.id).trim();
+    const type = String(request.params.type).trim(); // "folders" or "files"
+    const newName = String(request.body?.name || "").trim();
+
+    if (!id || !newName) return reply.code(400).send({ error: "id_and_name_required" });
+
+    try {
+      const token = await getZohoAccessToken(pool, actor.email);
+      const apiBase = env.workdriveApiBase.replace(/\/$/, "");
+
+      // Rename in Zoho WorkDrive
+      const zohoRes = await fetch(`${apiBase}/workdrive/api/v1/files/${id}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Zoho-oauthtoken ${token}`,
+          Accept: "application/vnd.api+json",
+          "Content-Type": "application/vnd.api+json",
+        },
+        body: JSON.stringify({
+          data: {
+            attributes: { name: newName },
+            type: "files"
+          }
+        })
+      });
+
+      if (!zohoRes.ok) {
+         const errText = await zohoRes.text();
+         throw new Error(`Zoho Rename Failed: ${errText}`);
+      }
+
+      // If it is a file (dump document), we also need to update the local DB title
+      if (type === "files") {
+          await pool.query(
+            `UPDATE documents SET title = $1, updated_at = now() WHERE workdrive_file_id = $2 AND zone = 'scratch'`,
+            [newName, id]
+          ).catch(() => {});
+      }
+
+      return reply.send({ ok: true, name: newName });
+    } catch (e) {
+      request.log?.error(e, "Rename error");
       return sendError(reply, e);
     }
   });

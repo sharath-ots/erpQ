@@ -89,15 +89,13 @@ const EnhancedTableToolbar = (props) => {
     return (
         <Toolbar
             sx={{
-                pl: { sm: 1 },
+                pl: { sm: 2 },
                 pr: { xs: 1, sm: 1 },
-                ...(numSelected > 0 && {
-                    bgcolor: (theme) => alpha(theme.palette.primary.main, theme.palette.action.activatedOpacity),
-                }),
+                mb: 1,
             }}
         >
             {numSelected > 0 ? (
-                <Typography sx={{ flex: '1 1 100%' }} color="inherit" variant="subtitle1" component="div">
+                <Typography sx={{ flex: '1 1 100%' }} color="primary" variant="subtitle1" component="div" fontWeight={600}>
                     {numSelected} selected
                 </Typography>
             ) : (
@@ -127,7 +125,8 @@ export function CommonDataGrid({
     defaultPageSize = 5,
     selectedRowKeys,        
     onSelectionChange,
-    emptyMsg = "No items found"       
+    emptyMsg = "No items found",
+    getRowSx       
 }) {
     const [order, setOrder] = useState('asc');
     const [orderBy, setOrderBy] = useState(defaultSort);
@@ -245,7 +244,7 @@ export function CommonDataGrid({
                                         tabIndex={-1}
                                         key={rowId}
                                         selected={isItemSelected}
-                                        sx={{ cursor: 'pointer', '&:last-of-type td, &:last-of-type th': { border: 0 } }}
+                                        sx={{ cursor: 'pointer', '&:last-of-type td, &:last-of-type th': { border: 0 }, ...(getRowSx ? getRowSx(row) : {}) }}
                                     >
                                         <TableCell padding="checkbox">
                                             <Checkbox

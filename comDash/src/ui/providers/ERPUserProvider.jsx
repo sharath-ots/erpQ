@@ -40,7 +40,7 @@ export const ERPUserProvider = ({ children }) => {
   const [displayEmail, setDisplayEmail] = useState('');
   const [roles, setRoles] = useState([]);
   // Temporarily force the role for development
-  //const [roles, setRoles] = useState(["Supplier Portal User"]);
+  // const [roles, setRoles] = useState(["Supplier Portal User"]);
   const [modules, setModules] = useState([]);
   const [loading, setLoading] = useState(true);
 

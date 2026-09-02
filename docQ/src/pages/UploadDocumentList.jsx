@@ -47,12 +47,32 @@ export default function DocFileRegister() {
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [uploadErrorMessage, setUploadErrorMessage] = useState(null);
 
+  // Rename Modal States
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [renamingItem, setRenamingItem] = useState(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [isRenaming, setIsRenaming] = useState(false);
+
+  // Reliable Declarative Modal States for Duplicates
+  const [pasteWarning, setPasteWarning] = useState(null);
+  const [uploadWarning, setUploadWarning] = useState(null);
+  const [mergeConfirm, setMergeConfirm] = useState(null);
+  const [createFolderWarning, setCreateFolderWarning] = useState(null);
+  const [duplicatePrompt, setDuplicatePrompt] = useState(null); 
+
   // Progress Bar & Batch States
   const [uploading, setUploading] = useState(false);
   const [overallProgress, setOverallProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState("active");
   const [uploadText, setUploadText] = useState("Preparing upload...");
   
+  // Active Uploads State (for better UX during Pause)
+  const [activeUploads, setActiveUploads] = useState(0);
+
+  // Pause States
+  const [isPaused, setIsPaused] = useState(false);
+  const isPausedRef = useRef(false);
+
   // Smart Dropzone States
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
@@ -63,8 +83,7 @@ export default function DocFileRegister() {
   const loadedBytesRef = useRef({});
   const totalFilesRef = useRef(0);
   const processedFilesRef = useRef(0);
-  const highestProgressRef = useRef(0);
-  const duplicateWarnings = useRef(new Set());
+  const activeXhrs = useRef(new Set()); 
 
   // Sharing & Bulk Actions states
   const [shareItems, setShareItems] = useState([]); 
@@ -74,9 +93,25 @@ export default function DocFileRegister() {
   const [deletingBulk, setDeletingBulk] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
-  // NEW: Clipboard for Cut/Copy/Paste
+  // Clipboard for Cut/Copy/Paste
   const [clipboard, setClipboard] = useState(null);
   const [pasting, setPasting] = useState(false);
+
+  // Refs for keyboard shortcuts (Guarantees event listener uses freshest data)
+  const selectedRowsRef = useRef([]);
+  const clipboardRef = useRef(null);
+  const folderIdRef = useRef(null);
+  const rootIdRef = useRef(null);
+  const trailRef = useRef([{ id: null, name: "My Folders" }]);
+  const itemsRef = useRef([]);
+
+  // Sync refs 
+  useEffect(() => { selectedRowsRef.current = selectedRows; }, [selectedRows]);
+  useEffect(() => { clipboardRef.current = clipboard; }, [clipboard]);
+  useEffect(() => { folderIdRef.current = folderId; }, [folderId]);
+  useEffect(() => { rootIdRef.current = rootId; }, [rootId]);
+  useEffect(() => { trailRef.current = trail; }, [trail]);
+  useEffect(() => { itemsRef.current = items; }, [items]);
 
   // Registering states
   const [registerFile, setRegisterFile] = useState(null);
@@ -114,12 +149,14 @@ export default function DocFileRegister() {
     }
   }, []);
 
-  const MAX_CONCURRENT_UPLOADS = 2;
+  const MAX_CONCURRENT_UPLOADS = 1; 
   const pendingUploads = useRef([]);
   const activeUploadsCount = useRef(0);
 
   // 1. THE QUEUE PROCESSOR
   const processUploadQueue = useCallback(() => {
+    if (isPausedRef.current) return;
+    
     if (activeUploadsCount.current === 0 && pendingUploads.current.length === 0) {
       if (totalBytesRef.current > 0 && isBatchActive.current) {
         setOverallProgress(100);
@@ -131,7 +168,6 @@ export default function DocFileRegister() {
           setUploading(false);
           setUploadModalOpen(false);
           setOverallProgress(0);
-          highestProgressRef.current = 0; // Reset highest progress
           totalBytesRef.current = 0;
           loadedBytesRef.current = {};
           processedFilesRef.current = 0;
@@ -155,7 +191,10 @@ export default function DocFileRegister() {
           activeUploadsCount.current--;
           const errMsg = String(err?.message || "");
           
-          if (
+          if (errMsg === "USER_ABORT") {
+            return; // Aborted cleanly, do nothing
+          }
+          else if (
             errMsg.includes("429") || 
             errMsg.includes("Rate Limit") ||
             errMsg.includes("401") ||
@@ -165,7 +204,7 @@ export default function DocFileRegister() {
             errMsg.includes("Network Error")
           ) {
             setUploadStatus("exception");
-            setUploadText("Pausing for 20s to recover...");
+            setUploadText("Pausing for 20s to recover from network error...");
             
             pendingUploads.current.unshift(nextTask);
             
@@ -174,13 +213,14 @@ export default function DocFileRegister() {
               processUploadQueue();
             }, 20000);
           } else {
+            message.error(`Upload failed: ${errMsg}`);
             setTimeout(() => { processUploadQueue(); }, 50); 
           }
         });
     }
   }, [folderId, rootId, trail, loadFolder]);
 
-  // 2. SMART DROP HANDLER
+  // 2. SMART DROP HANDLER 
   const handleCustomDrop = async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -189,12 +229,26 @@ export default function DocFileRegister() {
     const itemsList = e.dataTransfer.items;
     if (!itemsList) return;
 
+    const rawEntries = [];
+    for (let i = 0; i < itemsList.length; i++) {
+      if (itemsList[i].kind === 'file') {
+        const entry = itemsList[i].webkitGetAsEntry ? itemsList[i].webkitGetAsEntry() : null;
+        if (entry) {
+          rawEntries.push(entry);
+        } else {
+          const f = itemsList[i].getAsFile();
+          if (f) rawEntries.push({ fallbackFile: f });
+        }
+      }
+    }
+
     const extractedFiles = [];
 
     const readEntry = async (entry, path = "") => {
-      if (entry.isFile) {
+      if (entry.fallbackFile) {
+        extractedFiles.push(entry.fallbackFile);
+      } else if (entry.isFile) {
         const file = await new Promise((resolve) => entry.file(resolve));
-        // Only prepend path if the file is ACTUALLY inside a folder
         file.customRelativePath = path ? path + file.name : file.name; 
         extractedFiles.push(file);
       } else if (entry.isDirectory) {
@@ -202,47 +256,36 @@ export default function DocFileRegister() {
         const readAll = async () => {
           let allEntries = [];
           let read = async () => {
-            const entries = await new Promise((resolve) => dirReader.readEntries(resolve));
-            if (entries.length > 0) {
-              allEntries = allEntries.concat(entries);
+            const chunk = await new Promise((resolve) => dirReader.readEntries(resolve));
+            if (chunk.length > 0) {
+              allEntries = allEntries.concat(chunk);
               await read();
             }
           };
           await read();
           return allEntries;
         };
-        const entries = await readAll();
-        for (const child of entries) {
+        const children = await readAll();
+        for (const child of children) {
           await readEntry(child, path + entry.name + "/"); 
         }
       }
     };
 
-    for (let i = 0; i < itemsList.length; i++) {
-      const item = itemsList[i];
-      if (item.kind === 'file') {
-        const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
-        if (entry) {
-          await readEntry(entry);
-        } else {
-          const f = item.getAsFile();
-          if (f) extractedFiles.push(f);
-        }
-      }
+    for (const entry of rawEntries) {
+      await readEntry(entry);
     }
 
-    // Initiate Batch
     if (extractedFiles.length > 0) {
        startBatchUpload(extractedFiles);
     }
   };
 
-  // 3. FILE PICKER HANDLER (Fix 2: For when users click the box instead of drag)
+  // 3. FILE PICKER HANDLER
   const handleFileInput = (e) => {
     if (!e.target.files) return;
     const filesArray = Array.from(e.target.files);
     
-    // Attach standard webkit path if available, otherwise just filename
     filesArray.forEach(f => {
        f.customRelativePath = f.webkitRelativePath || f.name;
     });
@@ -252,25 +295,16 @@ export default function DocFileRegister() {
   };
 
 
-  // 4. BATCH UPLOAD INITIALIZER (Fix 3: Checks duplicates BEFORE starting queue)
+  // 4. BATCH UPLOAD INITIALIZER
   function startBatchUpload(filesArray) {
-    if (!isBatchActive.current) {
-      isBatchActive.current = true;
-      setUploadStatus("active");
-      setOverallProgress(0);
-      highestProgressRef.current = 0;
-      totalBytesRef.current = 0;
-      loadedBytesRef.current = {};
-      totalFilesRef.current = 0;
-      processedFilesRef.current = 0;
-      activeUploadsCount.current = 0;
-      pendingUploads.current = [];
-      setUploading(true);
-    }
+    const duplicateFolders = new Set();
+    const duplicateFiles = new Set();
 
-    let validFilesAdded = false; // <--- ADDED: Track if we actually have files to upload
+    filesArray.forEach((file, index) => {
+      if (!file.uid) {
+        file.uid = `file-${Date.now()}-${index}`;
+      }
 
-    filesArray.forEach(file => {
       const actualPath = file.customRelativePath || file.name;
       const isFolderUpload = actualPath.includes('/');
       const topLevelName = isFolderUpload ? actualPath.split('/')[0] : file.name;
@@ -282,23 +316,51 @@ export default function DocFileRegister() {
       });
 
       if (isDuplicate) {
-        if (!duplicateWarnings.current.has(topLevelName)) {
-          duplicateWarnings.current.add(topLevelName);
-          setUploadErrorMessage(`The ${kind} "${topLevelName}" already exists. Delete it first to re-upload.`);
-          setTimeout(() => duplicateWarnings.current.delete(topLevelName), 5000);
-        }
-        return; // Skip this file, but continue batch
+        if (kind === "folder") duplicateFolders.add(topLevelName);
+        else duplicateFiles.add(topLevelName);
       }
+    });
 
-      validFilesAdded = true; // <--- ADDED: We have at least one valid file!
+    if (duplicateFiles.size > 0 || duplicateFolders.size > 0) {
+      setDuplicatePrompt({
+        duplicateFiles: Array.from(duplicateFiles),
+        duplicateFolders: Array.from(duplicateFolders),
+        originalFiles: filesArray
+      });
+      return; 
+    }
 
+    proceedWithBatch(filesArray);
+  }
+
+  // 5. THE ACTUAL QUEUE BUILDER
+  function proceedWithBatch(filesArray) {
+    if (!isBatchActive.current) {
+      isBatchActive.current = true;
+      setUploadStatus("active");
+      setOverallProgress(0);
+      totalBytesRef.current = 0;
+      loadedBytesRef.current = {};
+      totalFilesRef.current = 0;
+      processedFilesRef.current = 0;
+      activeUploadsCount.current = 0;
+      pendingUploads.current = [];
+      setUploading(true);
+      
+      setIsPaused(false);
+      isPausedRef.current = false;
+    }
+
+    filesArray.forEach(file => {
+      const actualPath = file.customRelativePath || file.name;
       totalBytesRef.current += file.size || 0;
       loadedBytesRef.current[file.uid] = 0;
       totalFilesRef.current += 1;
 
       const uploadTask = async () => {
         try {
-          setUploadText(`Processing file ${processedFilesRef.current + 1} of ${totalFilesRef.current}...`);
+          setActiveUploads((prev) => prev + 1); 
+          setUploadText(`Uploading file ${processedFilesRef.current + 1} of ${totalFilesRef.current}...`);
           
           const form = new FormData();
           form.append("file", file);
@@ -308,6 +370,8 @@ export default function DocFileRegister() {
 
           const json = await new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
+            activeXhrs.current.add(xhr); 
+
             xhr.open("POST", docPath("/scratch/upload"));
             const token = getAccessToken();
             if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
@@ -317,14 +381,11 @@ export default function DocFileRegister() {
 
             const updateGlobalProgress = () => {
               const currentTotalLoaded = Object.values(loadedBytesRef.current).reduce((a, b) => a + b, 0);
-              let percent = Math.round((currentTotalLoaded / totalBytesRef.current) * 100);
-              
-              if (percent > highestProgressRef.current) {
-                 highestProgressRef.current = percent;
+              let percent = totalBytesRef.current === 0 ? 100 : Math.round((currentTotalLoaded / totalBytesRef.current) * 100);
+              if (percent > 99 && (activeUploadsCount.current > 0 || pendingUploads.current.length > 0)) {
+                percent = 99; 
               }
-              if (highestProgressRef.current >= 100) highestProgressRef.current = 99;
-              
-              setOverallProgress(highestProgressRef.current);
+              setOverallProgress(percent);
             };
 
             xhr.upload.onprogress = (e) => {
@@ -332,26 +393,27 @@ export default function DocFileRegister() {
                 loadedBytesRef.current[file.uid] = e.loaded / 2;
                 updateGlobalProgress();
 
+                // Smoothly simulate the server's processing time instead of freezing
                 if (e.loaded >= e.total && !zohoInterval) {
                   const duration = Date.now() - uploadStartTime;
-                  const tickTime = Math.max(duration / 20, 200); 
                   let simulatedExtra = 0;
                   
                   zohoInterval = setInterval(() => {
-                    simulatedExtra += (file.size / 2) / 20; 
+                    simulatedExtra += (file.size / 2) / 20;
                     if (simulatedExtra >= (file.size / 2) * 0.95) {
-                      clearInterval(zohoInterval); 
+                      clearInterval(zohoInterval);
                     }
                     loadedBytesRef.current[file.uid] = (e.total / 2) + simulatedExtra;
                     updateGlobalProgress();
-                  }, tickTime);
+                  }, Math.max(duration / 20, 200));
                 }
               }
             };
 
             xhr.onload = () => {
               if (zohoInterval) clearInterval(zohoInterval);
-              
+              activeXhrs.current.delete(xhr);
+
               if (xhr.status >= 200 && xhr.status < 300) {
                 loadedBytesRef.current[file.uid] = file.size; 
                 updateGlobalProgress();
@@ -359,33 +421,33 @@ export default function DocFileRegister() {
               } else {
                 try {
                   const errJson = JSON.parse(xhr.responseText);
-                  let errMsg = errJson.detail || errJson.message || errJson.error || xhr.statusText;
-                  if (typeof errMsg === 'object') errMsg = JSON.stringify(errMsg);
-
-                  if (xhr.status === 409 || errJson.error === "duplicate") {
-                     reject(new Error(`Duplicate file.`));
-                  } else if (xhr.status === 429) {
-                     reject(new Error(`Rate Limit: ${errMsg}`));
-                  } else {
-                     reject(new Error(errMsg));
-                  }
-                } catch (err) {
-                  reject(new Error(xhr.statusText));
+                  reject(new Error(errJson.detail || errJson.message || errJson.error || `HTTP ${xhr.status}`));
+                } catch {
+                  reject(new Error(`Server Error HTTP ${xhr.status}: ${xhr.statusText}`));
                 }
               }
             };
 
             xhr.onerror = () => {
               if (zohoInterval) clearInterval(zohoInterval);
+              activeXhrs.current.delete(xhr);
               reject(new Error("Network Error"));
+            };
+
+            // This only triggers when we hit "Abort Upload"
+            xhr.onabort = () => {
+              if (zohoInterval) clearInterval(zohoInterval);
+              activeXhrs.current.delete(xhr);
+              loadedBytesRef.current[file.uid] = 0; 
+              updateGlobalProgress();
+              reject(new Error("USER_ABORT"));
             };
             
             xhr.send(form);
           });
           return json;
-        } catch (e) {
-          throw e;
         } finally {
+          setActiveUploads((prev) => prev - 1);
           processedFilesRef.current += 1; 
         }
       };
@@ -393,16 +455,26 @@ export default function DocFileRegister() {
       pendingUploads.current.push(uploadTask);
     });
 
-    // <--- ADDED BLOCK: Abort instantly if no valid files were added
-    if (!validFilesAdded) {
-      setUploading(false);
-      isBatchActive.current = false;
-      return; 
-    }
-
     processUploadQueue();
   }
 
+  // 6. DECLARATIVE ABORT HANDLER (Fixed UI Bug)
+  const handleAbortUpload = () => {
+    pendingUploads.current = [];
+    isBatchActive.current = false;
+    setUploading(false);
+    setIsPaused(false);
+    isPausedRef.current = false;
+    setOverallProgress(0);
+    setUploadModalOpen(false);
+    
+    // Kill the current active connections
+    activeXhrs.current.forEach(xhr => xhr.abort());
+    activeXhrs.current.clear();
+    
+    message.info("Upload aborted");
+    loadFolder(folderId || rootId, trail);
+  };
 
   useEffect(() => {
     loadFolder(null);
@@ -435,6 +507,58 @@ export default function DocFileRegister() {
     goToTrail(trail.length - 2);
   }
 
+  // =========================================================================
+  // RENAME LOGIC
+  // =========================================================================
+  function openRename(item) {
+    setRenamingItem(item);
+    setRenameValue(item.name || item.title || item.dumpTitle || "");
+    setRenameModalOpen(true);
+  }
+
+  async function submitRename() {
+    const newName = renameValue.trim();
+    if (!newName || newName === (renamingItem.name || renamingItem.title || renamingItem.dumpTitle)) {
+      setRenameModalOpen(false);
+      return;
+    }
+
+    const isDuplicate = items.some((i) => 
+      i.id !== renamingItem.id && 
+      i.kind === renamingItem.kind && 
+      (i.name || i.title || i.dumpTitle || "").toLowerCase() === newName.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      message.warning(`A ${renamingItem.kind} named "${newName}" already exists here.`);
+      return;
+    }
+
+    setIsRenaming(true);
+    try {
+      const isFolder = renamingItem.kind === "folder";
+      const endpoint = isFolder ? `/scratch/folders/${renamingItem.id}` : `/scratch/files/${renamingItem.id}`;
+      
+      const res = await apiFetch(docPath(endpoint), {
+        method: "PATCH",
+        body: JSON.stringify({ name: newName }),
+      });
+      const json = await res.json().catch(() => ({}));
+      
+      if (!res.ok) throw new Error(json.error || json.detail || "Rename failed");
+      
+      message.success("Renamed successfully");
+      setRenameModalOpen(false);
+      loadFolder(folderId || rootId, trail);
+    } catch (e) {
+      message.error(`Rename error: ${e.message}`);
+    } finally {
+      setIsRenaming(false);
+    }
+  }
+
+  // =========================================================================
+
   async function createFolder() {
     const name = newFolderName.trim();
     if (!name) {
@@ -445,23 +569,17 @@ export default function DocFileRegister() {
       const itemName = String(item.name || item.title || item.dumpTitle || "");
       return item.kind === "folder" && itemName.toLowerCase() === name.toLowerCase();
     });
+    
     if (isDuplicate) {
-      Modal.warning({
-        title: "Folder already exists",
-        content: `A folder named "${name}" already exists in this location. Please choose a different name.`,
-        okText: "OK",
-        centered: true,
-      });
+      setCreateFolderWarning(name);
       return;
     }
+    
     setCreatingFolder(true);
     try {
       const res = await apiFetch(docPath("/scratch/folders"), {
         method: "POST",
-        body: JSON.stringify({
-          name,
-          parentId: folderId || rootId,
-        }),
+        body: JSON.stringify({ name, parentId: folderId || rootId }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(errText(json, res));
@@ -650,16 +768,34 @@ export default function DocFileRegister() {
     }
   }
 
-  async function handlePaste() {
-    if (!clipboard || clipboard.items.length === 0) return;
+  // =========================================================================
+  // KEYBOARD SHORTCUTS & PASTE LOGIC
+  // =========================================================================
+
+  const executePaste = async (clipData, targetFolder, currentTrail) => {
+    if (!clipData || clipData.items.length === 0) return;
     setPasting(true);
     
-    const targetFolder = folderId || rootId;
-    const endpoint = clipboard.action === 'cut' ? '/scratch/move' : '/scratch/copy';
+    const endpoint = clipData.action === 'cut' ? '/scratch/move' : '/scratch/copy';
     
-    // UPDATED SAFETY CHECK: Prevent moving OR copying a folder into itself
-    if (clipboard.items.some(i => i.id === targetFolder)) {
-      message.error(`Cannot ${clipboard.action} a folder into its own contents`);
+    if (clipData.items.some(i => i.id === targetFolder)) {
+      message.error(`Cannot ${clipData.action} an item into its own contents`);
+      setPasting(false);
+      return;
+    }
+
+    const currentItems = itemsRef.current || [];
+    const duplicates = clipData.items.filter(clipItem => {
+      const clipName = (clipItem.name || clipItem.title || clipItem.dumpTitle || '').toLowerCase();
+      return currentItems.some(existingItem => 
+        existingItem.kind === clipItem.kind && 
+        (existingItem.name || existingItem.title || existingItem.dumpTitle || '').toLowerCase() === clipName
+      );
+    });
+
+    if (duplicates.length > 0) {
+      const dupNames = duplicates.map(d => d.name || d.title || d.dumpTitle).join(", ");
+      setPasteWarning(dupNames);
       setPasting(false);
       return;
     }
@@ -667,23 +803,70 @@ export default function DocFileRegister() {
     try {
       const res = await apiFetch(docPath(endpoint), {
         method: "POST",
-        body: JSON.stringify({ items: clipboard.items, parentId: targetFolder })
+        body: JSON.stringify({ 
+          items: clipData.items, 
+          parentId: targetFolder,
+          sourceFolder: clipData.sourceFolder
+        })
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || json.detail || "Paste failed");
       
-      message.success(`Successfully ${clipboard.action === 'cut' ? 'moved' : 'copied'} items`);
-      
-      // If it was a cut action, clear the clipboard so they don't paste it twice
-      if (clipboard.action === 'cut') setClipboard(null);
-      
-      loadFolder(targetFolder, trail);
+      message.success(`Successfully ${clipData.action === 'cut' ? 'moved' : 'copied'} items`);
+      setClipboard(null);
+      loadFolder(targetFolder, currentTrail);
     } catch (e) {
       message.error(`Paste error: ${e.message}`);
     } finally {
       setPasting(false);
     }
-  }
+  };
+
+  const handlePaste = () => {
+    executePaste(clipboard, folderId || rootId, trail);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const active = document.activeElement;
+      
+      if (active) {
+        const isTextInput = active.tagName === "INPUT" && ['text', 'search', 'email', 'password', 'number'].includes(active.type);
+        if (isTextInput || active.tagName === "TEXTAREA" || active.isContentEditable) {
+          return;
+        }
+      }
+
+      if (e.ctrlKey || e.metaKey) {
+        const key = e.key.toLowerCase();
+        
+        const currentSelected = selectedRowsRef.current;
+        const currentClipboard = clipboardRef.current;
+        const currentFolder = folderIdRef.current || rootIdRef.current;
+        const currentTrail = trailRef.current;
+
+        if (key === 'c' && currentSelected.length > 0) {
+          e.preventDefault();
+          setClipboard({ action: 'copy', items: currentSelected, sourceFolder: currentFolder });
+          message.success("Copied to clipboard");
+        } 
+        else if (key === 'x' && currentSelected.length > 0) {
+          e.preventDefault();
+          setClipboard({ action: 'cut', items: currentSelected, sourceFolder: currentFolder });
+          setSelectedRowKeys([]);
+          setSelectedRows([]);
+          message.success("Cut to clipboard");
+        } 
+        else if (key === 'v' && currentClipboard && currentClipboard.items.length > 0) {
+          e.preventDefault();
+          executePaste(currentClipboard, currentFolder, currentTrail);
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []); 
 
   const handleSelectionChange = (keys) => {
     setSelectedRowKeys(keys);
@@ -745,6 +928,7 @@ export default function DocFileRegister() {
           return (
             <Stack direction="row" spacing={2} alignItems="center">
               <Link component="button" variant="body2" underline="hover" onClick={(e) => { e.stopPropagation(); openFolder(row); }}>Open</Link>
+              <Link component="button" variant="body2" underline="hover" onClick={(e) => { e.stopPropagation(); openRename(row); }}>Rename</Link>
               <Link component="button" variant="body2" underline="hover" onClick={(e) => { e.stopPropagation(); onShare(row); }}>Share</Link>
               <Popconfirm
                 title="Delete folder and contents?"
@@ -767,7 +951,7 @@ export default function DocFileRegister() {
             ) : (
               <Typography variant="body2" color="text.disabled">Open</Typography>
             )}
-            
+            <Link component="button" variant="body2" underline="hover" onClick={(e) => { e.stopPropagation(); openRename(row); }}>Rename</Link>
             <Link component="button" variant="body2" underline="hover" onClick={(e) => { e.stopPropagation(); onShare(row); }}>Share</Link>
             
             {row.registered && row.managedDocumentId ? (
@@ -796,11 +980,6 @@ export default function DocFileRegister() {
 
   const actionNodeButtons = (
     <Stack direction="row" sx={{ gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-      {items.length > 0 && (
-        <Typography variant="body2" color="text.secondary" sx={{ mr: 2, fontWeight: 500 }}>
-          {items.filter(item => item.kind === "folder").length} folder(s), {items.filter(item => item.kind !== "folder").length} file(s)
-        </Typography>
-      )}
       
       {selectedRowKeys.length > 0 && (
         <>
@@ -808,7 +987,12 @@ export default function DocFileRegister() {
             variant="outlined" 
             color="primary"
             startIcon={<IconifyIcon icon="material-symbols:content-cut-outline-rounded" />}
-            onClick={() => { setClipboard({ action: 'cut', items: selectedRows }); setSelectedRowKeys([]); setSelectedRows([]); message.success("Cut to clipboard"); }}
+            onClick={() => { 
+              setClipboard({ action: 'cut', items: selectedRows, sourceFolder: folderId || rootId }); 
+              setSelectedRowKeys([]); 
+              setSelectedRows([]); 
+              message.success("Cut to clipboard"); 
+            }}
           >
             Cut
           </Button>
@@ -816,7 +1000,10 @@ export default function DocFileRegister() {
             variant="outlined" 
             color="primary"
             startIcon={<IconifyIcon icon="material-symbols:content-copy-outline-rounded" />}
-            onClick={() => { setClipboard({ action: 'copy', items: selectedRows }); setSelectedRowKeys([]); setSelectedRows([]); message.success("Copied to clipboard"); }}
+            onClick={() => { 
+              setClipboard({ action: 'copy', items: selectedRows, sourceFolder: folderId || rootId }); 
+              message.success("Copied to clipboard"); 
+            }}
           >
             Copy
           </Button>
@@ -967,34 +1154,58 @@ export default function DocFileRegister() {
             actionNode={actionNodeButtons}
             selectedRowKeys={selectedRowKeys}
             onSelectionChange={handleSelectionChange}
+            getRowSx={(row) => {
+              if (clipboard?.action === 'cut' && clipboard.items.some(i => i.id === row.id)) {
+                return { opacity: 0.4, transition: 'opacity 0.2s' };
+              }
+              return {};
+            }}
         />
-        
-        {/* {items.length > 0 && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              {items.filter(item => item.kind === "folder").length} folder(s) and {items.filter(item => item.kind !== "folder").length} file(s)
+
+        {items.length > 0 && (
+          <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 2, px: 1 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+              {items.filter(item => item.kind === "folder").length} folder(s), {items.filter(item => item.kind !== "folder").length} file(s)
             </Typography>
-        )} */}
+          </Box>
+        )}
 
         <Modal
           title={`Upload to "${currentName}"`}
           open={uploadModalOpen}
-          onCancel={() => {
-            if (!uploading) {
-              setUploadModalOpen(false);
-            }
-          }}
+          onCancel={() => setUploadModalOpen(false)} 
           footer={
-            <Button variant="outlined" onClick={() => {
-              setUploadModalOpen(false);
-              setUploading(false);
-              setOverallProgress(0);
-            }} disabled={uploading}>
-              Cancel
-            </Button>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ width: '100%' }}>
+              {uploading ? (
+                <Popconfirm
+                  title="Abort Upload?"
+                  description="Cancel all pending uploads? Partial files will be discarded."
+                  onConfirm={handleAbortUpload}
+                  okText="Yes, Abort"
+                  cancelText="Keep Uploading"
+                  okButtonProps={{ danger: true }}
+                >
+                  <Button 
+                    color="error" 
+                    variant="outlined"
+                    startIcon={<IconifyIcon icon="material-symbols:delete-outline" />}
+                  >
+                    Abort Upload
+                  </Button>
+                </Popconfirm>
+              ) : <Box />}
+              
+              <Button 
+                variant="outlined" 
+                color="inherit"
+                onClick={() => setUploadModalOpen(false)}
+              >
+                {uploading ? "Hide Window" : "Close"}
+              </Button>
+            </Stack>
           }
-          destroyOnClose
+          destroyOnClose={false}
         >
-          {/* THE NEW SMART DROPZONE */}
           <div style={{ marginTop: 16 }}>
             <div
               onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
@@ -1037,21 +1248,52 @@ export default function DocFileRegister() {
 
           {uploading && (
             <div style={{ marginTop: 24, padding: "0 12px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                <Typography variant="body2" fontWeight={600} color="text.secondary">
-                  {overallProgress === 100 ? "Finalizing upload..." : (uploadText || "Uploading batch...")}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                
+                <Typography color={isPaused ? "warning.main" : "text.secondary"} fontWeight={600} variant="body2">
+                  {overallProgress === 100 
+                    ? "Finalizing upload..." 
+                    : (isPaused 
+                        ? (activeUploads > 0 ? "Pausing... (Finishing current file)" : "Queue Paused. Click Resume to continue.") 
+                        : uploadText)}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">{overallProgress}%</Typography>
+
+                <Stack alignItems="center" direction="row" spacing={2}>
+                  {overallProgress < 100 && (
+                    <Button 
+                      variant={isPaused ? "outlined" : "contained"} 
+                      color={isPaused ? "inherit" : "primary"} 
+                      size="small" 
+                      onClick={() => {
+                        const nextState = !isPausedRef.current;
+                        isPausedRef.current = nextState;
+                        setIsPaused(nextState);
+                        
+                        if (!nextState) {
+                          setUploadStatus("active");
+                          setUploadText("Resuming upload...");
+                          processUploadQueue();
+                        } else {
+                          setUploadStatus("normal");
+                        }
+                      }}
+                    >
+                      {isPaused ? <IconifyIcon icon="material-symbols:play-arrow-rounded" sx={{ mr: 0.5 }} /> : <IconifyIcon icon="material-symbols:pause-rounded" sx={{ mr: 0.5 }} />}
+                      {isPaused ? "Resume" : "Pause"}
+                    </Button>
+                  )}
+                  <Typography variant="body2" color="text.secondary" sx={{ minWidth: 40, textAlign: 'right' }}>
+                    {overallProgress}%
+                  </Typography>
+                </Stack>
+
               </div>
-              <Progress
-                percent={overallProgress}
-                status={uploadStatus}
-                showInfo={false}
-                size={["100%", 10]}
-                strokeColor={{
-                  '0%': '#108ee9',
-                  '100%': '#87d068',
-                }}
+              <Progress 
+                percent={overallProgress} 
+                status={uploadStatus} 
+                showInfo={false} 
+                size={["100%", 10]} 
+                strokeColor={{ '0%': '#108ee9', '100%': '#87d068' }} 
               />
             </div>
           )}
@@ -1061,9 +1303,14 @@ export default function DocFileRegister() {
               Want to upload an entire folder structure?
             </Typography>
             <Upload
-              beforeUpload={(f) => { 
-                f.customRelativePath = f.webkitRelativePath || f.name; 
-                startBatchUpload([f]); 
+              beforeUpload={(f, fileList) => { 
+                if (fileList.indexOf(f) === 0) {
+                  const mappedList = fileList.map(fileItem => {
+                    fileItem.customRelativePath = fileItem.webkitRelativePath || fileItem.name; 
+                    return fileItem;
+                  });
+                  startBatchUpload(mappedList); 
+                }
                 return false; 
               }}
               showUploadList={false}
@@ -1095,6 +1342,31 @@ export default function DocFileRegister() {
             value={newFolderName}
             onChange={(e) => setNewFolderName(e.target.value)}
             onPressEnter={createFolder}
+          />
+        </Modal>
+
+        {/* Rename Modal */}
+        <Modal
+          title={`Rename ${renamingItem?.kind === "folder" ? "folder" : "file"}`}
+          open={renameModalOpen}
+          onOk={submitRename}
+          confirmLoading={isRenaming}
+          onCancel={() => setRenameModalOpen(false)}
+          okText="Rename"
+        >
+          <Input
+            autoFocus
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onPressEnter={submitRename}
+            onFocus={(e) => {
+               // Auto-select text excluding extension if it's a file
+               if (renamingItem?.kind === 'file' && renameValue.includes('.')) {
+                  e.target.setSelectionRange(0, renameValue.lastIndexOf('.'));
+               } else {
+                  e.target.select();
+               }
+            }}
           />
         </Modal>
 
@@ -1163,12 +1435,96 @@ export default function DocFileRegister() {
           </Typography>
         </Modal>
 
+        {/* Duplicate Resolver Modal */}
         <Modal
-          title={
-            <span style={{ color: '#ff4d4f' }}>
-              Upload Blocked
-            </span>
+          title={<span style={{ color: '#faad14' }}>Items Already Exist</span>}
+          open={!!duplicatePrompt}
+          onCancel={() => setDuplicatePrompt(null)}
+          footer={
+            <Stack direction="row" spacing={1} justifyContent="flex-end">
+              <Button onClick={() => setDuplicatePrompt(null)} color="inherit">Cancel</Button>
+              
+              <Button 
+                onClick={() => {
+                  const filesToKeep = duplicatePrompt.originalFiles.filter(file => {
+                    const actualPath = file.customRelativePath || file.name;
+                    const topLevelName = actualPath.includes('/') ? actualPath.split('/')[0] : file.name;
+                    return !duplicatePrompt.duplicateFiles.includes(topLevelName) && !duplicatePrompt.duplicateFolders.includes(topLevelName);
+                  });
+                  setDuplicatePrompt(null);
+                  if (filesToKeep.length > 0) proceedWithBatch(filesToKeep);
+                  else message.info("No files left to upload.");
+                }}
+              >
+                Skip Existing
+              </Button>
+
+              {duplicatePrompt?.duplicateFolders.length > 0 && (
+                <Button 
+                  variant="contained" 
+                  color="primary"
+                  onClick={() => {
+                    const filesToKeep = duplicatePrompt.originalFiles.filter(file => {
+                      const actualPath = file.customRelativePath || file.name;
+                      const isFolderUpload = actualPath.includes('/');
+                      const topLevelName = isFolderUpload ? actualPath.split('/')[0] : file.name;
+                      
+                      if (!isFolderUpload && duplicatePrompt.duplicateFiles.includes(topLevelName)) return false;
+                      return true; 
+                    });
+                    setDuplicatePrompt(null);
+                    if (filesToKeep.length > 0) proceedWithBatch(filesToKeep);
+                    else message.info("No files left to upload.");
+                  }}
+                >
+                  Merge Folders & Skip Files
+                </Button>
+              )}
+            </Stack>
           }
+          centered
+          zIndex={3000}
+        >
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Some items you are trying to upload already exist in this folder:
+          </Typography>
+          
+          {duplicatePrompt?.duplicateFiles?.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" color="error">Files:</Typography>
+              <Typography variant="body2">{duplicatePrompt.duplicateFiles.join(', ')}</Typography>
+            </Box>
+          )}
+          
+          {duplicatePrompt?.duplicateFolders?.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" color="warning.main">Folders:</Typography>
+              <Typography variant="body2">{duplicatePrompt.duplicateFolders.join(', ')}</Typography>
+            </Box>
+          )}
+
+          <Typography variant="body2" color="text.secondary">
+            Choose how you would like to proceed with the remaining items.
+          </Typography>
+        </Modal>
+
+        <Modal
+          title={<span style={{ color: '#ff4d4f' }}>Folder already exists</span>}
+          open={!!createFolderWarning}
+          onOk={() => setCreateFolderWarning(null)}
+          onCancel={() => setCreateFolderWarning(null)}
+          okText="Understood"
+          cancelButtonProps={{ style: { display: 'none' } }}
+          centered
+          zIndex={3000}
+        >
+          <Typography variant="body1">
+            A folder named <strong>{createFolderWarning}</strong> already exists in this location. Please choose a different name.
+          </Typography>
+        </Modal>
+
+        <Modal
+          title={<span style={{ color: '#ff4d4f' }}>Upload Blocked</span>}
           open={!!uploadErrorMessage}
           onOk={() => setUploadErrorMessage(null)}
           onCancel={() => setUploadErrorMessage(null)}
