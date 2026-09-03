@@ -91,18 +91,32 @@ const EnhancedTableToolbar = (props) => {
             sx={{
                 pl: { sm: 2 },
                 pr: { xs: 1, sm: 1 },
-                mb: 1,
+                mb: 1, 
             }}
         >
-            {numSelected > 0 ? (
-                <Typography sx={{ flex: '1 1 100%' }} color="primary" variant="subtitle1" component="div" fontWeight={600}>
-                    {numSelected} selected
-                </Typography>
-            ) : (
-                <Box sx={{ flex: '1 1 100%' }}>
-                    {title}
-                </Box>
-            )}
+            {/* FIXED: Keep the title (breadcrumbs) visible, and append the selection count next to it */}
+            <Box sx={{ flex: '1 1 100%', display: 'flex', alignItems: 'center' }}>
+                {title}
+                
+                {numSelected > 0 && (
+                    <Typography 
+                        color="primary" 
+                        variant="subtitle2" 
+                        component="div" 
+                        fontWeight={600}
+                        sx={{ 
+                            ml: 2, 
+                            pl: 2, 
+                            borderLeft: '2px solid', 
+                            borderColor: 'divider',
+                            display: 'flex',
+                            alignItems: 'center'
+                        }}
+                    >
+                        {numSelected} selected
+                    </Typography>
+                )}
+            </Box>
 
             {actionNode && (
                 <Box sx={{ flexShrink: 0, ml: 2 }}>

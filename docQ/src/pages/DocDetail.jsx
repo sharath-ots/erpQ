@@ -570,7 +570,12 @@ export default function DocDetail({ documentId }) {
       </Box>
 
       {/* Modals & Drawers */}
-      <DocSharePanel documentId={documentId} documentTitle={doc.title} open={shareOpen} onClose={() => setShareOpen(false)} onChanged={load} />
+      <DocSharePanel 
+        items={[{ id: documentId, title: doc.title || "Document", type: "document" }]} 
+        open={shareOpen} 
+        onClose={() => setShareOpen(false)} 
+        onChanged={load} 
+      />
       <DocRevokePanel open={revokeOpen} documentId={documentId} documentTitle={doc.title} currentAuthor={doc.author_email} versionLabel={doc.version_label} users={users} onClose={() => setRevokeOpen(false)} onRevoked={() => { setRevokeOpen(false); load(); }} />
 
       {/* Snapshot Drawer */}
